@@ -89,3 +89,7 @@ arrests_df <-
   select(-hours_since_last, -hours_until_next, -within_24hrs_prior, -within_24hrs_next)
 
 arrow::write_feather(arrests_df, "arrests-latest.feather")
+writexl::write_xlsx(arrests_df, "arrests-latest.xlsx")
+haven::write_dta(arrests_df, "arrests-latest.dta")
+haven::write_sav(arrests_df, "arrests-latest.sav")
+readr::write_csv(arrests_df, "arrests-latest.csv")
