@@ -6,14 +6,14 @@ library(tidylog)
 library(readxl)
 library(glue)
 library(lubridate)
+
 # ---- Functions ----
 source("clean/functions/guess_column_types_across_sheets.R")
 source("clean/functions/check_dttm_and_convert_to_date.R")
 source("clean/functions/is_not_blank_or_redacted.R")
 
+# read in to temporary file
 url <- "https://ucla.app.box.com/index.php?rm=box_download_shared_file&shared_name=9d8qnnduhus4bd5mwqt7l95kz34fic2v&file_id=f_1922082018423"
-
-# read in to tmp file
 f <- tempfile(fileext = ".xlsx")
 download.file(url, f, mode = "wb")
 
@@ -64,7 +64,10 @@ arrests_df <-
     apprehension_date_time = apprehension_date,
     apprehension_date = as.Date(apprehension_date_time),
     # convert birth year to integer
+    birth_year = as.integer(birth_year)
   )
+
+# construct a duplicates indicator if there are two (or more) arrests within 24 hours of each other
 
 library(data.table)
 setDT(arrests_df)
@@ -78,7 +81,6 @@ arrests_df[, `:=`(
 arrests_df <- 
   arrests_df |> 
   as_tibble() |> 
-  # construct a duplicates indicator if there are two (or more) arrests within 24 hours of each other
   mutate(
     within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
     within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
