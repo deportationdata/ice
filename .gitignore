@@ -49,3 +49,7 @@ po/*~
 rsconnect/
 
 *.feather
+*.xlsx
+*.csv
+*.dta
+*.sav
