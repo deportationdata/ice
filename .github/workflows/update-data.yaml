@@ -5,6 +5,9 @@ on:
     paths:
       - 'clean/**'
 
+permissions:
+  contents: write
+
 jobs:
   run-and-release:
     runs-on: ubuntu-latest
