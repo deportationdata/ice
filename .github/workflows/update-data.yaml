@@ -3,7 +3,7 @@ name: Run Changed Scripts and Create Release
 on:
   push:
     paths:
-      - 'scripts/**'
+      - 'clean/**'
 
 jobs:
   run-and-release:
@@ -22,7 +22,7 @@ jobs:
       - name: Get changed R scripts
         id: changed
         run: |
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^scripts/' | grep '\.R$' || true)
+          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^clean/' | grep '\.R$' || true)
           echo "Changed files:"
           echo "$FILES"
           echo "files<<EOF" >> $GITHUB_OUTPUT
@@ -32,14 +32,13 @@ jobs:
       - name: Run changed R scripts
         if: steps.changed.outputs.files != ''
         run: |
-          mkdir outputs
           echo "${{ steps.changed.outputs.files }}" | while read file; do
             echo "Running $file"
             Rscript "$file"
           done
 
-      - name: List .feather files
-        run: ls -lh outputs/*.feather || echo "No .feather files found"
+      - name: List data files
+        run: ls -lh outputs/* || echo "No data files found"
 
       - name: Create GitHub Release
         id: create_release
@@ -52,13 +51,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload all .feather files to release using curl
+      - name: Upload all data files to release using curl
         if: steps.changed.outputs.files != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPLOAD_URL: ${{ steps.create_release.outputs.upload_url }}
         run: |
-          for file in outputs/*.feather; do
+          for file in outputs/*; do
             if [[ -f "$file" ]]; then
               echo "Uploading $file"
               curl -sSL \
@@ -68,6 +67,6 @@ jobs:
                 --data-binary @"$file" \
                 "${UPLOAD_URL}?name=$(basename "$file")"
             else
-              echo "No .feather file to upload for $file"
+              echo "No data file to upload for $file"
             fi
           done
