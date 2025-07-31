@@ -10,37 +10,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up R
-        uses: r-lib/actions/setup-r@v2
+      - run: git fetch --unshallow || true
 
-      - name: Create outputs directory
-        run: mkdir -p outputs
+      - uses: r-lib/actions/setup-r@v2
 
-      - name: Fetch full git history for diff
-        run: git fetch --unshallow || true
+      - uses: r-lib/actions/setup-renv@v2
 
-      - name: Get changed R scripts
-        id: changed
+      - run: mkdir -p outputs
+
+      - id: changed-scripts
         run: |
           FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^clean/' | grep '\.R$' || true)
           echo "files<<EOF" >> $GITHUB_OUTPUT
           echo "$FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Run changed R scripts
-        if: steps.changed.outputs.files != ''
-        run: |
-          echo "${{ steps.changed.outputs.files }}" | while read file; do
+      - run: |
+          echo "${{ steps.changed-scripts.outputs.files }}" | while read file; do
             echo "Running $file"
             Rscript "$file"
           done
+        if: steps.changed-scripts.outputs.files != ''
 
-      - name: Create release and upload data files
-        if: steps.changed.outputs.files != ''
-        uses: ncipollo/release-action@v1
+      - uses: ncipollo/release-action@v1
+        if: steps.changed-scripts.outputs.files != ''
         with:
           tag: auto-${{ github.sha }}
           name: "Auto Release ${{ github.sha }}"
