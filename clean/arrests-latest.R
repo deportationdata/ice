@@ -60,7 +60,8 @@ arrests_df <-
     birth_year = as.integer(birth_year)
   )
 
-# construct a duplicates indicator if there are two (or more) arrests within 24 hours of each other
+# ---- Construct Duplicates Indicator ----
+# two (or more) arrests within 24 hours of each other
 
 library(data.table)
 setDT(arrests_df)
