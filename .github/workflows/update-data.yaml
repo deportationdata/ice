@@ -19,6 +19,9 @@ jobs:
       - name: Create outputs directory
         run: mkdir -p outputs
 
+      - name: Fetch full git history for diff
+        run: git fetch --unshallow || true
+
       - name: Get changed R scripts
         id: changed
         run: |
