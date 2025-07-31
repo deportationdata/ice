@@ -16,15 +16,13 @@ jobs:
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
 
-      - name: Create outputs/ directory
+      - name: Create outputs directory
         run: mkdir -p outputs
 
       - name: Get changed R scripts
         id: changed
         run: |
           FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^clean/' | grep '\.R$' || true)
-          echo "Changed files:"
-          echo "$FILES"
           echo "files<<EOF" >> $GITHUB_OUTPUT
           echo "$FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -37,36 +35,17 @@ jobs:
             Rscript "$file"
           done
 
-      - name: List data files
-        run: ls -lh outputs/* || echo "No data files found"
-
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: auto-${{ github.sha }}
-          release_name: "Auto release ${{ github.sha }}"
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload all data files to release using curl
+      - name: Create release and upload data files
         if: steps.changed.outputs.files != ''
+        uses: ncipollo/release-action@v1
+        with:
+          tag: auto-${{ github.sha }}
+          name: "Auto Release ${{ github.sha }}"
+          artifacts: |
+            outputs/*.xlsx
+            outputs/*.feather
+            outputs/*.sav
+            outputs/*.dta
+          generateReleaseNotes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UPLOAD_URL: ${{ steps.create_release.outputs.upload_url }}
-        run: |
-          for file in outputs/*; do
-            if [[ -f "$file" ]]; then
-              echo "Uploading $file"
-              curl -sSL \
-                -X POST \
-                -H "Authorization: token $GITHUB_TOKEN" \
-                -H "Content-Type: application/octet-stream" \
-                --data-binary @"$file" \
-                "${UPLOAD_URL}?name=$(basename "$file")"
-            else
-              echo "No data file to upload for $file"
-            fi
-          done
