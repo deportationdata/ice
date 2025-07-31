@@ -1,5 +1,3 @@
-
-
 # ---- Packages ----
 library(tidyverse)
 library(tidylog)
@@ -8,11 +6,10 @@ library(glue)
 library(lubridate)
 
 # ---- Functions ----
-source("clean/functions/guess_column_types_across_sheets.R")
 source("clean/functions/check_dttm_and_convert_to_date.R")
 source("clean/functions/is_not_blank_or_redacted.R")
 
-# read in to temporary file
+# ---- Read in to temporary file ----
 url <- "https://ucla.app.box.com/index.php?rm=box_download_shared_file&shared_name=9d8qnnduhus4bd5mwqt7l95kz34fic2v&file_id=f_1922082018423"
 f <- tempfile(fileext = ".xlsx")
 download.file(url, f, mode = "wb")
@@ -84,12 +81,14 @@ arrests_df <-
   mutate(
     within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
     within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
-    dupe_flag = case_when(!is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next)
+    dupe_flag = case_when(!is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next),
+    .keep = "unused"
   ) |>
-  select(-hours_since_last, -hours_until_next, -within_24hrs_prior, -within_24hrs_next)
+  select(-hours_since_last, -hours_until_next)
 
-arrow::write_feather(arrests_df, "arrests-latest.feather")
-writexl::write_xlsx(arrests_df, "arrests-latest.xlsx")
-haven::write_dta(arrests_df, "arrests-latest.dta")
-haven::write_sav(arrests_df, "arrests-latest.sav")
-readr::write_csv(arrests_df, "arrests-latest.csv")
+# ---- Save Outputs ----
+
+arrow::write_feather(arrests_df, "outputs/arrests-latest.feather")
+writexl::write_xlsx(arrests_df, "outputs/arrests-latest.xlsx")
+haven::write_dta(arrests_df, "outputs/arrests-latest.dta")
+haven::write_sav(arrests_df, "outputs/arrests-latest.sav")
