@@ -80,8 +80,8 @@ arrests_df <-
     within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
     within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
     duplicate_possible = case_when(!is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next),
-    .keep = "unused"
-  ) 
+  ) |> 
+  select(-within_24hrs_prior, -within_24hrs_next, -hours_since_last, -hours_until_next)
 
 # ---- Save Outputs ----
 
