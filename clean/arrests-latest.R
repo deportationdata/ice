@@ -81,11 +81,12 @@ arrests_df <-
     within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
     duplicate_possible = case_when(!is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next),
     .keep = "unused"
-  )
+  ) |> 
+  select(-hours_since_last, -hours_until_next)
 
 # ---- Save Outputs ----
 
 arrow::write_feather(arrests_df, "outputs/arrests-latest.feather")
-# writexl::write_xlsx(arrests_df, "outputs/arrests-latest.xlsx")
+writexl::write_xlsx(arrests_df, "outputs/arrests-latest.xlsx")
 haven::write_dta(arrests_df, "outputs/arrests-latest.dta")
 haven::write_sav(arrests_df, "outputs/arrests-latest.sav")
