@@ -7,7 +7,7 @@ source("clean/functions/check_dttm_and_convert_to_date.R")
 source("clean/functions/is_not_blank_or_redacted.R")
 
 # ---- Read in to temporary file ----
-url <- "https://ucla.app.box.com/index.php?rm=box_download_shared_file&shared_name=9d8qnnduhus4bd5mwqt7l95kz34fic2v&file_id=f_1922082018423"
+url <- "https://ucla.box.com/shared/static/oztwzsxc45ngwi26vk98o2l7g7tpwcjw.xlsx"
 f <- tempfile(fileext = ".xlsx")
 download.file(url, f, mode = "wb")
 
@@ -44,7 +44,7 @@ arrests_df <-
   # clean names
   janitor::clean_names(allow_dupes = FALSE) |>
   # add file name
-  mutate(file = "2025-ICLI-00019_2024-ICFO-39357_ERO Admin Arrests_raw.xlsx") |>
+  mutate(file = "2025-ICLI-00019_2024-ICFO-39357_ERO Admin Arrests_LESA-STU_FINAL Redacted.xlsx") |>
   # add sheets indicator
   mutate(sheet = "Admin Arrests") |> 
   # add row number from original file
