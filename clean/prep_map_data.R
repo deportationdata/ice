@@ -1,4 +1,3 @@
-setwd("~/Dropbox/deportationdata")
 library(tidyverse)
 library(sf)
 library(tigris)
