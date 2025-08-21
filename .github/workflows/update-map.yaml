@@ -3,7 +3,7 @@ name: Run Changed Map Script and Create Release
 on:
   push:
     paths:
-      - 'clean/**'
+      - 'maps/**'
 
 permissions:
   contents: write
