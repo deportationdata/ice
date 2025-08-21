@@ -6,6 +6,8 @@ library(tidylog)
 source("clean/functions/check_dttm_and_convert_to_date.R")
 source("clean/functions/is_not_blank_or_redacted.R")
 
+# ---- Read in to temporary file ----
+
 temp_dir <- tempdir(check = TRUE)
 unlink(temp_dir, recursive = TRUE)
 dir.create(temp_dir)
@@ -77,6 +79,8 @@ detentions_df <-
     across(where(~inherits(., "POSIXt")), check_dttm_and_convert_to_date)
   ) |> 
   relocate(file, sheet, row, .after = last_col())
+
+# ---- Save Outputs ----
 
 arrow::write_feather(detentions_df, "outputs/ice-detentions-2012-2023.feather")
 haven::write_dta(detentions_df, "outputs/ice-detentions-2012-2023.dta")
