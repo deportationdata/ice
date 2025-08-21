@@ -18,7 +18,7 @@ download.file(url_17_23, f_17_23, mode = "wb")
 col_types <- c(
   "date",    # Apprehension Date
   "text",    # Apprehension Method
-  "text", # Arrest Created By
+  "text",    # Arrest Created By
   "text",    # Case ID
   "text",    # Subject ID
   "text",    # Alien File Number
