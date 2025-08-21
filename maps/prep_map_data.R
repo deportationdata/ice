@@ -122,6 +122,7 @@ field_offices <- st_as_sf(field_offices, coords = c("long", "lat"), crs = 4269)
 field_offices <- st_transform(field_offices, st_crs(mainland))
 
 st_write(map_data, "inputs/ice_field_offices_geocoded.shp", append = FALSE)
+
 zip(zipfile = "outputs/ice_field_offices_geocoded.zip",
     files = c("inputs/ice_field_offices_geocoded.shp", "inputs/ice_field_offices_geocoded.dbf", 
               "inputs/ice_field_offices_geocoded.prj", "inputs/ice_field_offices_geocoded.shx"))
