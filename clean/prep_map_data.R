@@ -1,3 +1,5 @@
+# This script prepares shape files for the ICE AOR map
+
 library(tidyverse)
 library(sf)
 library(tigris)
