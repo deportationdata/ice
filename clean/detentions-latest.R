@@ -56,7 +56,7 @@ detentions_df <-
   set_names() |> 
   map_dfr(~readxl::read_excel(path = f, sheet = 1, col_types = col_types, skip = 6), .id = "sheet")
 
-detentions_df2 <- 
+detentions_df <- 
   detentions_df |> 
   # clean names
   janitor::clean_names(allow_dupes = FALSE) |>
