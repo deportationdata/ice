@@ -1,7 +1,6 @@
 library(tidyverse)
 library(sf)
 library(tigris)
-library(tidygeocoder)
 library(sfarrow)
 
 # Function for shifting a state/territory x, y meters
