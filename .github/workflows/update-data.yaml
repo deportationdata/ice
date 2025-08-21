@@ -25,7 +25,7 @@ jobs:
 
       - id: changed-scripts
         run: |
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^clean/' | grep '\.R$' || true)
+          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^clean/' | grep -v '^clean/prep_map_data\.R$' | grep '\.R$' || true)
           echo "files<<EOF" >> $GITHUB_OUTPUT
           echo "$FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
