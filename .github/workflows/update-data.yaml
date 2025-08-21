@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   run-and-release:
-    runs-on: ubuntu-latest
+    runs-on: large-runner
 
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +33,7 @@ jobs:
       - run: |
           echo "${{ steps.changed-scripts.outputs.files }}" | while read file; do
             echo "Running $file"
-            Rscript "$file"
+            Rscript --verbose "$file"
           done
         if: steps.changed-scripts.outputs.files != ''
 
