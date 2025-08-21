@@ -11,16 +11,20 @@ permissions:
 jobs:
   run-and-release:
     runs-on: ubuntu-latest
-    container:
-      image: rocker/geospatial:latest
 
     steps:
       - name: Install system dependencies
         run: |
           apt-get update
           apt-get install -y \
-            libudunits2
-            libudunits2-dev
+          libgdal-dev \
+          libgeos-dev \
+          libproj-dev \
+          libudunits2-dev \
+          libudunits2 \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          zlib1g-dev
       
       - uses: actions/checkout@v4
 
