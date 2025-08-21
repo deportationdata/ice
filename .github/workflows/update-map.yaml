@@ -18,7 +18,9 @@ jobs:
       - name: Install system dependencies
         run: |
           apt-get update
-          apt-get install -y libudunits2-dev
+          apt-get install -y \
+            libudunits2
+            libudunits2-dev
       
       - uses: actions/checkout@v4
 
