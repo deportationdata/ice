@@ -102,7 +102,7 @@ map_data[map_data$STUSPS == "VI", "aor"] <- "MIA"
 map_data[map_data$STUSPS %in% c("MP", "GU"), "aor"] <- "SFR"
 
 map_data <- map_data %>%
-  # American Samoa has missing AOR
+  # American Samoa is not in an AOR
   filter(!is.na(aor)) %>%
   select(STATEFP, COUNTYFP, NAME, STUSPS, aor, geometry)
 
