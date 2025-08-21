@@ -15,6 +15,11 @@ jobs:
       image: rocker/geospatial:latest
 
     steps:
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y libudunits2-dev
+      
       - uses: actions/checkout@v4
 
       - run: git fetch --unshallow || true
