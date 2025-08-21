@@ -108,8 +108,8 @@ rcas_df2 <-
   relocate(file, sheet, row, .after = last_col())
 
 arrow::write_feather(rcas_df, "outputs/ice-rcas-2012-2023.feather")
-haven::write_dta(rcas_df, "outputs/ice-rcas-2012-2023.dta")
-haven::write_sav(rcas_df, "outputs/ice-rcas-2012-2023.sav")
+# haven::write_dta(rcas_df, "outputs/ice-rcas-2012-2023.dta")
+# haven::write_sav(rcas_df, "outputs/ice-rcas-2012-2023.sav")
 
 rcas_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
