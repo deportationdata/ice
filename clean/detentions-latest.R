@@ -12,43 +12,43 @@ f <- tempfile(fileext = ".xlsx")
 download.file(url, f, mode = "wb")
 
 col_types <- c(
-  "date", # Stay Book In Date Time
-  "date", # Book In Date Time
-  "text", # Detention Facility
-  "text", # Detention Facility Code
-  "date", # Detention Book Out Date Time
-  "date", # Stay Book Out Date Time
-  "text", # Detention Release Reason
-  "date", # Stay Book Out Date
-  "text", # Stay Release Reason
-  "text", # Religion
-  "text", # Gender
-  "text", # Marital Status
-  "text", # Birth Date (redacted)
+  "date",    # Stay Book In Date Time
+  "date",    # Book In Date Time
+  "text",    # Detention Facility
+  "text",    # Detention Facility Code
+  "date",    # Detention Book Out Date Time
+  "date",    # Stay Book Out Date Time
+  "text",    # Detention Release Reason
+  "date",    # Stay Book Out Date
+  "text",    # Stay Release Reason
+  "text",    # Religion
+  "text",    # Gender
+  "text",    # Marital Status
+  "text",    # Birth Date (redacted)
   "numeric", # Birth Year
-  "text", # Ethnicity
-  "text", # Entry Status
-  "text", # Felon
-  "date", # Bond Posted Date
+  "text",    # Ethnicity
+  "text",    # Entry Status
+  "text",    # Felon
+  "date",    # Bond Posted Date
   "numeric", # Bond Posted Amount
-  "text", # Case Status
-  "text", # Case Category
-  "text", # Final Order Yes No
-  "date", # Final Order Date
-  "text", # Case Threat Level
-  "text", # Book In Criminality
-  "text", # Final Charge
-  "date", # Departed Date
-  "text", # Departure Country
+  "text",    # Case Status
+  "text",    # Case Category
+  "text",    # Final Order Yes No
+  "date",    # Final Order Date
+  "text",    # Case Threat Level
+  "text",    # Book In Criminality
+  "text",    # Final Charge
+  "date",    # Departed Date
+  "text",    # Departure Country
   "numeric", # Initial Bond Set Amount
-  "text", # Citizenship Country
-  "text", # Final Program
-  "text", # Most Serious Conviction (MSC) Charge Code
-  "text", # MSC Charge
-  "text", # Alien File Number (redacted)
-  "text", # EID Case ID (redacted)
-  "text", # EID Subject ID (redacted)
-  "text"  # Unique Identifier
+  "text",    # Citizenship Country
+  "text",    # Final Program
+  "text",    # Most Serious Conviction (MSC) Charge Code
+  "text",    # MSC Charge
+  "text",    # Alien File Number (redacted)
+  "text",    # EID Case ID (redacted)
+  "text",    # EID Subject ID (redacted)
+  "text"     # Unique Identifier
 )
 
 detentions_df <- 
@@ -60,6 +60,7 @@ detentions_df <-
   detentions_df |> 
   # clean names
   janitor::clean_names(allow_dupes = FALSE) |>
+  rename(most_serious_conviction_code = most_serious_conviction_msc_charge_code) |>
   # add file name
   mutate(file = "2025-ICLI-00019_2024-ICFO-39357_ICE Detentions_LESA-STU_FINAL Redacted.xlsx") |>
   # add row number from original file
