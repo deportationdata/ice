@@ -75,12 +75,12 @@ removals_df <-
   ) |> 
   relocate(file, sheet, row, .after = last_col())
 
-arrow::write_feather(removals_df, "ice-removals-2012-2023.feather")
-haven::write_dta(removals_df, "ice-removals-2012-2023.dta")
-haven::write_sav(removals_df, "ice-removals-2012-2023.sav")
+arrow::write_feather(removals_df, "outputs/ice-removals-2012-2023.feather")
+haven::write_dta(removals_df, "outputs/ice-removals-2012-2023.dta")
+haven::write_sav(removals_df, "outputs/ice-removals-2012-2023.sav")
 
 removals_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
   group_split(.chunk, .keep = FALSE) |>
   set_names(~str_c("Sheet ", seq_along(.x), "")) |>
-  writexl::write_xlsx("ice-removals-2012-2023.xlsx")
+  writexl::write_xlsx("outputs/ice-removals-2012-2023.xlsx")
