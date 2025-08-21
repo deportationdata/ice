@@ -104,6 +104,7 @@ map_data <- map_data %>%
   filter(!is.na(aor)) %>%
   select(STATEFP, COUNTYFP, NAME, STUSPS, aor, geometry)
 
+# Write shape file and zip
 st_write(map_data, "inputs/ice_aor_map_data.shp", append = FALSE)
 zip(zipfile = "outputs/ice_aor_map_data.zip",
     files = c("inputs/ice_aor_map_data.shp", "inputs/ice_aor_map_data.dbf", 
