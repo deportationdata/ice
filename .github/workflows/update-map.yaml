@@ -11,6 +11,8 @@ permissions:
 jobs:
   run-and-release:
     runs-on: ubuntu-latest
+    container:
+      image: rocker/geospatial:latest
 
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +24,8 @@ jobs:
       - uses: r-lib/actions/setup-renv@v2
 
       - run: mkdir -p outputs
+
+      - run: mkdir -p inputs
 
       - id: changed-scripts
         run: |
@@ -44,6 +48,7 @@ jobs:
           name: "Auto Release ${{ github.sha }}"
           artifacts: |
             outputs/*.feather
+            outputs/*.zip
           generateReleaseNotes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
