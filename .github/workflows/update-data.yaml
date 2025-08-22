@@ -3,7 +3,7 @@ name: Run Changed Scripts and Create Release
 on:
   push:
     paths:
-      - 'clean/**'
+      - 'code/**'
 
 permissions:
   contents: write
@@ -11,6 +11,7 @@ permissions:
 jobs:
   run-and-release:
     runs-on: large-runner
+    container: ${{ contains(github.event.head_commit.modified, 'code/geography.R') && 'rocker/geospatial:latest' || 'ubuntu:latest' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -36,17 +37,3 @@ jobs:
             Rscript --verbose "$file"
           done
         if: steps.changed-scripts.outputs.files != ''
-
-      - uses: ncipollo/release-action@v1
-        if: steps.changed-scripts.outputs.files != ''
-        with:
-          tag: auto-${{ github.sha }}
-          name: "Auto Release ${{ github.sha }}"
-          artifacts: |
-            outputs/*.xlsx
-            outputs/*.feather
-            outputs/*.sav
-            outputs/*.dta
-          generateReleaseNotes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
