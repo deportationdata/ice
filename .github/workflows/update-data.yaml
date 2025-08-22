@@ -29,7 +29,8 @@ jobs:
 
       - uses: r-lib/actions/setup-renv@v2
       
-      - run: mkdir -p outputs
+      - run: | 
+          mkdir -p tmp
 
       - uses: tj-actions/changed-files@v45
         id: cf

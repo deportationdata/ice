@@ -107,12 +107,12 @@ map_data <- map_data %>%
   select(STATEFP, COUNTYFP, NAME, STUSPS, aor, geometry)
 
 # Write shape file and zip
-st_write(map_data, "inputs/ice_aor_map_data.shp", append = FALSE)
-zip(zipfile = "outputs/ice_aor_map_data.zip",
-    files = c("inputs/ice_aor_map_data.shp", "inputs/ice_aor_map_data.dbf", 
-              "inputs/ice_aor_map_data.prj", "inputs/ice_aor_map_data.shx"))
+st_write(map_data, "tmp/ice_aor_map_data.shp", append = FALSE)
+zip(zipfile = "data/ice_aor_map_data.zip",
+    files = c("tmp/ice_aor_map_data.shp", "tmp/ice_aor_map_data.dbf", 
+              "tmp/ice_aor_map_data.prj", "tmp/ice_aor_map_data.shx"))
 
-sfarrow::st_write_feather(map_data, "outputs/ice_aor_map_data.feather")
+sfarrow::st_write_feather(map_data, "data/ice_aor_map_data.feather")
 
 # Read in field office info
 field_offices <- read_csv("https://raw.githubusercontent.com/UWCHR/ice-enforce/refs/heads/main/share/hand/aor_ero_field_office.csv")
@@ -121,10 +121,10 @@ field_offices <- read_csv("https://raw.githubusercontent.com/UWCHR/ice-enforce/r
 field_offices <- st_as_sf(field_offices, coords = c("long", "lat"), crs = 4269)
 field_offices <- st_transform(field_offices, st_crs(mainland))
 
-st_write(map_data, "inputs/ice_field_offices_geocoded.shp", append = FALSE)
+st_write(map_data, "tmp/ice_field_offices_geocoded.shp", append = FALSE)
 
-zip(zipfile = "outputs/ice_field_offices_geocoded.zip",
-    files = c("inputs/ice_field_offices_geocoded.shp", "inputs/ice_field_offices_geocoded.dbf", 
-              "inputs/ice_field_offices_geocoded.prj", "inputs/ice_field_offices_geocoded.shx"))
+zip(zipfile = "data/ice_field_offices_geocoded.zip",
+    files = c("tmp/ice_field_offices_geocoded.shp", "tmp/ice_field_offices_geocoded.dbf", 
+              "tmp/ice_field_offices_geocoded.prj", "tmp/ice_field_offices_geocoded.shx"))
 
-sfarrow::st_write_feather(field_offices, "outputs/ice_field_offices_geocoded.feather")
+sfarrow::st_write_feather(field_offices, "data/ice_field_offices_geocoded.feather")
