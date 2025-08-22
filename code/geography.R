@@ -67,7 +67,7 @@ guam <- counties_sf %>%
   st_transform(9311) %>%
   mutate(
     geometry = geometry * 3,
-    geometry = st_shift(geometry, x = 23250000, y = -13750000)
+    geometry = st_shift(geometry, x = 27750000, y = -16000000)
   ) %>%
   st_set_crs(9311)
 
