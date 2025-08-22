@@ -15,6 +15,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Git LFS
+        run: |
+          git lfs install
+          # Configure LFS to track files in data/ directory
+          git lfs track "data/**"
+          git add .gitattributes
 
       - uses: r-lib/actions/setup-r@v2
 
@@ -47,3 +56,15 @@ jobs:
             echo "Running $f"
             Rscript --verbose "$f"
           done
+
+      - name: Check for new data files and commit to LFS
+        run: |
+          # Add any new files in data/ to git (will be tracked by LFS due to .gitattributes)
+          if [ -n "$(git status --porcelain data/)" ]; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add data/
+            git add .gitattributes
+            git commit -m "Add new data files via LFS [skip ci]" || echo "No changes to commit"
+            git push
+          fi
