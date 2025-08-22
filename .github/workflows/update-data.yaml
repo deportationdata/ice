@@ -19,7 +19,7 @@ jobs:
         with:      
           fetch-depth: 0 
 
-      - uses: r-lib/actions/setup-r@v2
+      # - uses: r-lib/actions/setup-r@v2
 
       - uses: r-lib/actions/setup-renv@v2
 
@@ -27,7 +27,7 @@ jobs:
 
       - id: changed-scripts
         run: |
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^clean/' | grep '\.R$' || true)
+          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^code/' | grep '\.R$' || true)
           echo "files<<EOF" >> $GITHUB_OUTPUT
           echo "$FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
