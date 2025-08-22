@@ -11,7 +11,8 @@ permissions:
 jobs:
   run-and-release:
     runs-on: large-runner
-    container: ${{ contains(github.event.head_commit.modified, 'code/geography.R') && 'rocker/geospatial:latest' || 'ubuntu:latest' }}
+    # container: ${{ contains(github.event.head_commit.modified, 'code/geography.R') && 'rocker/geospatial:4.5.1' || 'ubuntu:latest' }}
+    container: 'rocker/geospatial:4.5.1'
 
     steps:
       - uses: actions/checkout@v4
