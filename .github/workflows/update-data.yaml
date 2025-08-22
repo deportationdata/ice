@@ -35,7 +35,8 @@ jobs:
         id: cf
         with:
           files: |
-            code/**/*.R          # only care about R files under code/
+            code/*.R
+            code/**/*.R
 
       - name: Run changed R scripts
         if: steps.cf.outputs.any_changed == 'true'
