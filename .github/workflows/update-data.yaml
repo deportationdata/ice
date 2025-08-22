@@ -16,8 +16,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:      
-          fetch-depth: 0 
 
       # - uses: r-lib/actions/setup-r@v2
 
@@ -26,15 +24,27 @@ jobs:
       - run: mkdir -p outputs
 
       - id: changed-scripts
+        shell: bash
         run: |
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^code/' | grep '\.R$' || true)
-          echo "files<<EOF" >> $GITHUB_OUTPUT
-          echo "$FILES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          # Ensure we have the remote branch ref
+          git fetch --no-tags --prune origin "+refs/heads/${GITHUB_REF_NAME}:refs/remotes/origin/${GITHUB_REF_NAME}"
+          # Base = common ancestor of current HEAD and remote branch
+          BASE=$(git merge-base HEAD origin/${GITHUB_REF_NAME})
+          FILES=$(git diff --name-only "$BASE" HEAD | grep '^code/.*\.R$' || true)
+          {
+            echo "files<<'EOF'"
+            echo "$FILES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - run: |
-          echo "${{ steps.changed-scripts.outputs.files }}" | while read file; do
-            echo "Running $file"
-            Rscript --verbose "$file"
-          done
+      - name: Run changed R scripts
         if: steps.changed-scripts.outputs.files != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${{ steps.changed-scripts.outputs.files }}" | while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            echo "Running $f"
+            Rscript --verbose "$f"
+          done
