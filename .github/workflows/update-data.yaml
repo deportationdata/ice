@@ -12,7 +12,6 @@ jobs:
   run-and-release:
     runs-on: large-runner
     # container: ${{ contains(github.event.head_commit.modified, 'code/geography.R') && 'rocker/geospatial:4.5.1' || 'ubuntu:latest' }}
-    container: 'rocker/geospatial:4.5.1'
 
     steps:
       - uses: actions/checkout@v4
@@ -22,9 +21,6 @@ jobs:
       - uses: r-lib/actions/setup-renv@v2
 
       - run: mkdir -p outputs
-
-      - name: Mark repo as safe
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: tj-actions/changed-files@v45
         id: cf
