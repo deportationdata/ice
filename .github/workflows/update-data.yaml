@@ -11,7 +11,6 @@ permissions:
 jobs:
   run-and-release:
     runs-on: large-runner
-    # container: ${{ contains(github.event.head_commit.modified, 'code/geography.R') && 'rocker/geospatial:4.5.1' || 'ubuntu:latest' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +27,7 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
 
       - name: Install OS libs for sf
+        if: contains(steps.cf.outputs.all_changed_files, 'code/geography.R')
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -40,7 +40,6 @@ jobs:
       
       - run: | 
           mkdir -p tmp
-          mkdir -p data
 
       - uses: tj-actions/changed-files@v45
         id: cf
