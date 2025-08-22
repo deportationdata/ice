@@ -128,5 +128,3 @@ zip(zipfile = "outputs/ice_field_offices_geocoded.zip",
               "inputs/ice_field_offices_geocoded.prj", "inputs/ice_field_offices_geocoded.shx"))
 
 sfarrow::st_write_feather(field_offices, "outputs/ice_field_offices_geocoded.feather")
-
-# test
