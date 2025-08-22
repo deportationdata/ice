@@ -4,7 +4,6 @@ library(tidyverse)
 library(sf)
 library(tigris)
 library(sfarrow)
-library(tools)
 
 # Function for shifting a state/territory x, y meters
 st_shift <- function(sf_object, x = 0, y = 0) {
