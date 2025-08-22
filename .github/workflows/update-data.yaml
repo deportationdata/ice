@@ -31,6 +31,7 @@ jobs:
       
       - run: | 
           mkdir -p tmp
+          mkdir -p data
 
       - uses: tj-actions/changed-files@v45
         id: cf
