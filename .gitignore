@@ -47,9 +47,3 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
-
-*.feather
-*.xlsx
-*.csv
-*.dta
-*.sav
