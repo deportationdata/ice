@@ -20,11 +20,11 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: sf
-          needs: install
+          extra-packages: any::sf   # tells it which sysreqs to resolve
+          needs: sysreqs            # only installs sysreqs, not R packages
 
       - uses: r-lib/actions/setup-renv@v2
-
+      
       - run: mkdir -p outputs
 
       - uses: tj-actions/changed-files@v45
