@@ -20,7 +20,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::sf   # tells it which sysreqs to resolve
+          extra-packages: sf   # tells it which sysreqs to resolve
           needs: sysreqs            # only installs sysreqs, not R packages
 
       - uses: r-lib/actions/setup-renv@v2
