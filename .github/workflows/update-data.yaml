@@ -23,12 +23,15 @@ jobs:
 
       - run: mkdir -p outputs
 
+      - name: Mark repo as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: tj-actions/changed-files@v45
         id: cf
         with:
           files: |
             code/**/*.R          # only care about R files under code/
-      
+
       - name: Run changed R scripts
         if: steps.cf.outputs.any_changed == 'true'
         run: |
