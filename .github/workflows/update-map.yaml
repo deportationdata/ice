@@ -3,7 +3,7 @@ name: Run Changed Map Script and Create Release
 on:
   push:
     paths:
-      - 'maps/**'
+      - 'maps/prep_map_data.R'
 
 permissions:
   contents: write
@@ -17,29 +17,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: git fetch --unshallow || true
-
       - uses: r-lib/actions/setup-r@v2
 
       - uses: r-lib/actions/setup-renv@v2
 
-      - run: mkdir -p outputs
+      - run: | 
+          mkdir -p outputs
+          mkdir -p inputs
 
-      - run: mkdir -p inputs
-
-      - id: changed-scripts
-        run: |
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^clean/prep_map' | grep '\.R$' || true)
-          echo "files<<EOF" >> $GITHUB_OUTPUT
-          echo "$FILES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - run: |
-          echo "${{ steps.changed-scripts.outputs.files }}" | while read file; do
-            echo "Running $file"
-            Rscript "$file"
-          done
-        if: steps.changed-scripts.outputs.files != ''
+      - run: Rscript --verbose maps/prep_map_data.R
 
       - uses: ncipollo/release-action@v1
         if: steps.changed-scripts.outputs.files != ''

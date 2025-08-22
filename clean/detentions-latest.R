@@ -54,7 +54,7 @@ col_types <- c(
 detentions_df <- 
   readxl::excel_sheets(path = f) |> 
   set_names() |> 
-  map_dfr(~readxl::read_excel(path = f, sheet = 1, col_types = col_types, skip = 6), .id = "sheet")
+  map_dfr(~readxl::read_excel(path = f, sheet = .x, col_types = col_types, skip = 6), .id = "sheet")
 
 detentions_df <- 
   detentions_df |> 
@@ -89,3 +89,21 @@ detentions_df |>
   group_split(.chunk, .keep = FALSE) |>
   set_names(~str_c("Detentions (Sheet ", seq_along(.x), ")")) |>
   writexl::write_xlsx("outputs/detentions-latest.xlsx")
+
+
+# create stay-level data frame
+
+stay_df <- 
+  detentions_df |> 
+  group_by(stay_ID, stay_book_in_date_time, unique_identifier) |> 
+  summarise(
+    across(
+      c(
+        stay_book_out_date_time, stay_book_out_date,
+        detention_release_reason, stay_release_reason, 
+        departed_date, departure_country
+      ),
+      ~first(na.omit(.x))
+    ),
+    .groups = "drop"
+  )
