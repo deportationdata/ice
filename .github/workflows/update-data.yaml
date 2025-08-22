@@ -23,28 +23,16 @@ jobs:
 
       - run: mkdir -p outputs
 
-      - id: changed-scripts
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Ensure we have the remote branch ref
-          git fetch --no-tags --prune origin "+refs/heads/${GITHUB_REF_NAME}:refs/remotes/origin/${GITHUB_REF_NAME}"
-          # Base = common ancestor of current HEAD and remote branch
-          BASE=$(git merge-base HEAD origin/${GITHUB_REF_NAME})
-          FILES=$(git diff --name-only "$BASE" HEAD | grep '^code/.*\.R$' || true)
-          {
-            echo "files<<'EOF'"
-            echo "$FILES"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
+      - uses: tj-actions/changed-files@v45
+        id: cf
+        with:
+          files: |
+            code/**/*.R          # only care about R files under code/
+      
       - name: Run changed R scripts
-        if: steps.changed-scripts.outputs.files != ''
-        shell: bash
+        if: steps.cf.outputs.any_changed == 'true'
         run: |
-          set -euo pipefail
-          echo "${{ steps.changed-scripts.outputs.files }}" | while IFS= read -r f; do
-            [[ -z "$f" ]] && continue
+          for f in ${{ steps.cf.outputs.all_changed_files }}; do
             echo "Running $f"
             Rscript --verbose "$f"
           done
