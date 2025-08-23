@@ -3,8 +3,8 @@ library(tidyverse)
 library(tidylog)
 
 # ---- Functions ----
-source("clean/functions/check_dttm_and_convert_to_date.R")
-source("clean/functions/is_not_blank_or_redacted.R")
+source("code/functions/check_dttm_and_convert_to_date.R")
+source("code/functions/is_not_blank_or_redacted.R")
 
 # ---- Read in to temporary file ----
 url <- "https://ucla.box.com/shared/static/k699orsf5wm8i9ehr1x4foownlj5zuyn.xlsx"
