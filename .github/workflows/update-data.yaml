@@ -1,4 +1,4 @@
-name: Run Changed Scripts and Create Release
+name: Run Changed Scripts and Update Data
 
 on:
   push:
@@ -9,8 +9,38 @@ permissions:
   contents: write
 
 jobs:
-  run-and-release:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has-changes: ${{ steps.cf.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: tj-actions/changed-files@v45
+        id: cf
+        with:
+          files: |
+            code/*.R
+            code/**/*.R
+          json: true
+          escape_json: false
+      
+      - id: set-matrix
+        run: |
+          if [[ '${{ steps.cf.outputs.all_changed_files }}' == '[]' ]]; then
+            echo "matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+          else
+            echo "matrix={\"include\":${{ steps.cf.outputs.all_changed_files }}}" >> $GITHUB_OUTPUT
+          fi
+
+  run-scripts:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
     runs-on: large-runner
+    strategy:
+      matrix:
+        script: ${{ fromJson(needs.detect-changes.outputs.matrix.include) }}
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
@@ -29,15 +59,8 @@ jobs:
       - run: | 
           mkdir -p tmp
 
-      - uses: tj-actions/changed-files@v45
-        id: cf
-        with:
-          files: |
-            code/*.R
-            code/**/*.R
-
       - name: Install OS libs for sf
-        if: contains(steps.cf.outputs.all_changed_files, 'code/geography.R')
+        if: matrix.script == 'code/geography.R'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -48,13 +71,10 @@ jobs:
 
       - uses: r-lib/actions/setup-renv@v2
 
-      - name: Run changed R scripts
-        if: steps.cf.outputs.any_changed == 'true'
+      - name: Run R script
         run: |
-          for f in ${{ steps.cf.outputs.all_changed_files }}; do
-            echo "Running $f"
-            Rscript --verbose "$f"
-          done
+          echo "Running ${{ matrix.script }}"
+          Rscript --verbose "${{ matrix.script }}"
 
       - name: Check for new data files and commit to LFS
         run: |
@@ -64,6 +84,6 @@ jobs:
             git config --local user.name "GitHub Action"
             git add data/
             git add .gitattributes
-            git commit -m "Add new data files via LFS [skip ci]" || echo "No changes to commit"
+            git commit -m "Add new data files from ${{ matrix.script }} via LFS [skip ci]" || echo "No changes to commit"
             git push
           fi
