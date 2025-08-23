@@ -80,15 +80,15 @@ detentions_df <-
 
 # ---- Save Outputs ----
 
-arrow::write_feather(detentions_df, "outputs/detentions-latest.feather")
-haven::write_dta(detentions_df, "outputs/detentions-latest.dta")
-haven::write_sav(detentions_df, "outputs/detentions-latest.sav")
+arrow::write_feather(detentions_df, "data/detentions-latest.feather")
+haven::write_dta(detentions_df, "data/detentions-latest.dta")
+haven::write_sav(detentions_df, "data/detentions-latest.sav")
 
 detentions_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
   group_split(.chunk, .keep = FALSE) |>
   set_names(~str_c("Detentions (Sheet ", seq_along(.x), ")")) |>
-  writexl::write_xlsx("outputs/detentions-latest.xlsx")
+  writexl::write_xlsx("data/detentions-latest.xlsx")
 
 
 # create stay-level data frame

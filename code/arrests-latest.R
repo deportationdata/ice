@@ -88,7 +88,7 @@ arrests_df <-
 
 # ---- Save Outputs ----
 
-arrow::write_feather(arrests_df, "outputs/arrests-latest.feather")
-writexl::write_xlsx(arrests_df, "outputs/arrests-latest.xlsx")
-haven::write_dta(arrests_df, "outputs/arrests-latest.dta")
-haven::write_sav(arrests_df, "outputs/arrests-latest.sav")
+arrow::write_feather(arrests_df, "data/arrests-latest.feather")
+writexl::write_xlsx(arrests_df, "data/arrests-latest.xlsx")
+haven::write_dta(arrests_df, "data/arrests-latest.dta")
+haven::write_sav(arrests_df, "data/arrests-latest.sav")

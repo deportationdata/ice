@@ -60,7 +60,7 @@ encounters_df <-
 
 # ---- Save Outputs ----
 
-arrow::write_feather(encounters_df, "outputs/encounters-latest.feather")
-writexl::write_xlsx(encounters_df, "outputs/encounters-latest.xlsx")
-haven::write_dta(encounters_df, "outputs/encounters-latest.dta")
-haven::write_sav(encounters_df, "outputs/encounters-latest.sav")
+arrow::write_feather(encounters_df, "data/encounters-latest.feather")
+writexl::write_xlsx(encounters_df, "data/encounters-latest.xlsx")
+haven::write_dta(encounters_df, "data/encounters-latest.dta")
+haven::write_sav(encounters_df, "data/encounters-latest.sav")
