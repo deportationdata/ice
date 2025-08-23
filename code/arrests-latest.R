@@ -87,8 +87,7 @@ arrests_df <-
   relocate(file, sheet, row, .after = last_col())
 
 # ---- Save Outputs ----
-
 arrow::write_feather(arrests_df, "data/arrests-latest.feather")
 writexl::write_xlsx(arrests_df, "data/arrests-latest.xlsx")
-haven::write_dta(arrests_df, "data/arrests-latest.dta")
-haven::write_sav(arrests_df, "data/arrests-latest.sav")
+# haven::write_dta(arrests_df, "data/arrests-latest.dta")
+# haven::write_sav(arrests_df, "data/arrests-latest.sav")

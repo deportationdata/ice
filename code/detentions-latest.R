@@ -79,7 +79,6 @@ detentions_df <-
   relocate(file, sheet, row, .after = last_col())
 
 # ---- Save Outputs ----
-
 arrow::write_feather(detentions_df, "data/detentions-latest.feather")
 haven::write_dta(detentions_df, "data/detentions-latest.dta")
 haven::write_sav(detentions_df, "data/detentions-latest.sav")
@@ -91,19 +90,19 @@ detentions_df |>
   writexl::write_xlsx("data/detentions-latest.xlsx")
 
 
-# create stay-level data frame
+# # create stay-level data frame
 
-stay_df <- 
-  detentions_df |> 
-  group_by(stay_ID, stay_book_in_date_time, unique_identifier) |> 
-  summarise(
-    across(
-      c(
-        stay_book_out_date_time, stay_book_out_date,
-        detention_release_reason, stay_release_reason, 
-        departed_date, departure_country
-      ),
-      ~first(na.omit(.x))
-    ),
-    .groups = "drop"
-  )
+# stay_df <- 
+#   detentions_df |> 
+#   group_by(stay_ID, stay_book_in_date_time, unique_identifier) |> 
+#   summarise(
+#     across(
+#       c(
+#         stay_book_out_date_time, stay_book_out_date,
+#         detention_release_reason, stay_release_reason, 
+#         departed_date, departure_country
+#       ),
+#       ~first(na.omit(.x))
+#     ),
+#     .groups = "drop"
+#   )
