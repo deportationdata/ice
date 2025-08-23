@@ -103,5 +103,5 @@ detainers_df <-
 
 arrow::write_feather(detainers_df, "data/detainers-latest.feather")
 writexl::write_xlsx(detainers_df, "data/detainers-latest.xlsx")
-haven::write_dta(detainers_df, "data/detainers-latest.dta")
-haven::write_sav(detainers_df, "data/detainers-latest.sav")
+# haven::write_dta(detainers_df, "data/detainers-latest.dta")
+# haven::write_sav(detainers_df, "data/detainers-latest.sav")
