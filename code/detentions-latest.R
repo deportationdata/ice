@@ -79,7 +79,6 @@ detentions_df <-
   relocate(file, sheet, row, .after = last_col())
 
 # ---- Save Outputs ----
-
 arrow::write_feather(detentions_df, "data/detentions-latest.feather")
 haven::write_dta(detentions_df, "data/detentions-latest.dta")
 haven::write_sav(detentions_df, "data/detentions-latest.sav")

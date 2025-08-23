@@ -22,17 +22,26 @@ jobs:
           files: |
             code/*.R
             code/**/*.R
-          json: true
-          escape_json: false
       
       - id: set-matrix
         run: |
-          if [[ '${{ steps.cf.outputs.all_changed_files }}' == '[]' ]]; then
+          if [[ '${{ steps.cf.outputs.any_changed }}' == 'false' ]]; then
             echo "matrix={\"script\":[]}" >> $GITHUB_OUTPUT
           else
-            # Create proper matrix structure
-            scripts=$(echo '${{ steps.cf.outputs.all_changed_files }}' | jq -r '.[]' | jq -R . | jq -s '{script: .}')
-            echo "matrix=${scripts}" >> $GITHUB_OUTPUT
+            # Convert space-separated files to JSON array
+            files="${{ steps.cf.outputs.all_changed_files }}"
+            json_array="["
+            first=true
+            for file in $files; do
+              if [ "$first" = true ]; then
+                json_array="$json_array\"$file\""
+                first=false
+              else
+                json_array="$json_array,\"$file\""
+              fi
+            done
+            json_array="$json_array]"
+            echo "matrix={\"script\":$json_array}" >> $GITHUB_OUTPUT
           fi
 
   run-scripts:
