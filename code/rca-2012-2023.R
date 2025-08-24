@@ -109,12 +109,12 @@ rcas_df2 <-
 
 # ---- Save Outputs ----
 
-arrow::write_feather(rcas_df, "outputs/ice-rcas-2012-2023.feather")
-# haven::write_dta(rcas_df, "outputs/ice-rcas-2012-2023.dta")
-# haven::write_sav(rcas_df, "outputs/ice-rcas-2012-2023.sav")
+arrow::write_feather(rcas_df, "data/ice-rcas-2012-2023.feather")
+# haven::write_dta(rcas_df, "data/ice-rcas-2012-2023.dta")
+# haven::write_sav(rcas_df, "data/ice-rcas-2012-2023.sav")
 
 rcas_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
   group_split(.chunk, .keep = FALSE) |>
   set_names(~str_c("Sheet ", seq_along(.x), "")) |>
-  writexl::write_xlsx("outputs/ice-rcas-2012-2023.xlsx")
+  writexl::write_xlsx("data/ice-rcas-2012-2023.xlsx")
