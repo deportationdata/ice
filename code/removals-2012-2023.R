@@ -75,6 +75,8 @@ removals_df <-
   ) |> 
   relocate(file, sheet, row, .after = last_col())
 
+# ---- Save Outputs ----
+
 arrow::write_feather(removals_df, "outputs/ice-removals-2012-2023.feather")
 haven::write_dta(removals_df, "outputs/ice-removals-2012-2023.dta")
 haven::write_sav(removals_df, "outputs/ice-removals-2012-2023.sav")

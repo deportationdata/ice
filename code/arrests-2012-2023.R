@@ -68,6 +68,8 @@ arrests_df <-
   ) |> 
   mutate(dupe_flag_day = if_else(!is.na(unique_identifier), n() > 1, NA), .by = c("apprehension_date", "unique_identifier"))
 
+# ---- Save Outputs ----
+
 arrow::write_feather(arrests_df, "outputs/ice-arrests-2012-2023.feather")
 # writexl::write_xlsx(arrests_df, "outputs/ice-arrests-2012-2023.xlsx")
 haven::write_dta(arrests_df, "outputs/ice-arrests-2012-2023.dta")
