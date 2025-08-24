@@ -83,7 +83,7 @@ jobs:
           echo "Running ${{ matrix.script }}"
           Rscript --verbose "${{ matrix.script }}"
 
-            - name: Commit data files with proactive sync and retry
+      - name: Commit data files with proactive sync and retry
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
