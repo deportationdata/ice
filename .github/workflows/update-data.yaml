@@ -58,7 +58,6 @@ jobs:
 
       - name: Setup Git LFS
         run: |
-          git lfs install
           git lfs track "data/**"
           git add .gitattributes
 
