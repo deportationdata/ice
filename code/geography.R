@@ -17,13 +17,13 @@ st_shift <- function(sf_object, x = 0, y = 0) {
 
 county_aor <- read_csv("https://raw.githubusercontent.com/UWCHR/ice-enforce/main/share/hand/county_aor.csv")
 
-# Change counties to HAR if in Harlingen AOR
-har <- c("cameron county, texas", "willacy county, texas", "kenedy county, texas", 
+# Change counties to HAL if in Harlingen AOR
+hal <- c("cameron county, texas", "willacy county, texas", "kenedy county, texas", 
          "kleberg county, texas", "nueces county, texas", "san patricio county, texas",
          "hidalgo county, texas", "brooks county, texas", "starr county, texas",
          "jim hogg county, texas", "zapata county, texas", "webb county, texas",
          "duval county, texas", "jim wells county, texas", "aransas county, texas")
-county_aor[county_aor$name %in% har, "aor"] <- "HAR"
+county_aor[county_aor$name %in% hal, "aor"] <- "HAL"
 
 # Create a SF object for mapping
 counties_sf <- counties(cb = TRUE, year = 2024, class = "sf")
