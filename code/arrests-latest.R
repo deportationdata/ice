@@ -44,11 +44,11 @@ arrests_df <-
   # clean names
   janitor::clean_names(allow_dupes = FALSE) |>
   # add file name
-  mutate(file = "2025-ICLI-00019_2024-ICFO-39357_ERO Admin Arrests_LESA-STU_FINAL Redacted.xlsx") |>
+  mutate(file_original = "2025-ICLI-00019_2024-ICFO-39357_ERO Admin Arrests_LESA-STU_FINAL Redacted.xlsx") |>
   # add sheets indicator
-  mutate(sheet = "Admin Arrests") |> 
+  mutate(sheet_original = "Admin Arrests") |> 
   # add row number from original file
-  mutate(row = as.integer(row_number() + 6 + 1)) |> 
+  mutate(row_original = as.integer(row_number() + 6 + 1)) |> 
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |> 
   # convert dttm to date if there is no time information in the column
@@ -81,10 +81,10 @@ arrests_df <-
   mutate(
     within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
     within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
-    duplicate_possible = case_when(!is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next),
+    duplicate_likely = case_when(!is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next),
   ) |> 
   select(-within_24hrs_prior, -within_24hrs_next, -hours_since_last, -hours_until_next) |> 
-  relocate(file, sheet, row, .after = last_col())
+  relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
 
