@@ -66,7 +66,7 @@ jobs:
       - run: mkdir -p tmp
 
       - name: Install OS libs for sf
-        if: matrix.script == 'code/geography.R'
+        # if: matrix.script == 'code/geography.R'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
