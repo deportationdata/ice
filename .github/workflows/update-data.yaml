@@ -4,8 +4,6 @@ on:
   push:
     paths:
       - 'code/**'
-    paths-ignore:
-      - 'code/ice-offices-scraper.R'
 
 permissions:
   contents: write
@@ -24,6 +22,8 @@ jobs:
           files: |
             code/*.R
             code/**/*.R
+          files_ignore: |
+            code/ice-offices-scraper.R
       
       - id: set-matrix
         run: |

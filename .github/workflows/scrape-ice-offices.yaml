@@ -30,3 +30,20 @@ jobs:
 
       - name: Run script
         run: Rscript code/ice-offices-scraper.R
+
+      - name: Commit data files 
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .gitattributes outputs/
+            git commit -m "Update data via LFS [skip ci]"
+            
+            echo "Syncing with remote before push..."
+            git pull --rebase origin main 
+
+            git push
+          else
+            echo "No changes to commit"
+          fi
