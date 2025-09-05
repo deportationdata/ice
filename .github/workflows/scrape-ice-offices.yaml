@@ -26,7 +26,8 @@ jobs:
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
 
-      - uses: r-lib/actions/setup-renv@v2
+      - name: Setup renv
+        uses: r-lib/actions/setup-renv@v2
 
       - name: Run script
         run: Rscript code/ice-offices-scraper.R
@@ -37,7 +38,7 @@ jobs:
           git config --local user.name "GitHub Action"
           
           if [ -n "$(git status --porcelain)" ]; then
-            git add .gitattributes outputs/
+            git add .gitattributes data/
             git commit -m "Update data via LFS [skip ci]"
             
             echo "Syncing with remote before push..."
