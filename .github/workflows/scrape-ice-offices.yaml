@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '0 5 * * 1' # every Monday at 05:00 UTC
   workflow_dispatch: # allow manual runs too
+  push:
+    paths:
+      - 'code/ice-offices-scraper.R'
 
 jobs:
   run-r-script:
