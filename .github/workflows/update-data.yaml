@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'code/**'
+    paths-ignore:
+      - 'code/ice-offices-scraper.R'
 
 permissions:
   contents: write
