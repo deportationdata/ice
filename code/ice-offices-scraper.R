@@ -121,3 +121,5 @@ sub_offices <- sub_offices |>
 all_offices <- bind_rows(field_offices, sub_offices)
 all_offices <- all_offices |>
   select(office_category, office_type, main_office, address, city, state, zip, zip_4)
+
+arrow::write_feather(all_offices, "data/ice_offices.feather")
