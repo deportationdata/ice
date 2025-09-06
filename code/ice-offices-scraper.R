@@ -5,38 +5,6 @@ library(stringr)
 library(dplyr)
 library(purrr)
 
-# cleaning functions
-clean_text <- function(str) {
-  str |>
-    str_to_lower() |>
-    str_replace_all("(?<=\\b)([A-Za-z]\\.)+(?=\\b)", ~ str_remove_all(.x, "\\.")) |>
-    str_replace_all("[[:punct:]]", " ") |>
-    str_squish()
-}
-
-clean_street_address <- function(str) {
-  str |>
-    str_replace_all(c(
-      "\\bstreet\\b" = "st",
-      "\\bavenue\\b" = "ave",
-      "\\bboulevard\\b" = "blvd",
-      "\\bdrive\\b" = "dr",
-      "\\broad\\b" = "rd",
-      "\\bhighway\\b" = "hwy",
-      "\\bplace\\b" = "pl",
-      "\\blane\\b" = "ln",
-      "\\bsquare\\b" = "sq",
-      "\\bterrace\\b" = "ter",
-      "\\bparkway\\b" = "pkwy",
-      "\\bcourt\\b" = "ct",
-      "\\bnorth\\b" = "n",
-      "\\bsouth\\b" = "s",
-      "\\beast\\b" = "e",
-      "\\bwest\\b" = "w",
-      "\\bfort\\b" = "ft"
-    ))
-}
-
 # functions to scrape field offices and sub-offices
 scrape_field_offices <- function(url) {
   results <- GET(url)
@@ -46,20 +14,29 @@ scrape_field_offices <- function(url) {
   field_offices <- page |> html_elements(".grid__content")
   
   parse_field_office <- function(field_office) {
+    area <- field_office |> html_element(".views-field.views-field-body .field-content") |> html_text(trim = TRUE)
     office_type <- field_office |> html_element(".field-content") |> html_text(trim = TRUE)
     address_line_1 <- field_office |> html_element(".address-line1") |> html_text(trim = TRUE)
     address_line_2 <- field_office |> html_element(".address-line2") |> html_text(trim = TRUE)
-    city          <- field_office |> html_element(".locality") |> html_text(trim = TRUE)
-    state         <- field_office |> html_element(".administrative-area") |> html_text(trim = TRUE)
-    zip           <- field_office |> html_element(".postal-code") |> html_text(trim = TRUE)
+    city <- field_office |> html_element(".locality") |> html_text(trim = TRUE)
+    state <- field_office |> html_element(".administrative-area") |> html_text(trim = TRUE)
+    zip <- field_office |> html_element(".postal-code") |> html_text(trim = TRUE)
+    
+    # clean area
+    area <- if(!is.na(area) && str_detect(area, regex("Area of Responsibility:", ignore_case = TRUE))) {
+      str_match(area, regex("Area of Responsibility:\\s*(.*?)(?:\\s*Email:|$)", dotall = TRUE, ignore_case = TRUE))[ ,2] |> str_squish()
+    } else {
+      NA
+    }
     
     tibble(
-      office_type = clean_text(office_type),
-      address = clean_street_address(clean_text(str_replace(ifelse(is.na(address_line_2), address_line_1, paste(address_line_1, address_line_2)), "^[^0-9]*", ""))),
-      city = clean_text(city),
-      state = clean_text(state),
-      zip = substr(zip, 1, 5),
-      zip_4 = zip
+      area = area,
+      office_type = str_replace(office_type, ".*-\\s*", ""),
+      address = str_replace(ifelse(is.na(address_line_2), address_line_1, paste(address_line_1, address_line_2)), "^[^0-9]*", ""),
+      city = city,
+      state = state,
+      zip_4 = zip,
+      zip = str_extract(zip, "^\\d{5}")
     )
   }
   
@@ -77,6 +54,7 @@ scrape_sub_offices <- function(url) {
   sub_offices <- page |> html_elements(".grid__content")
   
   parse_sub_office <- function(sub_office) {
+    area <- sub_office |> html_element(".views-field.views-field-body .field-content") |> html_text(trim = TRUE)
     main_office <- sub_office |> html_element(".views-field.views-field-field-field-office-name") |> html_text(trim = TRUE)
     address_line_1 <- sub_office |> html_element(".address-line1") |> html_text(trim = TRUE)
     address_line_2 <- sub_office |> html_element(".address-line2") |> html_text(trim = TRUE)
@@ -84,12 +62,21 @@ scrape_sub_offices <- function(url) {
     state <- sub_office |> html_element(".administrative-area") |> html_text(trim = TRUE)
     zip <- sub_office |> html_element(".postal-code") |> html_text(trim = TRUE)
     
+    # clean area
+    area <- if(!is.na(area) && str_detect(area, regex("Area Coverage:", ignore_case = TRUE))) {
+      str_match(area, regex("Area Coverage:\\s*(.*?)(?:\\s*Appointment Times:|$)", dotall = TRUE, ignore_case = TRUE))[ ,2] |> str_squish()
+    } else {
+      NA
+    }
+    
     tibble(
-      main_office = clean_text(main_office),
-      address = clean_street_address(clean_text(str_replace(ifelse(is.na(address_line_2), address_line_1, paste(address_line_1, address_line_2)), "^[^0-9]*", ""))),
-      city = clean_text(city),
-      state = clean_text(state),
-      zip = substr(zip, 1, 5)
+      area = area,
+      main_office = main_office,
+      address = str_replace(ifelse(is.na(address_line_2), address_line_1, paste(address_line_1, address_line_2)), "^[^0-9]*", ""),
+      city = city,
+      state = state,
+      zip_4 = zip,
+      zip = str_extract(zip, "^\\d{5}")
     )
   }
   
@@ -120,6 +107,6 @@ sub_offices <- sub_offices |>
 # combine into one dataframe
 all_offices <- bind_rows(field_offices, sub_offices)
 all_offices <- all_offices |>
-  select(office_category, office_type, main_office, address, city, state, zip, zip_4)
+  select(area, office_category, office_type, main_office, address, city, state, zip, zip_4)
 
 arrow::write_feather(all_offices, "data/ice-offices.feather")
