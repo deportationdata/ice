@@ -1,0 +1,50 @@
+name: Weekly R job
+
+on:
+  schedule:
+    - cron: '0 5 * * 1' # every Monday at 05:00 UTC
+  workflow_dispatch: # allow manual runs too
+  push:
+    paths:
+      - 'code/ice-offices-scraper.R'
+
+jobs:
+  run-r-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Git LFS
+        run: |
+          git lfs track "data/**"
+          git add .gitattributes
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Setup renv
+        uses: r-lib/actions/setup-renv@v2
+
+      - name: Run script
+        run: Rscript code/ice-offices-scraper.R
+
+      - name: Commit data files 
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .gitattributes data/
+            git commit -m "Update data via LFS [skip ci]"
+            
+            echo "Syncing with remote before push..."
+            git pull --rebase origin main 
+
+            git push
+          else
+            echo "No changes to commit"
+          fi

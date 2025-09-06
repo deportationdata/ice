@@ -22,6 +22,8 @@ jobs:
           files: |
             code/*.R
             code/**/*.R
+          files_ignore: |
+            code/ice-offices-scraper.R
       
       - id: set-matrix
         run: |
