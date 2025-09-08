@@ -24,6 +24,7 @@ jobs:
             code/**/*.R
           files_ignore: |
             code/ice-offices-scraper.R
+            code/geography.R
       
       - id: set-matrix
         run: |
