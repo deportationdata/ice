@@ -159,7 +159,11 @@ sub_offices <- map_dfr(0:7, function(i) {
 
 # combine into one dataframe
 all_offices <-
-  bind_rows("Field office" = field_offices, "Sub-office" = sub_offices) |>
+  bind_rows(
+    "Field office" = field_offices,
+    "Sub-office" = sub_offices,
+    .id = "office_category"
+  ) |>
   select(
     office_category,
     office_type,
