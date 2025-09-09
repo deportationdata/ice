@@ -3994,6 +3994,46 @@
       "Maintainer": "Kirill Müller <kirill@cynkra.com>",
       "Repository": "CRAN"
     },
+    "tidygeocoder": {
+      "Package": "tidygeocoder",
+      "Version": "1.0.6",
+      "Source": "Repository",
+      "Type": "Package",
+      "Title": "Geocoding Made Easy",
+      "Authors@R": "c(person(given = \"Jesse\", family = \"Cambon\", role = c(\"aut\", \"cre\"), email = \"jesse.cambon@gmail.com\", comment = c(ORCID = \"0000-0001-6854-1514\")), person(given = \"Diego\", family = \"Hernangómez\", role = \"aut\", email = \"diego.hernangomezherrero@gmail.com\", comment = c(ORCID = \"0000-0001-8457-4658\")), person(given = \"Christopher\", family = \"Belanger\", role = \"aut\", email = \"christopher.a.belanger@gmail.com\", comment = c(ORCID = \"0000-0003-2070-5721\")), person(given = \"Daniel\",  family = \"Possenriede\",  email = \"possenriede+r@gmail.com\",  role = \"aut\",  comment = c(ORCID = \"0000-0002-6738-9845\")), person(given = \"Otto\",  family = \"Hansen\",  email = \"otto@uchicago.edu\",  role = \"ctb\",  comment = c(ORCID = \"0000-0002-4618-5667\")) )",
+      "Description": "An intuitive interface for getting data from geocoding services.",
+      "License": "MIT + file LICENSE",
+      "URL": "https://jessecambon.github.io/tidygeocoder/, https://github.com/jessecambon/tidygeocoder",
+      "BugReports": "https://github.com/jessecambon/tidygeocoder/issues",
+      "Depends": [
+        "R (>= 3.5)"
+      ],
+      "Imports": [
+        "tibble",
+        "dplyr",
+        "httr",
+        "jsonlite",
+        "progress"
+      ],
+      "Suggests": [
+        "knitr",
+        "rmarkdown",
+        "ggplot2",
+        "ggrepel",
+        "maps",
+        "testthat (>= 3.0.2)",
+        "spelling"
+      ],
+      "VignetteBuilder": "knitr",
+      "Encoding": "UTF-8",
+      "LazyData": "true",
+      "RoxygenNote": "7.3.2",
+      "Language": "en-US",
+      "NeedsCompilation": "no",
+      "Author": "Jesse Cambon [aut, cre] (<https://orcid.org/0000-0001-6854-1514>), Diego Hernangómez [aut] (<https://orcid.org/0000-0001-8457-4658>), Christopher Belanger [aut] (<https://orcid.org/0000-0003-2070-5721>), Daniel Possenriede [aut] (<https://orcid.org/0000-0002-6738-9845>), Otto Hansen [ctb] (<https://orcid.org/0000-0002-4618-5667>)",
+      "Maintainer": "Jesse Cambon <jesse.cambon@gmail.com>",
+      "Repository": "CRAN"
+    },
     "tidylog": {
       "Package": "tidylog",
       "Version": "1.1.0",
