@@ -218,34 +218,6 @@ all_offices <-
     area
   )
 
-# all_offices |>
-#   filter(sub_office == TRUE) |>
-#   distinct(office_name, state, area) |>
-#   arrange(office_name) |>
-#   print(n = Inf)
-
-# all_offices |>
-#   filter(sub_office == TRUE) |>
-#   select(area) |>
-#   mutate(
-#     # obtain comma-delimited list of counties if it says county or counties
-#     # remove anything before either :, -, or -- if it says counties or county an
-#     area_county = case_when(
-#       str_detect(area, regex("county|counties", ignore_case = TRUE)) ~
-#         str_replace(area, ".*?[:\\-–]\\s*", "") |>
-#           str_replace_all(regex("(, and | and )", ignore_case = TRUE), ", ") |>
-#           # str_replace_all(regex("\\s*&\\s*", ignore_case = TRUE), ", ") |>
-#           # str_replace_all(regex("\\s+to\\s+", ignore_case = TRUE), "-") |>
-#           # str_replace_all(regex("\\s*-\\s*", ignore_case = TRUE), "-") |>
-#           # str_replace_all(regex("\\s+", ignore_case = TRUE), " ") |>
-#           str_squish(),
-#       TRUE ~ NA_character_
-#     )
-#   ) |>
-#   print(n = 500)
-
-stop()
-
 # only save if there are new offices
 if (file.exists("data/ice-offices-sf.feather")) {
   existing_offices <- sfarrow::st_read_feather(
@@ -309,8 +281,33 @@ if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
     all_offices_geocoded,
     "data/ice-offices-sf.feather"
   )
+
+  # save as rds
+  write_rds(
+    all_offices_geocoded,
+    path = "data/ice-offices.rds"
+  )
+
   arrow::write_feather(
     all_offices_geocoded |> st_drop_geometry(),
     "data/ice-offices.feather"
+  )
+
+  # save as xlsx
+  writexl::write_xlsx(
+    all_offices_geocoded |> st_drop_geometry(),
+    path = "data/ice-offices.xlsx"
+  )
+
+  # save as dta
+  haven::write_dta(
+    all_offices_geocoded |> st_drop_geometry(),
+    path = "data/ice-offices.dta"
+  )
+
+  # save as sav
+  haven::write_sav(
+    all_offices_geocoded |> st_drop_geometry(),
+    path = "data/ice-offices.sav"
   )
 }
