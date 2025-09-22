@@ -5,6 +5,8 @@ library(stringr)
 library(dplyr)
 library(purrr)
 library(tidygeocoder)
+library(sf)
+library(sfarrow)
 
 # functions to scrape field offices and sub-offices
 scrape_field_offices <- function(url) {
@@ -216,9 +218,99 @@ all_offices <-
     area
   )
 
+# all_offices |>
+#   filter(sub_office == TRUE) |>
+#   distinct(office_name, state, area) |>
+#   arrange(office_name) |>
+#   print(n = Inf)
+
+# all_offices |>
+#   filter(sub_office == TRUE) |>
+#   select(area) |>
+#   mutate(
+#     # obtain comma-delimited list of counties if it says county or counties
+#     # remove anything before either :, -, or -- if it says counties or county an
+#     area_county = case_when(
+#       str_detect(area, regex("county|counties", ignore_case = TRUE)) ~
+#         str_replace(area, ".*?[:\\-–]\\s*", "") |>
+#           str_replace_all(regex("(, and | and )", ignore_case = TRUE), ", ") |>
+#           # str_replace_all(regex("\\s*&\\s*", ignore_case = TRUE), ", ") |>
+#           # str_replace_all(regex("\\s+to\\s+", ignore_case = TRUE), "-") |>
+#           # str_replace_all(regex("\\s*-\\s*", ignore_case = TRUE), "-") |>
+#           # str_replace_all(regex("\\s+", ignore_case = TRUE), " ") |>
+#           str_squish(),
+#       TRUE ~ NA_character_
+#     )
+#   ) |>
+#   print(n = 500)
+
+stop()
+
 # only save if there are new offices
-existing_offices <- arrow::read_feather("data/ice-offices.feather")
+if (file.exists("data/ice-offices-sf.feather")) {
+  existing_offices <- sfarrow::st_read_feather(
+    "data/ice-offices-sf.feather"
+  )
+} else {
+  existing_offices <- tibble(
+    office_name = character(),
+    office_name_short = character(),
+    agency = character(),
+    field_office_name = character(),
+    sub_office = logical(),
+    address = character(),
+    city = character(),
+    state = character(),
+    zip = character(),
+    zip_4 = character(),
+    address_full = character(),
+    area = character(),
+    office_latitude = numeric(),
+    office_longitude = numeric()
+  ) |>
+    st_as_sf(
+      coords = c("office_longitude", "office_latitude"),
+      crs = 4326,
+      remove = FALSE,
+      agr = "constant",
+      na.fail = FALSE,
+      sf_column_name = "geometry_office"
+    )
+}
+
 new_offices <- anti_join(all_offices, existing_offices)
+
 if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
-  arrow::write_feather(all_offices, "data/ice-offices.feather")
+  new_offices_geocoded <-
+    new_offices |>
+    geocode(
+      address = address_full,
+      method = "google",
+      lat = office_latitude,
+      long = office_longitude
+    ) |>
+    st_as_sf(
+      coords = c("office_longitude", "office_latitude"),
+      crs = 4326,
+      remove = FALSE,
+      agr = "constant",
+      na.fail = FALSE,
+      sf_column_name = "geometry_office"
+    )
+
+  # combine with existing geocoded offices
+  all_offices_geocoded <-
+    bind_rows(
+      existing_offices,
+      new_offices_geocoded
+    )
+
+  sfarrow::st_write_feather(
+    all_offices_geocoded,
+    "data/ice-offices-sf.feather"
+  )
+  arrow::write_feather(
+    all_offices_geocoded |> st_drop_geometry(),
+    "data/ice-offices.feather"
+  )
 }
