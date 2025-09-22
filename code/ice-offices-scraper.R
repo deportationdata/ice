@@ -18,6 +18,9 @@ scrape_field_offices <- function(url) {
     area <- field_office |>
       html_element(".views-field.views-field-body .field-content") |>
       html_text(trim = TRUE)
+    office_name <- field_office |>
+      html_element(".views-field.views-field-title") |>
+      html_text(trim = TRUE)
     office_type <- field_office |>
       html_element(".field-content") |>
       html_text(trim = TRUE)
@@ -55,8 +58,9 @@ scrape_field_offices <- function(url) {
 
     tibble(
       area = area,
-      office_name = str_remove(office_type, " - .*"),
-      office_type = str_replace(office_type, ".*-\\s*", ""),
+      office_name = office_name,
+      office_name_short = office_type,
+      agency = str_replace(office_type, ".*-\\s*", ""),
       address = str_replace(
         ifelse(
           is.na(address_line_2),
@@ -90,7 +94,10 @@ scrape_sub_offices <- function(url) {
     area <- sub_office |>
       html_element(".views-field.views-field-body .field-content") |>
       html_text(trim = TRUE)
-    main_office <- sub_office |>
+    office_name <- sub_office |>
+      html_element(".views-field.views-field-field-field-office-location") |>
+      html_text(trim = TRUE)
+    field_office_name <- sub_office |>
       html_element(".views-field.views-field-field-field-office-name") |>
       html_text(trim = TRUE)
     address_line_1 <- sub_office |>
@@ -125,7 +132,9 @@ scrape_sub_offices <- function(url) {
 
     tibble(
       area = area,
-      main_office = main_office,
+      office_name = office_name,
+      agency = "ERO",
+      field_office_name = field_office_name,
       address = str_replace(
         ifelse(
           is.na(address_line_2),
@@ -176,7 +185,8 @@ n_sub_pages <- get_num_pages("https://www.ice.gov/contact/check-in")
 field_offices <- map_dfr(0:(n_field_pages - 1), function(i) {
   url <- paste0("https://www.ice.gov/contact/field-offices?page=", i)
   scrape_field_offices(url)
-})
+}) |>
+  distinct()
 
 sub_offices <- map_dfr(0:(n_sub_pages - 1), function(i) {
   url <- paste0("https://www.ice.gov/contact/check-in?page=", i)
@@ -186,23 +196,25 @@ sub_offices <- map_dfr(0:(n_sub_pages - 1), function(i) {
 # combine into one dataframe
 all_offices <-
   bind_rows(
-    "Field office" = field_offices,
-    "Sub-office" = sub_offices,
-    .id = "office_category"
+    `FALSE` = field_offices,
+    `TRUE` = sub_offices,
+    .id = "sub_office"
   ) |>
-  select(
-    office_category,
+  mutate(sub_office = as.logical(sub_office)) |>
+  transmute(
     office_name,
-    office_type,
-    main_office,
+    office_name_short,
+    agency,
+    field_office_name,
+    sub_office,
     address,
     city,
     state,
     zip,
     zip_4,
+    address_full = str_c(address, ", ", city, ", ", state, " ", zip_4),
     area
-  ) |>
-  mutate(address_full = str_c(address, ", ", city, ", ", state, " ", zip_4))
+  )
 
 # only save if there are new offices
 existing_offices <- arrow::read_feather("data/ice-offices.feather")
