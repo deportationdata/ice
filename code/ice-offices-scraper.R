@@ -279,13 +279,7 @@ if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
 
   sfarrow::st_write_feather(
     all_offices_geocoded,
-    "data/ice-offices-sf.feather"
-  )
-
-  # save as rds
-  write_rds(
-    all_offices_geocoded,
-    path = "data/ice-offices.rds"
+    "data/ice-offices-shp.feather"
   )
 
   arrow::write_feather(
@@ -309,5 +303,20 @@ if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
   haven::write_sav(
     all_offices_geocoded |> st_drop_geometry(),
     path = "data/ice-offices.sav"
+  )
+
+  temp_dir <- tempdir()
+  temp_shp_path <- file.path(temp_dir, "ice-offices.shp")
+  st_write(all_offices_geocoded, temp_shp_path, append = FALSE)
+
+  # create a zip file with all necessary shapefile components
+  zip(
+    zipfile = "data/ice-offices-shp.zip",
+    files = c(
+      file.path(temp_dir, "ice-offices.shp"),
+      file.path(temp_dir, "ice-offices.dbf"),
+      file.path(temp_dir, "ice-offices.prj"),
+      file.path(temp_dir, "ice-offices.shx")
+    )
   )
 }
