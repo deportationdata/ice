@@ -42,11 +42,6 @@ detentions_facilities <-
     )),
     n_stints = n(),
     n_stints_2025 = sum(detention_book_in_date >= "2025-01-01", na.rm = TRUE),
-    n_individuals = n_distinct(anonymized_identifier),
-    n_individuals_2025 = sum(
-      detention_book_in_date >= "2025-01-01",
-      na.rm = TRUE
-    ),
     proportion_male = mean(
       gender == "Male" & gender != "Unknown",
       na.rm = TRUE
@@ -79,5 +74,3 @@ detentions_facilities |>
   arrow::write_feather(
     "data/ice-detention-facilities.feather"
   )
-
-# mutate(new_facility = first_used > "2025-02-28") |>
