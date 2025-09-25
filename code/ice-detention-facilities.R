@@ -92,19 +92,20 @@ ice_detention_facilities <- detentions_facilities |>
 ice_detention_facilities <- ice_detention_facilities |>
   left_join(
     new_ice_detention_facilities |>
-      select(detention_facility_code, address, city, state),
+      select(detention_facility_code, address, city, state, uncertainty),
     by = "detention_facility_code"
   ) |>
   mutate(
     address = coalesce(address.x, address.y),
     city = coalesce(city.x, city.y),
-    state = coalesce(state.x, state.y)
+    state = coalesce(state.x, state.y),
+    uncertainty = coalesce(uncertainty.x, uncertainty.y)
   ) |>
   select(-address.x, -address.y, -city.x, -city.y, -state.x, -state.y) |>
   relocate(
     address, city, state, .after = longitude
   ) |>
-  writexl::write_xlsx ("code/experiments/facilities/ice-detention-facilities.xlsx")
+  writexl::write_xlsx("code/experiments/facilities/ice-detention-facilities.xlsx")
 
 geocoded_census <-
   ice_detention_facilities |>
@@ -189,3 +190,20 @@ ungeocoded_addresses <-
     geocoded_osm |> filter(!is.na(latitude_osm)),
     by = c("detention_facility_code")
   )
+
+# add manually geocded facilities into original data
+manually_geocoded_facilities <- ice_detention_facilities |>
+  left_join(
+    all_geocoded |>
+      select(detention_facility_code, latitude, longitude),
+    by = "detention_facility_code"
+  ) |>
+  mutate(
+    latitude = coalesce(latitude.x, latitude.y),
+    longitude = coalesce(longitude.x, longitude.y)
+  ) |>
+  select(-latitude.x, -latitude.y, -longitude.x, -longitude.y) |>
+  relocate(
+    latitude, longitude, .before = address
+  ) |>
+  writexl::write_xlsx("code/experiments/facilities/manually-geocoded-facilities.xlsx")
