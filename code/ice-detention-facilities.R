@@ -191,7 +191,7 @@ ungeocoded_addresses <-
     by = c("detention_facility_code")
   )
 
-# add manually geocded facilities into original data
+# add manually geocoded facilities into original data
 manually_geocoded_facilities <- ice_detention_facilities |>
   left_join(
     all_geocoded |>
