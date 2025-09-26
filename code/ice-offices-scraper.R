@@ -7,6 +7,13 @@ library(purrr)
 library(tidygeocoder)
 library(sf)
 library(sfarrow)
+library(tigris)
+
+# --- Load AOR shapefile ---
+
+aor_sf <- sfarrow::st_read_feather("data/ice-aor-shp.feather")
+
+# --- Scrape ICE offices ---
 
 # functions to scrape field offices and sub-offices
 scrape_field_offices <- function(url) {
@@ -219,9 +226,9 @@ all_offices <-
   )
 
 # only save if there are new offices
-if (file.exists("data/ice-offices-sf.feather")) {
+if (file.exists("data/ice-offices-shp.feather")) {
   existing_offices <- sfarrow::st_read_feather(
-    "data/ice-offices-sf.feather"
+    "data/ice-offices-shp.feather"
   )
 } else {
   existing_offices <- tibble(
@@ -235,7 +242,6 @@ if (file.exists("data/ice-offices-sf.feather")) {
     state = character(),
     zip = character(),
     zip_4 = character(),
-    address_full = character(),
     area = character(),
     office_latitude = numeric(),
     office_longitude = numeric()
@@ -277,31 +283,53 @@ if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
       new_offices_geocoded
     )
 
+  all_offices_geocoded <-
+    all_offices_geocoded |>
+    mutate(
+      area_of_responsibility_name = if_else(
+        agency == "ERO" & !sub_office,
+        str_replace(office_name, " Field Office", " Area of Responsibility"),
+        NA_character_
+      )
+    ) |>
+    left_join(
+      aor_sf |> as_tibble() |> rename(geometry_aor = geometry),
+      by = c("area_of_responsibility_name" = "Area of Responsibility")
+    )
+
   sfarrow::st_write_feather(
     all_offices_geocoded,
     "data/ice-offices-shp.feather"
   )
 
   arrow::write_feather(
-    all_offices_geocoded |> st_drop_geometry(),
+    all_offices_geocoded |>
+      st_drop_geometry() |>
+      select(-contains("geometry_")),
     "data/ice-offices.feather"
   )
 
   # save as xlsx
   writexl::write_xlsx(
-    all_offices_geocoded |> st_drop_geometry(),
+    all_offices_geocoded |>
+      st_drop_geometry() |>
+      select(-contains("geometry_")),
     path = "data/ice-offices.xlsx"
   )
 
   # save as dta
   haven::write_dta(
-    all_offices_geocoded |> st_drop_geometry(),
+    all_offices_geocoded |>
+      st_drop_geometry() |>
+      select(-contains("geometry_")),
     path = "data/ice-offices.dta"
   )
 
   # save as sav
   haven::write_sav(
-    all_offices_geocoded |> st_drop_geometry(),
+    all_offices_geocoded |>
+      st_drop_geometry() |>
+      select(-contains("geometry_")),
     path = "data/ice-offices.sav"
   )
 
