@@ -147,7 +147,7 @@ zip(
   )
 )
 
-# verification
+# --- verification
 
 library(validate)
 
