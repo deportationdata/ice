@@ -114,8 +114,7 @@ aor_sf <-
   left_join(aor_df, by = c("GEOID" = "geoid")) |>
   mutate(
     `Area of Responsibility` = case_when(
-      STUSPS %in% c("AK", "HI", "MP", "GU") ~
-        "San Francisco Area of Responsibility",
+      STUSPS %in% c("MP", "GU") ~ "San Francisco Area of Responsibility",
       STUSPS == "VI" ~ "Miami Area of Responsibility",
       STUSPS == "AS" ~ NA_character_,
       TRUE ~ `Area of Responsibility`
