@@ -190,6 +190,13 @@ field_offices <- map_dfr(0:(n_field_pages - 1), function(i) {
 }) |>
   distinct()
 
+field_offices <-
+  # replace "St Paul" with "St. Paul" for consistency
+  field_offices |>
+  mutate(
+    office_name = str_replace(office_name, "St Paul", "St. Paul")
+  )
+
 sub_offices <- map_dfr(0:(n_sub_pages - 1), function(i) {
   url <- paste0("https://www.ice.gov/contact/check-in?page=", i)
   scrape_sub_offices(url)
