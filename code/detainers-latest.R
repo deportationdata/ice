@@ -93,12 +93,12 @@ detainers_df <-
   janitor::clean_names(allow_dupes = FALSE) |>
   # add file name
   mutate(
-    file = "2025-ICLI-00019_2024-ICFO-39357_ERO Detainers_LESA-STU_FINAL Redacted.xlsx"
+    file_original = "2025-ICLI-00019_2024-ICFO-39357_ERO Detainers_LESA-STU_FINAL Redacted.xlsx"
   ) |>
   # add sheets indicator
-  mutate(sheet = "Detainers") |>
+  mutate(sheet_original = "Detainers") |>
   # add row number from original file
-  mutate(row = as.integer(row_number() + 6 + 1)) |>
+  mutate(row_original = as.integer(row_number() + 6 + 1)) |>
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |>
   # convert dttm to date if there is no time information in the column
@@ -115,7 +115,7 @@ detainers_df <-
     arrest_time_current_program = time_of_apprehension_current_program,
     order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
   ) |>
-  relocate(file, sheet, row, .after = last_col())
+  relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
 

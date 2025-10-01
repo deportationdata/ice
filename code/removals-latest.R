@@ -86,46 +86,13 @@ removals_df <-
   mutate(
     # convert birth year to integer
     birth_year = as.integer(birth_year)
-  )
+  ) |>
+  mutate(
+    duplicate_likely = if_else(!is.na(unique_identifier), n() > 1, NA),
+    .by = c("departed_date", "unique_identifier")
+  ) |>
+  relocate(file_original, sheet_original, row_original, .after = last_col())
 
-# # ---- Construct Duplicates Indicator ----
-# # two (or more) arrests within 24 hours of each other
-
-# library(data.table)
-# setDT(removals_df)
-# setorder(removals_df, departed_date)
-
-# removals_df[,
-#   `:=`(
-#     days_since_last = as.numeric(
-#       departed_date - shift(departed_date, type = "lag"),
-#       units = "days"
-#     ),
-#     days_until_next = as.numeric(
-#       shift(departed_date, type = "lead") - departed_date,
-#       units = "days"
-#     )
-#   ),
-#   by = unique_identifier
-# ]
-
-# removals_df <-
-#   removals_df |>
-#   as_tibble() |>
-#   mutate(
-#     within_24hrs_prior = !is.na(days_since_last) & days_since_last <= 1,
-#     within_24hrs_next = !is.na(days_until_next) & days_until_next <= 1,
-#     duplicate_likely = case_when(
-#       !is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next
-#     ),
-#   ) |>
-#   select(
-#     -within_24hrs_prior,
-#     -within_24hrs_next,
-#     -days_since_last,
-#     -days_until_next
-#   ) |>
-#   relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
 
