@@ -11,32 +11,6 @@ url <- "https://ucla.box.com/shared/static/hrofkgyefmmvki95f487rpk1wigcefd5.xlsx
 f <- tempfile(fileext = ".xlsx")
 download.file(url, f, mode = "wb")
 
-# col_types <- c(
-#   "date", # Apprehension Date
-#   "text", # Apprehension State
-#   "logical", # Apprehension County
-#   "text", # Apprehension AOR
-#   "text", # Final Program
-#   "text", # Final Program Group
-#   "text", # Apprehension Method
-#   "text", # Apprehension Criminality
-#   "text", # Case Status
-#   "text", # Case Category
-#   "date", # Departed Date
-#   "text", # Departure Country
-#   "text", # Final Order Yes No
-#   "date", # Final Order Date
-#   "text", # Birth Date
-#   "numeric", # Birth Year
-#   "text", # Citizenship Country
-#   "text", # Gender
-#   "text", # Apprehension Site Landmark
-#   "text", # Alien File Number
-#   "text", # EID Case ID
-#   "text", # EID Subject ID
-#   "text" # Unique Identifier
-# )
-
 col_types <-
   c(
     "date", # Departed Date
