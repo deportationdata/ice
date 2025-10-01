@@ -85,6 +85,7 @@ detainers_df <- readxl::read_excel(
   col_types = col_types,
   skip = 6
 )
+# 24 warnings about date parsing, all in MSC charge and conviction dates, cannot be resolved unambiguously
 
 detainers_df <-
   detainers_df |>
@@ -104,11 +105,21 @@ detainers_df <-
   mutate(
     across(where(~ inherits(., "POSIXt")), check_dttm_and_convert_to_date)
   ) |>
+  mutate(
+    duplicate_likely = if_else(!is.na(unique_identifier), n() > 1, NA),
+    .by = c("detainer_prepare_date", "unique_identifier")
+  ) |>
+  rename(
+    most_serious_conviction_charge = most_serious_conviction_msc_charge,
+    arrest_time_case_category = time_of_apprehension_case_category,
+    arrest_time_current_program = time_of_apprehension_current_program,
+    order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
+  ) |>
   relocate(file, sheet, row, .after = last_col())
 
 # ---- Save Outputs ----
 
 arrow::write_feather(detainers_df, "data/detainers-latest.feather")
 writexl::write_xlsx(detainers_df, "data/detainers-latest.xlsx")
-# haven::write_dta(detainers_df, "data/detainers-latest.dta")
-# haven::write_sav(detainers_df, "data/detainers-latest.sav")
+haven::write_dta(detainers_df, "data/detainers-latest.dta")
+haven::write_sav(detainers_df, "data/detainers-latest.sav")

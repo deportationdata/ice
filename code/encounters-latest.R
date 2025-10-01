@@ -63,7 +63,13 @@ encounters_df <-
   # convert dttm to date if there is no time information in the column
   mutate(
     across(where(~ inherits(., "POSIXt")), check_dttm_and_convert_to_date)
-  )
+  ) |>
+  mutate(
+    duplicate_likely = if_else(!is.na(unique_identifier), n() > 1, NA),
+    .by = c("event_date", "unique_identifier")
+  ) |>
+  relocate(file, sheet, row, .after = last_col())
+
 
 # ---- Save Outputs ----
 
