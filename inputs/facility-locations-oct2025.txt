@@ -1,0 +1,28 @@
+detention_facility_code	detention_facility	latitude	longitude	address	city	state	uncertainty
+BOPDEV	DEVENS FMC	42.52929198	-71.61795255	"42 Patton Rd, Ayer, MA 01432"	Ayer	MA	
+CHPHOVA	CHIPPENHAM HOSPITAL - RICHMOND	37.51574435	-77.52496096	"7101 Jahnke Rd, Richmond, VA 23225"	Richmond	VA	
+HAMILTN	HAMILTON CO. JAIL (TENN)	39.23382548	-84.51144306	"800 Compton Rd, Cincinnati, OH 45231"	Cincinnati	OH	
+HENRIVA	HENRICO COUNTY JAIL	37.493965	-76.86519535	"17320 New Kent Hwy, Barhamsville, VA 23011"	Barhamsville	VA	
+HICOJFL	HILLSBOROUGH COUNTY JAIL	27.9582201	-82.37309106	"1201 Orient Rd, Tampa, FL 33619"	Tampa	FL	two jails in the county - assuming Orient Road Jail but given lat and long do not match
+HLFRJVA	B.R.R.J. HALIFAX	36.7651937	-78.92963542	"1010 Blue Ridge Lane, Halifax, VA 24558"	Halifax	VA	
+INTEGOK	INTEGRIS HEALTH BAPTIST MEDICAL	35.5275831	-97.5687589	"330 Northwest Expy, Oklahoma City, OK 73112"	Oklahoma City	OK	two health baptist medical centers (multiple entrances?)
+LEECOFL	LEE COUNTY JAIL	26.64085501	-81.87026508	"2115 Dr Martin Luther King Jr Blvd, Fort Myers, FL 33901"	Fort Myers	FL	two jailed named Lee County Jails in FL
+LOGANOK	LOGAN COUNTY JAIL	35.87687445	-97.42268939	"216 S Broad St, Guthrie, OK 73044"	Guthrie	OK	
+LYNRJVA	B.R.R.J. LYNCHBURG	37.41320826	-79.14512302	"510 9th St, Lynchburg, VA 24504"	Lynchburg	VA	
+MIDMHTX	MIDLAND MEMORIAL HOSPITAL	31.9961626	-102.0995032	"400 Rosalind Redfern Grover Pkwy, Midland, TX 79701"	Midland	TX	
+MRYHPMN	MERCY HOSPITAL	45.1849213	-93.37124439	"4050 Coon Rapids Blvd, Coon Rapids, MN 55433"	Coon Rapids	MN	Coon Rapids or Fridley location? there are two campuses with the same name
+MYOMKMN	MAYO CLINIC HEALTH SYS - MANKATO	44.16454846	-93.98639514	"1025 Marsh St, Mankato, MN 56001"	Mankato	MN	
+NRLKCMI	NORTH LAKE CORRECTIONAL FACILITY	43.92959085	-85.83214693	"1805 W 32nd St, Baldwin, MI 49304"	Baldwin	MI	
+NYWASHC	WASHINGTON CORRECTIONAL	43.47025663	-73.43125613	"72 Lock 11 Rd, Comstock, NY 12821"	Comstock	NY	not sure about this one
+PRVMDKS	PROVIDENCE MEDICAL GROUP	39.1282264	-94.7675205	"8101 Parallel Pkwy Ste 100, Kansas City, KS 66112"	Kansas City	KS	Providence medical CENTER or GROUP? (used address for group from YELP)
+RDHOSPA	READING HOSPITAL	40.33045595	-75.94825663	"420 S 5th Ave, West Reading, PA 19611"	West Reading	PA	
+SHMCHNV	SUMMERLIN HOSPITAL MEDICAL CENTER	36.17900287	-115.3169235	"657 N Town Center Dr, Las Vegas, NV 89144"	Las Vegas	NV	
+STELHOH	ST ELIZABETH YOUNGSTOWN HOSPITAL	41.11521687	-80.65613967	"1044 Belmont Ave, Youngstown, OH 44504"	Youngstown	OH	
+STLUCFL	ST. LUCIE COUNTY JAIL	27.45413472	-80.40757591	"900 N Rock Rd, Fort Pierce, FL 34945"	Fort Pierce	FL	
+SUTMCCA	SUTTER MED CTR SACRAMENTO	38.57047101	-121.4702687	"2825 Capitol Ave, Sacramento, CA 95816"	Sacramento	CA	
+THPMCTX	THOP MEMORIAL CAMPUS ELP	31.77131285	-106.4995702	"2001 N Oregon St, El Paso, TX 79902"	El Paso	TX	
+UPMCPPA	UPMC PRESBYTERIAN HOSPITAL	40.4418957	-79.96075009	"200 Lothrop St, Pittsburgh, PA 15213"	Pittsburgh	PA	
+URSLATX	URSULA CENTRALIZED PROCESSING CNTR	26.15811989	-98.26953842	"3700 W Ursula Ave, McAllen, TX 78503"	McAllen	TX	
+UVACVVA	UVA UNIV Hospital Center	38.03168469	-78.49827643	"1215 Lee St, Charlottesville, VA 22908"	Charlottesville	VA	
+VOLUSFL	VOLUSIA COUNTY JAIL.	29.1391945	-81.14901634	"1300 Red John Dr, Daytona Beach, FL 32124"	Daytona Beach	FL	
+WASHIMD	WASHINGTON CO. DETENTION	39.63848512	-77.76433595	"500 Western Maryland Pkwy, Hagerstown, MD 21740"	Hagerstown	MD	was not on Google - found on jpay and mapquest
