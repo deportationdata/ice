@@ -39,11 +39,17 @@ col_types <- c(
   "text" # Unique Identifier
 )
 
-encounters_df <- readxl::read_excel(
-  path = f,
-  sheet = 1,
-  col_types = col_types,
-  skip = 6
+sheets <- readxl::excel_sheets(f) |> set_names()
+
+encounters_df <- map_dfr(
+  sheets,
+  ~ readxl::read_excel(
+    path = f,
+    sheet = .x,
+    col_types = col_types,
+    skip = 6
+  ),
+  .id = "sheet_original"
 )
 
 encounters_df <-
@@ -52,12 +58,13 @@ encounters_df <-
   janitor::clean_names(allow_dupes = FALSE) |>
   # add file name
   mutate(
-    file = "2025-ICLI-00019_2024-ICFO-39357_ERO Encounters_LESA-STU_FINAL Redacted.xlsx"
+    file_original = "2025-ICLI-00019_2024-ICFO-39357_ERO Encounters_LESA-STU_FINAL Redacted.xlsx"
   ) |>
-  # add sheets indicator
-  mutate(sheet = "Encounters") |>
   # add row number from original file
-  mutate(row = as.integer(row_number() + 6 + 1)) |>
+  mutate(
+    row_original = as.integer(row_number() + 6 + 1),
+    .by = "sheet_original"
+  ) |>
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |>
   # convert dttm to date if there is no time information in the column
@@ -68,8 +75,7 @@ encounters_df <-
     duplicate_likely = if_else(!is.na(unique_identifier), n() > 1, NA),
     .by = c("event_date", "unique_identifier")
   ) |>
-  relocate(file, sheet, row, .after = last_col())
-
+  relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
 
