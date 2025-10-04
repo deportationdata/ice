@@ -43,7 +43,7 @@ col_types <-
     "text", # Case Category Time of Arrest
     "text", # Latest Arrest Program Current
     "text", # Latest Arrest Program Current Code
-    "text", # Latest Person Apprehension Date
+    "date", # Latest Person Apprehension Date
     "text", # Final Order Yes No
     "date", # Final Order Date
     "text", # Final Charge Code
@@ -81,7 +81,8 @@ removals_df <-
   select(where(is_not_blank_or_redacted)) |>
   # convert dttm to date if there is no time information in the column
   mutate(
-    across(where(~ inherits(., "POSIXt")), check_dttm_and_convert_to_date)
+    across(where(~ inherits(., "POSIXt")), check_dttm_and_convert_to_date),
+    latest_person_departed_date = as.Date(latest_person_departed_date)
   ) |>
   mutate(
     # convert birth year to integer
