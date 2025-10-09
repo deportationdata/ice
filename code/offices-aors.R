@@ -62,7 +62,7 @@ sfarrow::st_write_feather(aor_county_sf, "data/ice-aor-county-shp.feather")
 temp_dir <- tempdir()
 temp_shp_path <- file.path(temp_dir, "ice-aor-county-shp.shp")
 st_write(
-  aor_sf |> rename(aor_name = area_of_responsibility_name),
+  aor_county_sf |> rename(aor_name = area_of_responsibility_name),
   temp_shp_path,
   append = FALSE
 )
