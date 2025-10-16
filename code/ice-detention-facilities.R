@@ -207,3 +207,49 @@ manually_geocoded_facilities <- ice_detention_facilities |>
     latitude, longitude, .before = address
   ) |>
   writexl::write_xlsx("code/experiments/facilities/manually-geocoded-facilities.xlsx")
+
+# reverse geocode all other observations
+facilities_reverse_geocoded <- manually_geocoded_facilities |>
+  reverse_geocode(
+    lat = latitude,
+    long = longitude,
+    method = "google",
+    address = "address",
+    full_results = TRUE
+  )
+
+# make sure to add manually geocoded addresses back in (reverse geocode might incorrectly replace them?)
+
+facilities_with_addresses <- 
+  facilities_reverse_geocoded |>
+  mutate(
+    address = address...18
+  ) |>
+  select(
+    detention_facility_code,
+    detention_facility,
+    latitude,
+    longitude,
+    address,
+    city,
+    state,
+    type_detailed,
+    type_grouped,
+    first_used,
+    last_used,
+    n_stints,
+    n_stints_2025,
+    n_individuals,
+    n_individuals_2025,
+    proportion_male,
+    uncertainty
+  )
+
+facilities_with_addresses |>
+  summarise(
+    no_city = sum(is.na(city)),
+    no_state = sum(is.na(state)),
+  )
+
+facilities_with_addresses |>
+  arrow::write_feather("code/experiments/facilities/facilities-with-addresses.feather")
