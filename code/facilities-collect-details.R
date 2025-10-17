@@ -438,10 +438,6 @@ facility_df <-
     facility_names,
     by = "detention_facility_code"
   ) |>
-  rename(
-    name_source = source,
-    name_date = date
-  ) |>
   left_join(
     facility_addresses,
     by = "detention_facility_code",
@@ -481,6 +477,10 @@ facility_df <-
     facility_docket,
     by = "detention_facility_code",
     suffix = c("", "_docket")
+  ) |>
+  rename(
+    name_source = source,
+    name_date = date
   ) |>
   # rename so suffixes become prefixes
   rename_with(

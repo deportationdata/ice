@@ -54,12 +54,6 @@ detentions_facilities <-
     .groups = "drop"
   )
 
-facilities_details <- arrow::read_feather("data/facilities-details.feather")
-
-detentions_facilities |>
-  full_join(facilities_details, by = "detention_facility_code") |>
-  arrange(detention_facility_code)
-
 arrow::write_feather(
   detentions_facilities,
   "data/facilities-from-detentions.feather"
