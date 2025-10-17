@@ -1,9 +1,8 @@
-detention_facility_code	detention_facility	latitude	longitude	address	city	state	uncertainty
+detention_facility_code	detention_facility_name	latitude	longitude	address	city	state	uncertainty
 BOPDEV	DEVENS FMC	42.52929198	-71.61795255	"42 Patton Rd, Ayer, MA 01432"	Ayer	MA	
 CHPHOVA	CHIPPENHAM HOSPITAL - RICHMOND	37.51574435	-77.52496096	"7101 Jahnke Rd, Richmond, VA 23225"	Richmond	VA	
 HAMILTN	HAMILTON CO. JAIL (TENN)	39.23382548	-84.51144306	"800 Compton Rd, Cincinnati, OH 45231"	Cincinnati	OH	
 HENRIVA	HENRICO COUNTY JAIL	37.493965	-76.86519535	"17320 New Kent Hwy, Barhamsville, VA 23011"	Barhamsville	VA	
-HICOJFL	HILLSBOROUGH COUNTY JAIL	27.9582201	-82.37309106	"1201 Orient Rd, Tampa, FL 33619"	Tampa	FL	two jails in the county - assuming Orient Road Jail but given lat and long do not match
 HLFRJVA	B.R.R.J. HALIFAX	36.7651937	-78.92963542	"1010 Blue Ridge Lane, Halifax, VA 24558"	Halifax	VA	
 INTEGOK	INTEGRIS HEALTH BAPTIST MEDICAL	35.5275831	-97.5687589	"330 Northwest Expy, Oklahoma City, OK 73112"	Oklahoma City	OK	two health baptist medical centers (multiple entrances?)
 LEECOFL	LEE COUNTY JAIL	26.64085501	-81.87026508	"2115 Dr Martin Luther King Jr Blvd, Fort Myers, FL 33901"	Fort Myers	FL	two jailed named Lee County Jails in FL
@@ -26,3 +25,11 @@ URSLATX	URSULA CENTRALIZED PROCESSING CNTR	26.15811989	-98.26953842	"3700 W Ursu
 UVACVVA	UVA UNIV Hospital Center	38.03168469	-78.49827643	"1215 Lee St, Charlottesville, VA 22908"	Charlottesville	VA	
 VOLUSFL	VOLUSIA COUNTY JAIL.	29.1391945	-81.14901634	"1300 Red John Dr, Daytona Beach, FL 32124"	Daytona Beach	FL	
 WASHIMD	WASHINGTON CO. DETENTION	39.63848512	-77.76433595	"500 Western Maryland Pkwy, Hagerstown, MD 21740"	Hagerstown	MD	was not on Google - found on jpay and mapquest
+CHSPKVA	CHESAPEAKE CITY JAIL	36.7176219	-76.2516233				
+CODCCSP	COLO DEPT OF CORRECTIONS	38.81464089	-104.7599901				
+HOUGTTX	GREENTREE INN HOUSTON IAH AIRPORT	29.9449761	-95.33184812				
+HUNMHTX	HUNTSVILLE MEMORIAL HOSPITAL	30.6984332	-95.5591568				
+TNGLPOE	TORNILLO-GUADALUPE POE						
+TRYOSCA	TRINITY YOUTH SERVICES LTFC						
+UCCHIIL	UCHICAGO MEDICINE HOSPITAL CHICAGO	41.78877397	-87.60485715				
+UCHRVIL	UCHICAGO MEDICINE INGALLS MEMORIAL	41.60633849	-87.65940464				

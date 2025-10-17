@@ -78,8 +78,6 @@ zip(
   )
 )
 
-stop()
-
 aor_sf <-
   aor_county_sf |>
   filter(!is.na(area_of_responsibility_name)) |>

@@ -1,6 +1,6 @@
 library(tidyverse)
 library(readxl)
-library(tidygeocoder)
+library(tidylog)
 
 detentions_current <- arrow::read_feather("data/detentions-latest.feather")
 
@@ -54,29 +54,47 @@ detentions_facilities <-
     .groups = "drop"
   )
 
-# --- Bring in Vera data with addresses
+facilities_details <- arrow::read_feather("data/facilities-details.feather")
 
-# load Vera data
-vera_facilities <- read_csv(
-  "https://github.com/vera-institute/ice-detention-trends/raw/8c84c92f3029a6dbce08bfcf50ea6876d9af2eba/metadata/facilities.csv"
+detentions_facilities |>
+  full_join(facilities_details, by = "detention_facility_code") |>
+  arrange(detention_facility_code)
+
+arrow::write_feather(
+  detentions_facilities,
+  "data/facilities-from-detentions.feather"
 )
 
-ice_detention_facilities <- detentions_facilities |>
-  left_join(
-    vera_facilities |> select(-detention_facility_name),
-    by = "detention_facility_code"
-  ) |>
-  relocate(
-    detention_facility_code,
-    detention_facility,
-    latitude,
-    longitude,
-    address,
-    city,
-    state,
-    type_detailed,
-    type_grouped
-  ) |>
-  relocate(
-    .after = uncertainty
-  )
+# # --- Bring in Vera data with addresses
+
+# # load Vera data
+# vera_facilities <- read_csv(
+#   "https://github.com/vera-institute/ice-detention-trends/raw/8c84c92f3029a6dbce08bfcf50ea6876d9af2eba/metadata/facilities.csv"
+# )
+
+# new_facility_locations <- read_delim("inputs/facility-locations-oct2025.txt")
+
+# facility_locations <-
+#   bind_rows(
+#     "vera" = vera_facilities,
+#     "ddp" = new_facility_locations,
+#     .id = "source"
+#   )
+
+# ice_detention_facilities <-
+#   detentions_facilities |>
+#   left_join(
+#     facility_locations |> select(-detention_facility_name),
+#     by = "detention_facility_code"
+#   ) |>
+#   relocate(
+#     detention_facility_code,
+#     detention_facility,
+#     latitude,
+#     longitude,
+#     # address,
+#     city,
+#     state,
+#     type_detailed,
+#     type_grouped
+#   )

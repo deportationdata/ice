@@ -91,3 +91,5 @@ ice_facilities <- map_dfr(0:(n_facility_pages - 1), function(i) {
   url <- paste0("https://www.ice.gov/detention-facilities?page=", i)
   scrape_facilities(url)
 })
+
+arrow::write_feather(ice_facilities, "data/facilities-from-ice-website.feather")
