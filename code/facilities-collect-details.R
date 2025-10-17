@@ -78,6 +78,7 @@ facilities_2017 <-
   arrow::read_feather("data/facilities-2017.feather") |>
   transmute(
     detention_facility_code = detloc,
+    name,
     address,
     city,
     state,
@@ -400,6 +401,26 @@ facility_docket <-
     date
   )
 
+facility_names <-
+  bind_rows(
+    "2017" = facilities_2017,
+    "detention_management" = facilities_detention_management,
+    .id = "source"
+  ) |>
+  filter(!is.na(name) & name != "") |>
+  slice_max(
+    n = 1,
+    order_by = date,
+    by = detention_facility_code,
+    with_ties = FALSE
+  ) |>
+  select(
+    detention_facility_code,
+    name,
+    source,
+    date
+  )
+
 facility_list <-
   bind_rows(
     "dedicated" = facilities_dedicated_nondedicated,
@@ -414,12 +435,17 @@ facility_list <-
 facility_df <-
   facility_list |>
   left_join(
-    facility_addresses,
+    facility_names,
     by = "detention_facility_code"
   ) |>
   rename(
-    address_source = source,
-    address_date = date
+    name_source = source,
+    name_date = date
+  ) |>
+  left_join(
+    facility_addresses,
+    by = "detention_facility_code",
+    suffix = c("", "_address")
   ) |>
   left_join(
     facility_type,
