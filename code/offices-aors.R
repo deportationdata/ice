@@ -68,6 +68,10 @@ st_write(
 )
 
 # create a zip file with all necessary shapefile components
+if (file.exists("data/ice-aor-county-shp.zip")) {
+  file.remove("data/ice-aor-county-shp.zip")
+}
+
 zip(
   zipfile = "data/ice-aor-county-shp.zip",
   files = c(
@@ -75,7 +79,8 @@ zip(
     file.path(temp_dir, "ice-aor-county-shp.dbf"),
     file.path(temp_dir, "ice-aor-county-shp.prj"),
     file.path(temp_dir, "ice-aor-county-shp.shx")
-  )
+  ),
+  flags = "-j"
 )
 
 aor_sf <-
@@ -92,10 +97,16 @@ temp_shp_path <- file.path(temp_dir, "ice-aor-shp.shp")
 st_write(
   aor_sf |> rename(aor_name = area_of_responsibility_name),
   temp_shp_path,
-  append = FALSE
+  append = FALSE,
+  delete_dns = TRUE
 )
 
 # create a zip file with all necessary shapefile components
+
+if (file.exists("data/ice-aor-shp.zip")) {
+  file.remove("data/ice-aor-shp.zip")
+}
+
 zip(
   zipfile = "data/ice-aor-shp.zip",
   files = c(
@@ -103,7 +114,8 @@ zip(
     file.path(temp_dir, "ice-aor-shp.dbf"),
     file.path(temp_dir, "ice-aor-shp.prj"),
     file.path(temp_dir, "ice-aor-shp.shx")
-  )
+  ),
+  flags = "-j"
 )
 
 # --- verification
