@@ -345,6 +345,9 @@ if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
   st_write(all_offices_geocoded, temp_shp_path, append = FALSE)
 
   # create a zip file with all necessary shapefile components
+  if (file.exists("data/ice-offices-shp.zip")) {
+    file.remove("data/ice-offices-shp.zip")
+  }
   zip(
     zipfile = "data/ice-offices-shp.zip",
     files = c(
@@ -352,6 +355,7 @@ if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
       file.path(temp_dir, "ice-offices.dbf"),
       file.path(temp_dir, "ice-offices.prj"),
       file.path(temp_dir, "ice-offices.shx")
-    )
+    ),
+    flags = "-j"
   )
 }
