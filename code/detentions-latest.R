@@ -238,10 +238,21 @@ detention_stay_level_vars_df <-
     )
   ]
 
+detention_individual_level_vars_df <-
+  detention_stay_level_vars_df[,
+    c(
+      list(
+        n_stays = .N
+      )
+    ),
+    by = unique_identifier
+  ]
+
 detention_stays_df <-
   detentions_df |>
   distinct(stay_ID) |>
   left_join(detention_stay_level_vars_df, by = "stay_ID") |>
+  left_join(detention_individual_level_vars_df, by = "unique_identifier") |>
   left_join(detention_facility_df_first, by = "stay_ID") |>
   left_join(detention_facility_df_longest, by = "stay_ID") |>
   left_join(detention_facility_df_last, by = "stay_ID") |>
@@ -253,13 +264,14 @@ detention_stays_df <-
 arrow::write_feather(detention_stays_df, "data/detention-stays-latest.feather")
 haven::write_dta(detention_stays_df, "data/detention-stays-latest.dta")
 haven::write_sav(detention_stays_df, "data/detention-stays-latest.sav")
+writexl::write_xlsx(detention_stays_df, "data/detention-stays-latest.xlsx")
 
-arrow::write_feather(detentions_df, "data/detention-latest.feather")
-haven::write_dta(detentions_df, "data/detention-latest.dta")
-haven::write_sav(detentions_df, "data/detention-latest.sav")
+arrow::write_feather(detentions_df, "data/detention-stints-latest.feather")
+haven::write_dta(detentions_df, "data/detention-stints-latest.dta")
+haven::write_sav(detentions_df, "data/detention-stints-latest.sav")
 
 detentions_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
   group_split(.chunk, .keep = FALSE) |>
-  set_names(~ str_c("Detentions (Sheet ", seq_along(.x), ")")) |>
-  writexl::write_xlsx("data/detentions-latest.xlsx")
+  set_names(~ str_c("Detention stints (Sheet ", seq_along(.x), ")")) |>
+  writexl::write_xlsx("data/detention-stints-latest.xlsx")
