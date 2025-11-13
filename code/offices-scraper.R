@@ -1,9 +1,6 @@
 library(httr)
 library(rvest)
 library(tidyverse)
-library(stringr)
-library(dplyr)
-library(purrr)
 library(tidygeocoder)
 library(sf)
 library(sfarrow)
@@ -301,7 +298,7 @@ if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
     ) |>
     left_join(
       aor_sf |> as_tibble() |> rename(geometry_aor = geometry),
-      by = c("area_of_responsibility_name" = "Area of Responsibility")
+      by = c("area_of_responsibility_name")
     )
 
   sfarrow::st_write_feather(
