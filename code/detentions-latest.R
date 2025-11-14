@@ -218,7 +218,11 @@ detention_stay_level_vars_df <-
   detentions_df[,
     c(
       list(
-        n_stints = .N
+        n_stints = .N,
+        detention_facility_codes_all = str_c(
+          detention_facility_code,
+          collapse = "; "
+        )
       ),
       lapply(
         .SD,
@@ -239,14 +243,7 @@ detention_stay_level_vars_df <-
   ]
 
 detention_individual_level_vars_df <-
-  detention_stay_level_vars_df[,
-    c(
-      list(
-        n_stays = .N
-      )
-    ),
-    by = unique_identifier
-  ]
+  detention_stay_level_vars_df[, .(n_stays = .N), by = unique_identifier]
 
 detention_stays_df <-
   detentions_df |>
