@@ -89,7 +89,7 @@ detentions_df <-
     birth_year = as.integer(birth_year)
   ) |>
   relocate(file, sheet, row, .after = last_col()) |>
-  # filter(!is.na(unique_identifier)) |>
+  filter(!is.na(unique_identifier)) |>
   mutate(
     stint_ID = str_c(
       unique_identifier,
@@ -102,7 +102,7 @@ detentions_df <-
 
 detentions_df <- as.data.table(detentions_df)
 
-# ---- Create flag for multiple stints within stay based on bond amount ----
+# ---- Resolve multiple stints within stay based on bond amount ----
 
 setorder(
   detentions_df,
@@ -136,14 +136,12 @@ setorder(
   msc_charge
 )
 
-detentions_df[,
-  likely_duplicate := {
-    if (all(is.na(unique_identifier))) {
-      rep(NA, .N)
-    } else if (all(is.na(initial_bond_set_amount))) {
-      seq_len(.N) != .N # tag all but the last row as TRUE
-    } else {
-      !seq_len(.N) %in%
+detentions_df <-
+  detentions_df[,
+    .SD[
+      if (all(is.na(initial_bond_set_amount))) {
+        .N
+      } else {
         tail(
           which(
             initial_bond_set_amount ==
@@ -151,21 +149,116 @@ detentions_df[,
           ),
           1
         )
-    }
+      }
+    ],
+    by = stint_ID
+  ]
+
+setorder(
+  detentions_df,
+  unique_identifier,
+  book_in_date_time,
+  detention_book_out_date_time,
+  detention_facility_code
+)
+
+# ---- Create stay-level dataset ----
+
+detentions_df[, first_stay := .I == .I[1], by = stay_ID]
+detentions_df[, last_stay := .I == .I[.N], by = stay_ID]
+detentions_df[,
+  longest_stay := {
+    detention_book_out_date_time_imputed <- fifelse(
+      is.na(detention_book_out_date_time),
+      as.POSIXct("2025-07-28 23:59:59", tz = "UTC"),
+      detention_book_out_date_time
+    )
+    diff <- detention_book_out_date_time_imputed - book_in_date_time
+    longest <- which(diff == max(diff, na.rm = TRUE))
+    longest <- longest[length(longest)] # In case of ties, take the last one
+    .I == .I[longest]
   },
-  by = stint_ID
+  by = stay_ID
 ]
 
-detention_stays_df <- arrow::read_feather("data/detention-stays-latest.feather")
+detention_facility_df_first <-
+  detentions_df |>
+  filter(first_stay == TRUE) |>
+  select(
+    stay_ID,
+    detention_facility_first = detention_facility,
+    detention_facility_code_first = detention_facility_code,
+    book_in_date_time_first = book_in_date_time,
+    book_out_date_time_first = detention_book_out_date_time
+  )
+
+detention_facility_df_longest <-
+  detentions_df |>
+  filter(longest_stay == TRUE) |>
+  select(
+    stay_ID,
+    detention_facility_longest = detention_facility,
+    detention_facility_code_longest = detention_facility_code,
+    book_in_date_time_longest = book_in_date_time,
+    book_out_date_time_longest = detention_book_out_date_time
+  )
+
+detention_facility_df_last <-
+  detentions_df |>
+  filter(last_stay == TRUE) |>
+  select(
+    stay_ID,
+    detention_facility_last = detention_facility,
+    detention_facility_code_last = detention_facility_code,
+    book_in_date_time_last = book_in_date_time,
+    book_out_date_time_last = detention_book_out_date_time
+  )
+
+detention_stay_level_vars_df <-
+  detentions_df[,
+    c(
+      list(
+        n_stints = .N,
+        detention_facility_codes_all = str_c(
+          detention_facility_code,
+          collapse = "; "
+        )
+      ),
+      lapply(
+        .SD,
+        function(x) tail(x, 1)
+      )
+    ),
+    by = stay_ID,
+    .SDcols = setdiff(
+      names(detentions_df),
+      c(
+        "stay_ID",
+        "detention_facility",
+        "detention_facility_code",
+        "book_in_date_time",
+        "detention_book_out_date_time"
+      )
+    )
+  ]
+
+detention_individual_level_vars_df <-
+  detention_stay_level_vars_df[, .(n_stays = .N), by = unique_identifier]
+
+detention_stays_df <-
+  detentions_df |>
+  distinct(stay_ID) |>
+  left_join(detention_stay_level_vars_df, by = "stay_ID") |>
+  left_join(detention_individual_level_vars_df, by = "unique_identifier") |>
+  left_join(detention_facility_df_first, by = "stay_ID") |>
+  left_join(detention_facility_df_longest, by = "stay_ID") |>
+  left_join(detention_facility_df_last, by = "stay_ID") |>
+  select(-first_stay, -last_stay, -longest_stay, -file, -sheet, -row) |>
+  as_tibble()
 
 # ---- Save Outputs ----
 
-arrow::write_feather(detentions_df, "data/detention-stints-latest.feather")
-haven::write_dta(detentions_df, "data/detention-stints-latest.dta")
-haven::write_sav(detentions_df, "data/detention-stints-latest.sav")
-
-detentions_df |>
-  mutate(.chunk = ceiling(row_number() / 1e6)) |>
-  group_split(.chunk, .keep = FALSE) |>
-  set_names(~ str_c("Detention stints (Sheet ", seq_along(.x), ")")) |>
-  writexl::write_xlsx("data/detention-stints-latest.xlsx")
+arrow::write_feather(detention_stays_df, "data/detention-stays-latest.feather")
+haven::write_dta(detention_stays_df, "data/detention-stays-latest.dta")
+haven::write_sav(detention_stays_df, "data/detention-stays-latest.sav")
+writexl::write_xlsx(detention_stays_df, "data/detention-stays-latest.xlsx")
