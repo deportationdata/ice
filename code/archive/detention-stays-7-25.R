@@ -3,17 +3,12 @@ library(tidyverse)
 library(tidylog)
 library(data.table)
 
-# ---- Set random seed ----
-# some sort operations involve random sampling to break ties
-# this affects ~= 2 rows
-set.seed(42)
-
 # ---- Functions ----
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 
 # ---- Read in to temporary file ----
-url <- "https://ucla.box.com/shared/static/l55xu3n0r7xnovjrc5ak1fksan2dsj70.xlsx"
+url <- "https://ucla.box.com/shared/static/c6tfgtq90er5df898vaq912okchn9o66.xlsx"
 f <- tempfile(fileext = ".xlsx")
 download.file(url, f, mode = "wb")
 
@@ -73,13 +68,12 @@ detentions_df <-
   detentions_df |>
   # clean names
   janitor::clean_names(allow_dupes = FALSE) |>
-  # rename to shorten name for saving
   rename(
     most_serious_conviction_code = most_serious_conviction_msc_charge_code
   ) |>
   # add file name
   mutate(
-    file = "ICE Detentions_LESA-STU_FINAL Release.xlsx"
+    file = "2025-ICLI-00019_2024-ICFO-39357_ICE Detentions_LESA-STU_FINAL Redacted.xlsx"
   ) |>
   # add row number from original file
   mutate(row = as.integer(row_number() + 6 + 1)) |>
@@ -87,8 +81,6 @@ detentions_df <-
   mutate(stay_ID = str_c(unique_identifier, "_", stay_book_in_date_time)) |>
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |>
-  # remove redacted column 
-  select(-eid_subject_id) |>
   # convert dttm to date if there is no time information in the column
   mutate(
     across(where(~ inherits(., "POSIXt")), check_dttm_and_convert_to_date)
@@ -178,7 +170,7 @@ detentions_df[,
   longest_stay := {
     detention_book_out_date_time_imputed <- fifelse(
       is.na(detention_book_out_date_time),
-      as.POSIXct("2025-10-15 23:59:59", tz = "UTC"),
+      as.POSIXct("2025-07-28 23:59:59", tz = "UTC"),
       detention_book_out_date_time
     )
     diff <- detention_book_out_date_time_imputed - book_in_date_time

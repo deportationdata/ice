@@ -7,7 +7,7 @@ source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 
 # ---- Read in to temporary file ----
-url <- "https://ucla.box.com/shared/static/w3di8ek30zco6b4dzggpi3sl6hyp19oe.xlsx"
+url <- "https://ucla.box.com/shared/static/k699orsf5wm8i9ehr1x4foownlj5zuyn.xlsx"
 f <- tempfile(fileext = ".xlsx")
 download.file(url, f, mode = "wb")
 
@@ -85,7 +85,7 @@ detainers_df <- readxl::read_excel(
   col_types = col_types,
   skip = 6
 )
-# warnings about date parsing, all in MSC charge and conviction dates, cannot be resolved unambiguously
+# 24 warnings about date parsing, all in MSC charge and conviction dates, cannot be resolved unambiguously
 
 detainers_df <-
   detainers_df |>
@@ -93,7 +93,7 @@ detainers_df <-
   janitor::clean_names(allow_dupes = FALSE) |>
   # add file name
   mutate(
-    file_original = "ERO Detainers_LESA-STU_FINAL Release_raw.xlsx"
+    file_original = "2025-ICLI-00019_2024-ICFO-39357_ERO Detainers_LESA-STU_FINAL Redacted.xlsx"
   ) |>
   # add sheets indicator
   mutate(sheet_original = "Detainers") |>
