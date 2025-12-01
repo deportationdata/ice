@@ -1,9 +1,9 @@
 name: Run Changed Scripts and Update Data
 
-on:
-  push:
-    paths:
-      - 'code/**'
+# on:
+#   push:
+#     paths:
+#       - 'code/**'
 
 permissions:
   contents: write
