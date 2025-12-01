@@ -156,6 +156,10 @@ detentions_df[,
   by = stint_ID
 ]
 
+detentions_df <-
+  detentions_df |> 
+  rename(book_out_date_time = detention_book_out_date_time)
+
 # ---- Save Outputs ----
 
 arrow::write_feather(detentions_df, "data/detention-stints-latest.feather")

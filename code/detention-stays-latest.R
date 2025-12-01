@@ -261,7 +261,7 @@ detention_stays_df <-
   left_join(detention_facility_df_first, by = "stay_ID") |>
   left_join(detention_facility_df_longest, by = "stay_ID") |>
   left_join(detention_facility_df_last, by = "stay_ID") |>
-  select(-first_stay, -last_stay, -longest_stay, -file, -sheet, -row) |>
+  select(-first_stay, -last_stay, -longest_stay, -stint_ID, -file, -sheet, -row) |>
   as_tibble()
 
 # ---- Save Outputs ----
