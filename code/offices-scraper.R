@@ -286,6 +286,7 @@ all_offices_geocoded <-
     aor_sf |> select(-office_name) |> as_tibble() |> rename(geometry_aor = geometry),
     by = c("area_of_responsibility_name")
   ) |> 
+  select(-area_of_responsibility_name) |> 
   st_as_sf(
     coords = c("office_longitude", "office_latitude"),
     crs = 4326,
@@ -293,7 +294,7 @@ all_offices_geocoded <-
     agr = "constant",
     na.fail = FALSE,
     sf_column_name = "geometry_office"
-  )
+  ) 
 
 sfarrow::st_write_feather(
   all_offices_geocoded,
