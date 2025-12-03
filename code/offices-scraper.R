@@ -229,40 +229,14 @@ all_offices <-
     area
   )
 
-# only save if there are new offices
-if (file.exists("data/ice-offices-shp.feather")) {
-  existing_offices <- sfarrow::st_read_feather(
-    "data/ice-offices-shp.feather"
-  )
-} else {
-  existing_offices <- tibble(
-    office_name = character(),
-    office_name_short = character(),
-    agency = character(),
-    field_office_name = character(),
-    sub_office = logical(),
-    address = character(),
-    city = character(),
-    state = character(),
-    zip = character(),
-    zip_4 = character(),
-    area = character(),
-    office_latitude = numeric(),
-    office_longitude = numeric()
-  ) |>
-    st_as_sf(
-      coords = c("office_longitude", "office_latitude"),
-      crs = 4326,
-      remove = FALSE,
-      agr = "constant",
-      na.fail = FALSE,
-      sf_column_name = "geometry_office"
-    )
-}
+# get geocoding from last data, geocode only new ones
+existing_offices <- sfarrow::st_read_feather(
+  "data/ice-offices-shp.feather"
+)
 
 new_offices <- anti_join(all_offices, existing_offices)
 
-if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
+if (nrow(new_offices) > 0) {
   new_offices_geocoded <-
     new_offices |>
     geocode(
@@ -279,80 +253,100 @@ if (nrow(new_offices) > 0 || nrow(existing_offices) != nrow(all_offices)) {
       na.fail = FALSE,
       sf_column_name = "geometry_office"
     )
+}
+
+offices_geocoded <- 
+  bind_rows(
+    if (nrow(new_offices) > 0) {
+      new_offices_geocoded
+    } else {
+      tibble()
+    },
+    existing_offices
+  ) |> 
+  filter(!is.na(office_latitude) & !is.na(office_longitude)) |>
+  distinct(address_full, office_latitude, office_longitude)
 
   # combine with existing geocoded offices
-  all_offices_geocoded <-
-    bind_rows(
-      existing_offices,
-      new_offices_geocoded
-    )
+library(tidylog)
 
-  all_offices_geocoded <-
-    all_offices_geocoded |>
-    mutate(
-      area_of_responsibility_name = if_else(
-        agency == "ERO" & !sub_office,
-        str_replace(office_name, " Field Office", " Area of Responsibility"),
-        NA_character_
+all_offices_geocoded <-
+  all_offices |> 
+  left_join(offices_geocoded |> distinct(address_full, .keep_all = TRUE)) |>
+  mutate(
+    area_of_responsibility_name = 
+      case_when(
+        office_name == "Miramar Sub Office" & sub_office == FALSE ~ "Miami", # field office moved to Miramar
+        office_name == "St. Paul Field Office" & sub_office == FALSE ~ "St Paul", # field office renamed moved to St. Paul
+        agency == "ERO" & !sub_office ~ str_remove(office_name, " Field Office"),
+        TRUE ~ NA_character_
       )
-    ) |>
-    left_join(
-      aor_sf |> as_tibble() |> rename(geometry_aor = geometry),
-      by = c("area_of_responsibility_name")
-    )
-
-  sfarrow::st_write_feather(
-    all_offices_geocoded,
-    "data/ice-offices-shp.feather"
+  ) |>
+  left_join(
+    aor_sf |> select(-office_name) |> as_tibble() |> rename(geometry_aor = geometry),
+    by = c("area_of_responsibility_name")
+  ) |> 
+  st_as_sf(
+    coords = c("office_longitude", "office_latitude"),
+    crs = 4326,
+    remove = FALSE,
+    agr = "constant",
+    na.fail = FALSE,
+    sf_column_name = "geometry_office"
   )
 
-  arrow::write_feather(
-    all_offices_geocoded |>
-      st_drop_geometry() |>
-      select(-contains("geometry_")),
-    "data/ice-offices.feather"
-  )
+sfarrow::st_write_feather(
+  all_offices_geocoded,
+  "data/ice-offices-shp.feather"
+)
 
-  # save as xlsx
-  writexl::write_xlsx(
-    all_offices_geocoded |>
-      st_drop_geometry() |>
-      select(-contains("geometry_")),
-    path = "data/ice-offices.xlsx"
-  )
+arrow::write_feather(
+  all_offices_geocoded |>
+    st_drop_geometry() |>
+    select(-contains("geometry_")),
+  "data/ice-offices.feather"
+)
 
-  # save as dta
-  haven::write_dta(
-    all_offices_geocoded |>
-      st_drop_geometry() |>
-      select(-contains("geometry_")),
-    path = "data/ice-offices.dta"
-  )
+# save as xlsx
+writexl::write_xlsx(
+  all_offices_geocoded |>
+    st_drop_geometry() |>
+    select(-contains("geometry_")),
+  path = "data/ice-offices.xlsx"
+)
 
-  # save as sav
-  haven::write_sav(
-    all_offices_geocoded |>
-      st_drop_geometry() |>
-      select(-contains("geometry_")),
-    path = "data/ice-offices.sav"
-  )
+# save as dta
+haven::write_dta(
+  all_offices_geocoded |>
+    st_drop_geometry() |>
+    select(-contains("geometry_")),
+  path = "data/ice-offices.dta"
+)
 
-  temp_dir <- tempdir()
-  temp_shp_path <- file.path(temp_dir, "ice-offices.shp")
-  st_write(all_offices_geocoded, temp_shp_path, append = FALSE)
+# save as sav
+haven::write_sav(
+  all_offices_geocoded |>
+    st_drop_geometry() |>
+    select(-contains("geometry_")),
+  path = "data/ice-offices.sav"
+)
 
-  # create a zip file with all necessary shapefile components
-  if (file.exists("data/ice-offices-shp.zip")) {
-    file.remove("data/ice-offices-shp.zip")
-  }
-  zip(
-    zipfile = "data/ice-offices-shp.zip",
-    files = c(
-      file.path(temp_dir, "ice-offices.shp"),
-      file.path(temp_dir, "ice-offices.dbf"),
-      file.path(temp_dir, "ice-offices.prj"),
-      file.path(temp_dir, "ice-offices.shx")
-    ),
-    flags = "-j"
-  )
+temp_dir <- tempdir()
+temp_shp_path <- file.path(temp_dir, "ice-offices.shp")
+st_write(all_offices_geocoded, temp_shp_path, append = FALSE)
+
+# create a zip file with all necessary shapefile components
+if (file.exists("data/ice-offices-shp.zip")) {
+  file.remove("data/ice-offices-shp.zip")
 }
+zip(
+  zipfile = "data/ice-offices-shp.zip",
+  files = c(
+    file.path(temp_dir, "ice-offices.shp"),
+    file.path(temp_dir, "ice-offices.dbf"),
+    file.path(temp_dir, "ice-offices.prj"),
+    file.path(temp_dir, "ice-offices.shx")
+  ),
+  flags = "-j"
+)
+
