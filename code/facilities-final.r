@@ -1,11 +1,7 @@
 library(tidyverse)
 library(tidylog)
-library(lubridate)
 library(arrow)
-library(tidyr)
-library(stringr)
 library(knitr)
-library(dplyr)
 
 # cleaning helper functions
 clean_text <- function(str) {
@@ -81,11 +77,11 @@ clean_street_address <- function(str) {
 
 # importing datasets
 name_city_state_match <- arrow::read_feather(
-  "/data/facilities-name-city-state-match.feather"
+  "data/facilities-name-city-state-match.feather"
 )
 
 facilities_2017 <-
-  arrow::read_feather("/data/facilities-2017.feather") |>
+  arrow::read_feather("data/facilities-2017.feather") |>
   transmute(
     detention_facility_code = detloc,
     name,
@@ -104,7 +100,7 @@ facilities_2017 <-
   mutate(date = as.Date("2017-11-06")) # date in file
 
 facilities_dedicated_nondedicated <-
-  arrow::read_feather("/data/facilities-dedicated-nondedicated.feather") |>
+  arrow::read_feather("data/facilities-dedicated-nondedicated.feather") |>
   dplyr::select(
     name,
     address,
@@ -144,7 +140,7 @@ facilities_dedicated_nondedicated <-
 
 detentions_05655 <-
   arrow::read_feather(
-    "/data/facilities-foia-05655.feather"
+    "data/facilities-foia-05655.feather"
   ) |>
   dplyr::select(
     detention_facility_code,
@@ -163,7 +159,7 @@ detentions_05655 <-
 
 facility_addresses_from_ice_website <-
   arrow::read_feather(
-    "/data/facilities-from-ice-website.feather"
+    "data/facilities-from-ice-website.feather"
   ) |>
   mutate(date = as.Date("2025-10-01")) |> # approximate date of website scrape
   mutate(
@@ -186,7 +182,7 @@ facility_addresses_from_ice_website <-
 
 facilities_detention_management <-
   arrow::read_feather(
-    "/data/facilities-detention-management.feather"
+    "data/facilities-detention-management.feather"
   ) |>
   dplyr::select(
     name,
@@ -229,59 +225,119 @@ facility_addresses <-
   )
 
 # apply cleaning functions with NA handling
-facility_addresses_clean <- facility_addresses |>
+facility_addresses_clean <-
+  facility_addresses |>
   mutate(
-    across(c(name, address, city, state, aor, type, type_detailed, 
-             male_female, over_under_72_status, circuit, docket, 
-             field_office), 
-           ~ ifelse(is.na(.x), NA_character_, clean_text(.x))),
-    
-    across(c(name, name_merge), 
-           ~ ifelse(is.na(.x), NA_character_, clean_facility_name(.x))),
-    
-    across(c(address), 
-           ~ ifelse(is.na(.x), NA_character_, clean_street_address(.x))),
-    
-    across(c(zip, zip_4), 
-           ~ ifelse(is.na(.x), NA_character_, str_remove_all(.x, "[^0-9]"))),
-    
-    zip = ifelse(is.na(zip), NA_character_,
-                 ifelse(nchar(zip) == 5, zip, 
-                        ifelse(nchar(zip) > 5, substr(zip, 1, 5), 
-                               str_pad(zip, 5, pad = "0")))),
-    
-    zip_4 = ifelse(is.na(zip_4), NA_character_,
-                   ifelse(nchar(zip_4) == 4, zip_4, 
-                          ifelse(nchar(zip_4) > 4, substr(zip_4, 1, 4), 
-                                 str_pad(zip_4, 4, pad = "0")))),
-    
-    across(any_of(c("city_merge", "state_merge")), 
-           ~ ifelse(is.na(.x), NA_character_, clean_text(.x)))
+    across(
+      c(
+        name,
+        address,
+        city,
+        state,
+        aor,
+        type,
+        type_detailed,
+        male_female,
+        over_under_72_status,
+        circuit,
+        docket,
+        field_office
+      ),
+      ~ ifelse(is.na(.x), NA_character_, clean_text(.x))
+    ),
+
+    across(
+      c(name, name_merge),
+      ~ ifelse(is.na(.x), NA_character_, clean_facility_name(.x))
+    ),
+
+    across(
+      c(address),
+      ~ ifelse(is.na(.x), NA_character_, clean_street_address(.x))
+    ),
+
+    across(
+      c(zip, zip_4),
+      ~ ifelse(is.na(.x), NA_character_, str_remove_all(.x, "[^0-9]"))
+    ),
+
+    zip = ifelse(
+      # TODO: can you switch this to a case_when - easier to read when there are multiple cases like this
+      is.na(zip),
+      NA_character_,
+      ifelse(
+        nchar(zip) == 5,
+        zip,
+        ifelse(nchar(zip) > 5, substr(zip, 1, 5), str_pad(zip, 5, pad = "0")) # TODO: can you switch this to str_sub rather than substr?
+      )
+    ),
+
+    zip_4 = ifelse(
+      # same on case_when
+      is.na(zip_4),
+      NA_character_,
+      ifelse(
+        nchar(zip_4) == 4,
+        zip_4,
+        ifelse(
+          nchar(zip_4) > 4,
+          substr(zip_4, 1, 4),
+          str_pad(zip_4, 4, pad = "0")
+        )
+      )
+    ),
+
+    across(
+      any_of(c("city_merge", "state_merge")),
+      ~ ifelse(is.na(.x), NA_character_, clean_text(.x)) # TODO: if_else
+    )
   ) |>
-  distinct(detention_facility_code, date, source, .keep_all = TRUE)
+  distinct(detention_facility_code, date, source, .keep_all = TRUE) # TODO: I believe there are no duplicates, so can we remove?
 
 # analysis on all fields
-all_fields <- c("name", "address", "city", "state", "zip", "aor", "type", "type_detailed", "male_female", "over_under_72_status", "name_merge", "city_merge", "state_merge", "circuit", "docket", "ice_funded", "over_under_72", "field_office", "zip_4")
+all_fields <- c(
+  "name",
+  "address",
+  "city",
+  "state",
+  "zip",
+  "aor",
+  "type",
+  "type_detailed",
+  "male_female",
+  "over_under_72_status",
+  "name_merge",
+  "city_merge",
+  "state_merge",
+  "circuit",
+  "docket",
+  "ice_funded",
+  "over_under_72",
+  "field_office",
+  "zip_4"
+)
 
-facility_pivot <- facility_addresses_clean |>
-  dplyr::select(detention_facility_code, date, source, all_of(all_fields)) |>
+facility_pivot <-
+  facility_addresses_clean |>
+  dplyr::select(detention_facility_code, date, source, all_of(all_fields)) |> # TODO: no need for dplyr:: if loaded via tidyverse
   pivot_longer(
     cols = all_of(all_fields),
     names_to = "variable",
     values_to = "value"
   ) |>
-  mutate(year = year(date)) |>
+  mutate(year = year(date)) |> # TODO: question in my mind is why do by year and not always pick the newest one
   filter(!is.na(value) & value != "") |>
   group_by(detention_facility_code, variable, year) |>
   summarize(
-    value = first(value),
+    value = first(value), # TODO: this will pick a random one I think because not sorted, is that what we want?
     date = first(date),
     source = first(source),
     .groups = "drop"
   ) |>
   arrange(variable, detention_facility_code, date)
 
-pivot_changes_flagged <- facility_pivot |>
+pivot_changes_flagged <-
+  facility_pivot |>
   group_by(variable, detention_facility_code) |>
   mutate(
     prev_value = lag(value),
@@ -289,7 +345,8 @@ pivot_changes_flagged <- facility_pivot |>
   ) |>
   ungroup()
 
-change_summary_all <- pivot_changes_flagged |>
+change_summary_all <-
+  pivot_changes_flagged |>
   group_by(variable, detention_facility_code) |>
   summarize(
     n_obs = n(),
@@ -298,7 +355,8 @@ change_summary_all <- pivot_changes_flagged |>
     .groups = "drop"
   )
 
-variable_change_stats <- change_summary_all |>
+variable_change_stats <-
+  change_summary_all |>
   group_by(variable) |>
   summarize(
     total_facilities = n(),
@@ -308,12 +366,16 @@ variable_change_stats <- change_summary_all |>
   ) |>
   arrange(desc(pct_changed))
 
-facilities_with_changes_all <- change_summary_all |>
+facilities_with_changes_all <-
+  change_summary_all |>
   filter(n_changes > 0)
 
-pattern_results <- pivot_changes_flagged |>
-  semi_join(facilities_with_changes_all,
-            by = c("variable", "detention_facility_code")) |>
+pattern_results <-
+  pivot_changes_flagged |>
+  semi_join(
+    facilities_with_changes_all,
+    by = c("variable", "detention_facility_code")
+  ) |>
   group_by(variable, detention_facility_code) |>
   summarize(
     pattern = paste(
@@ -330,14 +392,18 @@ pattern_results <- pivot_changes_flagged |>
 # helper functions for implementing best values
 has_reversion <- function(values) {
   values <- values[!is.na(values)]
-  if (length(values) < 3) return(FALSE)
+  if (length(values) < 3) {
+    return(FALSE)
+  }
   values[1] %in% values[-1] # original value reappears
 }
 
 # count number of reversions, specifically A → B → A
 is_aba <- function(values) {
   values <- values[!is.na(values)]
-  if (length(values) < 3) return(FALSE)
+  if (length(values) < 3) {
+    return(FALSE)
+  }
   values[1] == values[length(values)] && length(unique(values)) == 2
 }
 
@@ -347,7 +413,8 @@ get_modes <- function(v) {
   names(tb)[tb == max(tb)]
 }
 
-value_histories <- pivot_changes_flagged |>
+value_histories <-
+  pivot_changes_flagged |>
   group_by(variable, detention_facility_code) |>
   arrange(date, .by_group = TRUE) |>
   summarize(
@@ -360,7 +427,8 @@ value_histories <- pivot_changes_flagged |>
   )
 
 # implementing best values
-best_values <- value_histories |>
+best_values <-
+  value_histories |>
   rowwise() |>
   mutate(
     unique_values = list(unique(values)),
@@ -370,21 +438,21 @@ best_values <- value_histories |>
     ends_with_original = values[length(values)] == values[1],
     has_reversion = has_reversion(values),
     is_aba = is_aba(values),
-    
+
     best_value = case_when(
       # rule 1: never changes
       n_changes == 0 ~ values[1],
-      
+
       # rules 2 and 3: changes but does not revert (keep final)
       !has_reversion ~ values[length(values)],
-      
+
       # rule 4: A → B → A (use modal value)
       has_reversion & n_modes == 1 ~ modes[[1]],
-      
+
       # rule 5: multiple modes or more than 5 changes
       TRUE ~ NA_character_
     ),
-    
+
     # manual review flag
     review_flag = case_when(
       n_unique > 2 & n_modes > 1 ~ "multiple_modes",
@@ -396,7 +464,8 @@ best_values <- value_histories |>
   ungroup()
 
 # counts of A → B → A pattern
-reversion_counts <- value_histories |>
+reversion_counts <-
+  value_histories |>
   rowwise() |>
   mutate(
     is_aba = is_aba(values)
@@ -405,7 +474,8 @@ reversion_counts <- value_histories |>
   filter(is_aba) |>
   select(variable, detention_facility_code, values, years)
 
-reversion_counts_summary <- reversion_counts |>
+reversion_counts_summary <-
+  reversion_counts |>
   group_by(variable) |>
   summarize(
     n_reversions = n(),
@@ -413,21 +483,25 @@ reversion_counts_summary <- reversion_counts |>
   )
 
 # merging best_values with facilities data
-best_values_wide <- best_values |>
+best_values_wide <-
+  best_values |>
   select(detention_facility_code, variable, best_value) |>
   pivot_wider(
     names_from = variable,
     values_from = best_value
   )
 
-facility_list <- facility_addresses_clean |>
-  distinct(detention_facility_code)
+facility_list <-
+  facility_addresses_clean |>
+  distinct(detention_facility_code) # TODO: this chooses arbitrarily among duplicates, is that what we want?
 
-facility_final <- facility_list |>
+facility_final <-
+  facility_list |>
   left_join(best_values_wide, by = "detention_facility_code")
 
 # metadata for diagnostics
-best_values_metadata <- best_values |>
+best_values_metadata <-
+  best_values |>
   select(
     detention_facility_code,
     variable,
@@ -443,5 +517,6 @@ best_values_metadata <- best_values |>
     names_glue = "{variable}_{.value}"
   )
 
-facility_final_metadata <- facility_final |>
+facility_final_metadata <-
+  facility_final |>
   left_join(best_values_metadata, by = "detention_facility_code")
