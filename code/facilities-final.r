@@ -101,7 +101,7 @@ facilities_2017 <-
 
 facilities_dedicated_nondedicated <-
   arrow::read_feather("data/facilities-dedicated-nondedicated.feather") |>
-  dplyr::select(
+  select(
     name,
     address,
     city,
@@ -142,7 +142,7 @@ detentions_05655 <-
   arrow::read_feather(
     "data/facilities-foia-05655.feather"
   ) |>
-  dplyr::select(
+  select(
     detention_facility_code,
     name = detention_facility,
     address = detention_facility_address,
@@ -184,7 +184,7 @@ facilities_detention_management <-
   arrow::read_feather(
     "data/facilities-detention-management.feather"
   ) |>
-  dplyr::select(
+  select(
     name,
     address,
     city,
@@ -213,6 +213,46 @@ facilities_detention_management <-
   ) |>
   filter(!is.na(detention_facility_code))
 
+detentions_41855 <-
+  arrow::read_feather(
+    "data/facilities-foia-41855.feather"
+  ) |>
+  select(
+    detention_facility_code,
+    name = detention_facility,
+    address = detention_facility_address,
+    city = detention_facility_city,
+    state = detention_facility_state_code,
+    zip = detention_facility_zip_code,
+    type = detention_facility_type,
+    type_detailed = detention_facility_type_detailed,
+    ice_funded = detention_facility_ice_funded,
+    male_female = detention_facility_male_female,
+    over_under_72 = detention_facility_over_under_72
+  ) |>
+  mutate(date = as.Date("2024-01-01")) # approximate date of FOIA request; data ends in Oct. 2023 but dated 2024
+
+detentions_current <- arrow::read_feather("data/detention-stints-latest.feather")
+
+detentions_2012_2023 <- arrow::read_feather(
+  "data/ice-detentions-2012-2023.feather"
+)
+
+facilities_from_detentions <- 
+  bind_rows(
+    "2023-03-01" = detentions_2012_2023 |> select(detention_facility_code, detention_facility),
+    "2025-10-15" = detentions_current |> select(detention_facility_code, detention_facility),
+    .id = "date"
+  ) |> 
+  transmute(
+    detention_facility_code,
+    name = detention_facility,
+    date = as.Date(date)
+  ) |> 
+  distinct()
+
+rm(detentions_current, detentions_2012_2023)
+
 # combine for each field one-by-one
 facility_addresses <-
   bind_rows(
@@ -221,6 +261,8 @@ facility_addresses <-
     "05655" = detentions_05655,
     "website" = facility_addresses_from_ice_website,
     "detention_management" = facilities_detention_management,
+    "41855" = detentions_41855,
+    "detentions" = facilities_from_detentions,
     .id = "source"
   )
 
@@ -241,6 +283,8 @@ facility_addresses_clean <-
         over_under_72_status,
         circuit,
         docket,
+        ice_funded,
+        over_under_72,
         field_office
       ),
       ~ ifelse(is.na(.x), NA_character_, clean_text(.x))
@@ -261,38 +305,25 @@ facility_addresses_clean <-
       ~ ifelse(is.na(.x), NA_character_, str_remove_all(.x, "[^0-9]"))
     ),
 
-    zip = ifelse(
-      # TODO: can you switch this to a case_when - easier to read when there are multiple cases like this
-      is.na(zip),
-      NA_character_,
-      ifelse(
-        nchar(zip) == 5,
-        zip,
-        ifelse(nchar(zip) > 5, substr(zip, 1, 5), str_pad(zip, 5, pad = "0")) # TODO: can you switch this to str_sub rather than substr?
-      )
+    zip = case_when(
+      is.na(zip) ~ NA_character_,
+      nchar(zip) == 5 ~ zip,
+      nchar(zip) > 5 ~ str_sub(zip, 1, 5),
+      TRUE ~ str_pad(zip, 5, pad = "0")
     ),
 
-    zip_4 = ifelse(
-      # same on case_when
-      is.na(zip_4),
-      NA_character_,
-      ifelse(
-        nchar(zip_4) == 4,
-        zip_4,
-        ifelse(
-          nchar(zip_4) > 4,
-          substr(zip_4, 1, 4),
-          str_pad(zip_4, 4, pad = "0")
-        )
-      )
+    zip_4 = case_when(
+      is.na(zip_4) ~ NA_character_,
+      nchar(zip_4) == 4 ~ zip_4,
+      nchar(zip_4) > 4 ~ str_sub(zip_4, 1, 4),
+      TRUE ~ str_pad(zip_4, 4, pad = "0")
     ),
 
     across(
       any_of(c("city_merge", "state_merge")),
-      ~ ifelse(is.na(.x), NA_character_, clean_text(.x)) # TODO: if_else
+      ~ if_else(is.na(.x), NA_character_, clean_text(.x))
     )
-  ) |>
-  distinct(detention_facility_code, date, source, .keep_all = TRUE) # TODO: I believe there are no duplicates, so can we remove?
+  )
 
 # analysis on all fields
 all_fields <- c(
@@ -319,22 +350,19 @@ all_fields <- c(
 
 facility_pivot <-
   facility_addresses_clean |>
-  dplyr::select(detention_facility_code, date, source, all_of(all_fields)) |> # TODO: no need for dplyr:: if loaded via tidyverse
+  select(detention_facility_code, date, source, all_of(all_fields)) |>
   pivot_longer(
     cols = all_of(all_fields),
     names_to = "variable",
     values_to = "value"
   ) |>
-  mutate(year = year(date)) |> # TODO: question in my mind is why do by year and not always pick the newest one
   filter(!is.na(value) & value != "") |>
-  group_by(detention_facility_code, variable, year) |>
+  arrange(variable, detention_facility_code, date) |>
+  group_by(detention_facility_code, variable, date, source) |>
   summarize(
-    value = first(value), # TODO: this will pick a random one I think because not sorted, is that what we want?
-    date = first(date),
-    source = first(source),
+    value = first(value),
     .groups = "drop"
-  ) |>
-  arrange(variable, detention_facility_code, date)
+  )
 
 pivot_changes_flagged <-
   facility_pivot |>
@@ -379,11 +407,11 @@ pattern_results <-
   group_by(variable, detention_facility_code) |>
   summarize(
     pattern = paste(
-      unique(paste0(value, " (", year, ")")),
+      unique(paste0(value, " (", date, ")")),
       collapse = " → "
     ),
     values_over_time = paste(
-      paste0(value, " (", year, ")"),
+      paste0(value, " (", date, ")"),
       collapse = " → "
     ),
     .groups = "drop"
@@ -418,9 +446,9 @@ value_histories <-
   group_by(variable, detention_facility_code) |>
   arrange(date, .by_group = TRUE) |>
   summarize(
-    history = list(paste0(value, " (", year, ", ", source, ")")),
+    history = list(paste0(value, " (", date, ", ", source, ")")),
     values = list(as.character(value)),
-    years = list(year),
+    dates = list(date),
     sources = list(source),
     n_changes = sum(changed, na.rm = TRUE),
     .groups = "drop"
@@ -472,7 +500,7 @@ reversion_counts <-
   ) |>
   ungroup() |>
   filter(is_aba) |>
-  select(variable, detention_facility_code, values, years)
+  select(variable, detention_facility_code, values, dates, sources)
 
 reversion_counts_summary <-
   reversion_counts |>
@@ -493,7 +521,7 @@ best_values_wide <-
 
 facility_list <-
   facility_addresses_clean |>
-  distinct(detention_facility_code) # TODO: this chooses arbitrarily among duplicates, is that what we want?
+  distinct(detention_facility_code)
 
 facility_final <-
   facility_list |>
