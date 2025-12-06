@@ -7,7 +7,7 @@ source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 
 # ---- Read in to temporary file ----
-url <- "https://ucla.box.com/shared/static/tp02l4356coo3vzjbbksk51olobzis73.xlsx"
+url <- "https://ucla.app.box.com/index.php?rm=box_download_shared_file&shared_name=9d8qnnduhus4bd5mwqt7l95kz34fic2v&file_id=f_1951492254031"
 f <- tempfile(fileext = ".xlsx")
 download.file(url, f, mode = "wb")
 
@@ -80,6 +80,6 @@ encounters_df <-
 # ---- Save Outputs ----
 
 arrow::write_feather(encounters_df, "data/encounters-latest.feather")
-writexl::write_xlsx(encounters_df, "data/encounters-latest.xlsx")
-haven::write_dta(encounters_df, "data/encounters-latest.dta")
-haven::write_sav(encounters_df, "data/encounters-latest.sav")
+# writexl::write_xlsx(encounters_df, "data/encounters-latest.xlsx")
+# haven::write_dta(encounters_df, "data/encounters-latest.dta")
+# haven::write_sav(encounters_df, "data/encounters-latest.sav")
