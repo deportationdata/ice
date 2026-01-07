@@ -1,3 +1,6 @@
+# Cindy was here
+# here is another comment
+
 # ---- Packages ----
 library(tidyverse)
 library(tidylog)
