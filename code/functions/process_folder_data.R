@@ -5,6 +5,8 @@ library(janitor)
 library(tibble)
 
 rm(list=ls())
+source("code/functions/convert_temporal_columns.R")
+
 # list files in a directory
 list_files_in_dir <- function(
   dir = "data/ice-raw/arrests-selected",
@@ -58,5 +60,7 @@ get_folder_df <- function(folder_dir, pattern, recursive, anchor_idx){
       print(head(processed_df))
     }
   }
-  return(folder_df)
+  # Convert temporal columns
+  folder_df2 <- convert_df_temporal_columns(folder_df)
+  return(folder_df2)
 }
