@@ -11,6 +11,7 @@ source("code/functions/inspect_columns.R")
 source("code/functions/merge_two_df.R")
 
 # --- Read in Combined Data ---
+
 df1 <- read.csv("data/ice-raw/arrests-selected/2022-ICFO-22955_combined.csv", stringsAsFactors = FALSE)
 df2 <- read.csv("data/ice-raw/arrests-selected/2023_ICFO_42034_combined.csv", stringsAsFactors = FALSE)
 df3 <- read.csv("data/ice-raw/arrests-selected/120125_combined.csv", stringsAsFactors = FALSE)
@@ -66,9 +67,67 @@ merge_13_2_out <- merge_dfs(df13, df2,
                             df2_cols_old, df2_cols_new)
 
 ## ! NOTE: Consider in df2 there are columns "Arrest_Created_By", "Arrest_Create_By", and "Arrested_Created_By" that may be the same field
-## ! but with different spellings. These columns were not merged in this script.
+## ! but with different spellings. 
 
 df132 <- merge_13_2_out$df_merged
 
 # merge df132 with df4
 venn_132_4b <- inspect_columns(names(df132), names(df4))
+
+# Need to merge "Alien_File_Number" with "Alien_File_Numbe" in df4
+
+df4$Alien_File_Number <- ifelse(
+  is.na(df4$Alien_File_Number),
+  df4$Alien_File_Numbe,
+  df4$Alien_File_Number
+)
+
+df4$Alien_File_Numbe <- NULL # drop the old column
+
+# double check columns again
+venn_132_4b <- inspect_columns(names(df132), names(df4))
+df4_cols_old <- c("Area_of_Responsibility") # guessing this is for apprehension AOR
+df4_cols_new <- c("Apprehension_AOR")
+merge_132_4_out <- merge_dfs(df132, df4,
+                            NULL, NULL,
+                            df4_cols_old, df4_cols_new)
+df1324 <- merge_132_4_out$df_merged
+
+# Merge "Arrest_Created_By", "Arrest_Create_By", and "Arrested_Created_By"
+# Step 1: fill Arrests_Created_By from the other two columns
+# Step 1: fill Arrest_Created_By from Arrested_Created_By
+df1324$Arrest_Created_By <- ifelse(
+  is.na(df1324$Arrest_Created_By),
+  df1324$Arrested_Created_By,
+  df1324$Arrest_Created_By
+)
+
+# Step 2: fill remaining NAs from Arrest_Create_By
+df1324$Arrest_Created_By <- ifelse(
+  is.na(df1324$Arrest_Created_By),
+  df1324$Arrest_Create_By,
+  df1324$Arrest_Created_By
+)
+
+# Step 3: drop the alternate columns
+df1324$Arrested_Created_By <- NULL
+df1324$Arrest_Create_By   <- NULL
+
+df_final <- df1324[, c(setdiff(sort(names(df1324)), "source_file"), "source_file")]
+
+# --- Write out Merged Data ---
+date_and_time_cols <- names(df_final)[grepl("_Date", names(df_final)) & grepl("_Time", names(df_final))]
+date_cols <- setdiff(names(df_final)[grep("Date", names(df_final))], 
+                      c("Birth_Date", date_and_time_cols))
+
+## Convert date_cols to Date
+df_final[date_cols] <- lapply(df_final[date_cols], function(x) {
+  if (inherits(x, "Date")) return(x)
+  if (inherits(x, "POSIXt")) return(as.Date(x))
+  as.Date(as.character(x))
+})
+
+# --- Write out final merged dataset
+write.csv(df_final,
+          file = "data/ice-raw/arrests-selected/arrests-merged.csv",
+          row.names = FALSE)
