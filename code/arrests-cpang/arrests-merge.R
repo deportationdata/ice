@@ -42,6 +42,7 @@ df1_cols_old <- c("Final_Order_Yes_No.Blank",
                       "Apprehension_Final_Program",
                       "ApprehensionFinal_Program_Group",
                       "Numeric_Birth_Year")
+
 df1_cols_new <- c("Final_Order_Yes_No",
                       "Unique_Identifier",
                       "Apprehension_County",
@@ -86,16 +87,15 @@ df4$Alien_File_Numbe <- NULL # drop the old column
 
 # double check columns again
 venn_132_4b <- inspect_columns(names(df132), names(df4))
-df4_cols_old <- c("Area_of_Responsibility") # guessing this is for apprehension AOR
-df4_cols_new <- c("Apprehension_AOR")
+df4_cols_old <- c("Area_of_Responsibility", "Arrest_Date", "Arrest_Method") # guessing this is for apprehension AOR, Need confirmation from Amber & David
+df4_cols_new <- c("Apprehension_AOR", "Apprehension_Date", "Apprehension_Method")
 merge_132_4_out <- merge_dfs(df132, df4,
                             NULL, NULL,
                             df4_cols_old, df4_cols_new)
 df1324 <- merge_132_4_out$df_merged
 
+
 # Merge "Arrest_Created_By", "Arrest_Create_By", and "Arrested_Created_By"
-# Step 1: fill Arrests_Created_By from the other two columns
-# Step 1: fill Arrest_Created_By from Arrested_Created_By
 df1324$Arrest_Created_By <- ifelse(
   is.na(df1324$Arrest_Created_By),
   df1324$Arrested_Created_By,
@@ -129,5 +129,5 @@ df_final[date_cols] <- lapply(df_final[date_cols], function(x) {
 
 # --- Write out final merged dataset
 write.csv(df_final,
-          file = "data/ice-raw/arrests-selected/arrests-merged.csv",
+          file = "data/ice-processed/arrests-merged.csv",
           row.names = FALSE)
