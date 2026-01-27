@@ -1,3 +1,4 @@
+library(arrow)
 source("code/functions/inspect_columns.R")
 
 merge_dfs <- function(df1, df2, df1_cols_old, df1_cols_new, df2_cols_old, df2_cols_new){
@@ -39,4 +40,31 @@ merge_dfs <- function(df1, df2, df1_cols_old, df1_cols_new, df2_cols_old, df2_co
               df2_renamed = df2_copy,
               venn_after = venn_after,
               df_merged = df_merged))
+}
+
+merge_dfs_to_parquet_dataset <- function(df1, df2,
+                                        df1_cols_old, df1_cols_new,
+                                        df2_cols_old, df2_cols_new,
+                                        out_dir) {
+  stopifnot(requireNamespace("data.table", quietly = TRUE))
+  stopifnot(requireNamespace("arrow", quietly = TRUE))
+
+  dt1 <- data.table::as.data.table(df1)
+  dt2 <- data.table::as.data.table(df2)
+
+  if (length(df1_cols_old)) data.table::setnames(dt1, df1_cols_old, df1_cols_new, skip_absent = TRUE)
+  if (length(df2_cols_old)) data.table::setnames(dt2, df2_cols_old, df2_cols_new, skip_absent = TRUE)
+
+  all_cols <- union(names(dt1), names(dt2))
+  for (nm in setdiff(all_cols, names(dt1))) data.table::set(dt1, j = nm, value = NA)
+  for (nm in setdiff(all_cols, names(dt2))) data.table::set(dt2, j = nm, value = NA)
+  data.table::setcolorder(dt1, all_cols)
+  data.table::setcolorder(dt2, all_cols)
+
+  arrow::write_dataset(dt1, out_dir, format = "parquet", existing_data_behavior = "overwrite_or_ignore")
+  rm(dt1); gc()
+  arrow::write_dataset(dt2, out_dir, format = "parquet", existing_data_behavior = "overwrite_or_ignore")
+  rm(dt2); gc()
+
+  invisible(out_dir)
 }
