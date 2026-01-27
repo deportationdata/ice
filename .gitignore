@@ -47,3 +47,8 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+# macOS
+.DS_Store
+
+# big intermediate outputs
+code/detentions-cpang/merge_step*.csv
