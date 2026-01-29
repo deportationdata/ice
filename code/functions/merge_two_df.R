@@ -1,6 +1,8 @@
 library(arrow)
 source("code/functions/inspect_columns.R")
 
+# here is a comment
+
 merge_dfs <- function(df1, df2, df1_cols_old, df1_cols_new, df2_cols_old, df2_cols_new){
 
   # Rename columns in df1
