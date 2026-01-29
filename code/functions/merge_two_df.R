@@ -3,68 +3,123 @@ source("code/functions/inspect_columns.R")
 
 merge_dfs <- function(df1, df2, df1_cols_old, df1_cols_new, df2_cols_old, df2_cols_new){
 
-  # create copies of df1 and df2 to avoid modifying original data frames
-  df1_copy <- df1
-  df2_copy <- df2
-
   # Rename columns in df1
   for (i in 1:length(df1_cols_old)) {
     old_name <- df1_cols_old[i]
     new_name <- df1_cols_new[i]
-    names(df1_copy)[names(df1_copy) == old_name] <- new_name
+    names(df1)[names(df1) == old_name] <- new_name
   }
 
   # Rename columns in df2
   for (i in 1:length(df2_cols_old)) {
     old_name <- df2_cols_old[i]
     new_name <- df2_cols_new[i]
-    names(df2_copy)[names(df2_copy) == old_name] <- new_name
+    names(df2)[names(df2) == old_name] <- new_name
   }
 
   # Coerce common columns to the same data type
-  common_cols <- intersect(names(df1_copy), names(df2_copy))
+  common_cols <- intersect(names(df1), names(df2))
   for (col in common_cols) {
-    if (!identical(class(df1_copy[[col]]), class(df2_copy[[col]]))) {
-      df1_copy[[col]] <- as.character(df1_copy[[col]])
-      df2_copy[[col]] <- as.character(df2_copy[[col]])
+    if (!identical(class(df1[[col]]), class(df2[[col]]))) {
+      df1[[col]] <- as.character(df1[[col]])
+      df2[[col]] <- as.character(df2[[col]])
     }
   }
 
   # See which columns are now shared
-  venn_after <- inspect_columns(names(df1_copy), names(df2_copy))
+  venn_after <- inspect_columns(names(df1), names(df2))
 
   # merged data frames with renamed columns
-  df_merged <- bind_rows(df1_copy, df2_copy)
+  df_merged <- bind_rows(df1, df2)
 
-  return(list(df1_renamed = df1_copy,
-              df2_renamed = df2_copy,
+  return(list(df1_renamed = df1,
+              df2_renamed = df2,
               venn_after = venn_after,
               df_merged = df_merged))
 }
 
-merge_dfs_to_parquet_dataset <- function(df1, df2,
-                                        df1_cols_old, df1_cols_new,
-                                        df2_cols_old, df2_cols_new,
-                                        out_dir) {
-  stopifnot(requireNamespace("data.table", quietly = TRUE))
-  stopifnot(requireNamespace("arrow", quietly = TRUE))
+merge_dfs_to_parquet <- function(
+  df1, df2,
+  df1_cols_old, df1_cols_new,
+  df2_cols_old, df2_cols_new,
+  out_dir = "merged_dataset",
+  # type handling controls
+  type_strategy = c("vctrs_then_character", "character_for_mismatch", "none"),
+  verbose = TRUE
+) {
+  type_strategy <- match.arg(type_strategy)
 
-  dt1 <- data.table::as.data.table(df1)
-  dt2 <- data.table::as.data.table(df2)
+  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-  if (length(df1_cols_old)) data.table::setnames(dt1, df1_cols_old, df1_cols_new, skip_absent = TRUE)
-  if (length(df2_cols_old)) data.table::setnames(dt2, df2_cols_old, df2_cols_new, skip_absent = TRUE)
+  rename_fast <- function(df, old, new) {
+    stopifnot(length(old) == length(new))
+    map <- stats::setNames(new, old)
+    idx <- match(names(df), names(map))
+    names(df)[!is.na(idx)] <- unname(map[idx[!is.na(idx)]])
+    df
+  }
 
-  all_cols <- union(names(dt1), names(dt2))
-  for (nm in setdiff(all_cols, names(dt1))) data.table::set(dt1, j = nm, value = NA)
-  for (nm in setdiff(all_cols, names(dt2))) data.table::set(dt2, j = nm, value = NA)
-  data.table::setcolorder(dt1, all_cols)
-  data.table::setcolorder(dt2, all_cols)
+  df1r <- rename_fast(df1, df1_cols_old, df1_cols_new)
+  df2r <- rename_fast(df2, df2_cols_old, df2_cols_new)
 
-  arrow::write_dataset(dt1, out_dir, format = "parquet", existing_data_behavior = "overwrite_or_ignore")
-  rm(dt1); gc()
-  arrow::write_dataset(dt2, out_dir, format = "parquet", existing_data_behavior = "overwrite_or_ignore")
-  rm(dt2); gc()
+  # ---- Common columns after renaming ----
+  common_cols <- intersect(names(df1r), names(df2r))
 
-  invisible(out_dir)
+  # ---- Coerce common columns to compatible types ----
+  if (length(common_cols) > 0 && type_strategy != "none") {
+
+    # helper to test "same enough"
+    same_type <- function(x, y) {
+      identical(typeof(x), typeof(y)) && identical(class(x), class(y))
+    }
+
+    for (col in common_cols) {
+      x <- df1r[[col]]
+      y <- df2r[[col]]
+      if (same_type(x, y)) next
+
+      if (type_strategy == "character_for_mismatch") {
+        df1r[[col]] <- as.character(x)
+        df2r[[col]] <- as.character(y)
+        next
+      }
+
+      # vctrs_then_character
+      ok <- TRUE
+      proto <- tryCatch(
+        vctrs::vec_ptype2(x, y),
+        error = function(e) { ok <<- FALSE; NULL }
+      )
+
+      if (ok) {
+        df1r[[col]] <- vctrs::vec_cast(x, proto)
+        df2r[[col]] <- vctrs::vec_cast(y, proto)
+      } else {
+        # last resort fallback
+        df1r[[col]] <- as.character(x)
+        df2r[[col]] <- as.character(y)
+      }
+    }
+  }
+
+  # Write parts (no giant in-memory bind)
+  f1 <- file.path(out_dir, "part1.parquet")
+  f2 <- file.path(out_dir, "part2.parquet")
+
+  arrow::write_parquet(df1r, f1)
+  arrow::write_parquet(df2r, f2)
+
+  if (verbose) {
+    message("Wrote: ", f1)
+    message("Wrote: ", f2)
+    message("Common columns checked: ", length(common_cols))
+    message("Open later with: arrow::open_dataset('", out_dir, "')")
+  }
+
+  invisible(list(
+    out_dir = out_dir,
+    part1 = f1,
+    part2 = f2,
+    common_cols = common_cols
+  ))
 }
