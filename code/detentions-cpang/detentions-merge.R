@@ -43,8 +43,8 @@ df4$Detention_Book_In_Date <- as.Date(df4$Detention_Book_In_Date_Time)
 df4$Detention_Book_Out_Date <- as.Date(df4$Detention_Book_Out_Date_Time)
 
 # Merge df2 and df4
-df2_cols_old <- c("Marital", "Anonymized_Identifier")
-df2_cols_new <- c("Marital_Status", "Unique_Identifier")
+df2_cols_old <- c("Marital", "Anonymized_Identifier", "Case_ID", "Subject_ID")
+df2_cols_new <- c("Marital_Status", "Unique_Identifier", "EID_Case_ID", "EID_Subject_ID")
 df_2_4_merged <- merge_dfs(df2, df4, df2_cols_old, df2_cols_new, NULL, NULL)
 df24 <- df_2_4_merged$df_merged
 venn_df_2_4a <- df_2_4_merged$venn_after
@@ -64,5 +64,92 @@ df_24_5_merged <- merge_dfs(df24, df5, df24_cols_old, df24_cols_new, df5_cols_ol
 df245 <- df_24_5_merged$df_merged
 venn_df_24_5a <- df_24_5_merged$venn_after
 
-# Writing this out since it's giving me an memory issue? (which is weird...)
-write.csv(df24, "code/detentions-cpang/merge_step1_df24.csv", row.names = FALSE)
+# Merge df245 and df1 (hopefully this works but we'll see)
+venn_df_245_1 <- inspect_columns(names(df245), names(df1))
+df245_cols_old <- c("Area_of_Responsibility", "Docket_Control_Office")
+df245_cols_new <- c("Book_In_AOR", "Book_In_DCO")
+
+df1_cols_old <- c("Detention_Id", "Book_In_Date", "Book_In_Date_And_Time",
+                  "Book_Out_Date_And_Time", "Book_Out_Date",
+                  "Book_In_Aor", "Book_In_Dco", "Release_Reason", "Eid_Cse_Id")
+df1_cols_new <- c(
+  "Detention_ID",
+  "Detention_Book_In_Date",
+  "Detention_Book_In_Date_Time",
+  "Detention_Book_Out_Date_Time",
+  "Detention_Book_Out_Date",
+  "Book_In_AOR",
+  "Book_In_DCO", 
+  "Detention_Release_Reason", 
+  "EID_Case_ID"
+)
+
+merge_245_1 <- merge_dfs(df245, df1, df245_cols_old, df245_cols_new, df1_cols_old, df1_cols_new)
+df2451 <- merge_245_1$df_merged
+venn_df_245_1a <- merge_245_1$venn_after
+
+
+# df's left: 3, 6, 7 
+# naive merge for 6 and 7 first, since those df's are "lighter"
+venn_6_7 <- inspect_columns(names(df6), names(df7))
+
+df6_old_cols <- c(
+  "History_Detention_Facility",
+  "History_Detention_Facility_Code",
+  "History_Intake_Date",
+  "History_Book.out_Date",
+  "History_Release_Reason",
+  "ERO_Apprehension_Date",
+  "ERO_Apprehension_Landmark",
+  "Initial_Intake_Detention_Facility",
+  "Order_of_Detentions", 
+  "History_Intake_DCO"
+)
+
+df6_new_cols <- c(
+  "Detention_Facility",
+  "Detention_Facility_Code",
+  "Detention_Book_In_Date",
+  "Detention_Book_Out_Date",
+  "Release_Reason",
+  "Apprehension_Date",
+  "Apprehension_Landmark",
+  "Initial_Book_In_Facility",
+  "Facility_Held_In_Seq", 
+  "Book_In_DCO"
+)
+
+df7_old_cols <- c("Book_In_Date", "Book_Out_Date", "Book_In_Dco")
+df7_new_cols <- c("Detention_Book_In_Date", "Detention_Book_Out_Date", "Book_In_DCO")
+
+merge_6_7 <- merge_dfs(df6, df7, df6_old_cols, df6_new_cols, df7_old_cols, df7_new_cols)
+df67 <- merge_6_7$df_merged
+venn_6_7a <- merge_6_7$venn_after
+
+# Merge df67 with df3
+venn_67_3 <- inspect_columns(names(df67), names(df3))
+
+df67_old_cols <- c("City", "State")
+df67_new_cols <- c("Detention_Facility_City", "Detention_Facility_State")
+
+df3_old_cols <- c("Book_in_DCO")
+df3_new_cols <- c("Book_In_DCO")
+
+# add new columns to Book_In_Date/Time objects in df3
+df3$Detention_Book_In_Date <- substring(df3$Book_in_Date_And_Time,1,10)
+df3$Detention_Book_Out_Date <- substring(df3$Book_Out_Date_Time, 1,10)
+df3$Initial_Book_In_Date <- substring(df3$Initial_Book_In_Date_Time, 1, 10)
+
+merge_67_3 <- merge_dfs(df67, df3, df67_old_cols, df67_new_cols, df3_old_cols, df3_new_cols)
+venn_67_3a <- merge_67_3$venn_after
+df673 <- merge_67_3$df_merged
+
+# Master merge: df2451 and df673
+venn_df_2451_673 <- inspect_columns(names(df2451), names(df673))
+
+df673_old_cols <- c("Book_Out_Date_Time", "Most_Serious_Conviction_Date", "Most_Serious_Sentence_Months", "Most_Serious_Sentence_Years", "Release_Reason", "Alien_Number_Unique_Identifier")
+df673_new_cols <- c("Detention_Book_Out_Date_Time", "MSC_Conviction_Date", "MSC_Sentence_Months", "MSC_Sentence_Years", "Detention_Release_Reason", "Unique_Identifier")
+
+merge_all <- merge_dfs(df2451, df673, df673_old_cols, df673_new_cols, NULL, NULL)
+venn_all <- merge_all$venn_after
+
