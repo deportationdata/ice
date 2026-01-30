@@ -49,6 +49,10 @@ df_2_4_merged <- merge_dfs(df2, df4, df2_cols_old, df2_cols_new, NULL, NULL)
 df24 <- df_2_4_merged$df_merged
 venn_df_2_4a <- df_2_4_merged$venn_after
 
+## drop variables relating to df2 and df4 to free up memory 
+rm(df2, df4, df_2_4_merged)
+gc()
+
 # Merge df5 with df24
 venn_df_24_5 <- inspect_columns(names(df24), names(df5))
 
@@ -63,6 +67,9 @@ df5_cols_new <- c("Ethnicity", "Unique_Identifier")
 df_24_5_merged <- merge_dfs(df24, df5, df24_cols_old, df24_cols_new, df5_cols_old, df5_cols_new)
 df245 <- df_24_5_merged$df_merged
 venn_df_24_5a <- df_24_5_merged$venn_after
+
+rm(df24, df5, df_24_5_merged)
+gc()
 
 # Merge df245 and df1 (hopefully this works but we'll see)
 venn_df_245_1 <- inspect_columns(names(df245), names(df1))
@@ -87,6 +94,9 @@ df1_cols_new <- c(
 merge_245_1 <- merge_dfs(df245, df1, df245_cols_old, df245_cols_new, df1_cols_old, df1_cols_new)
 df2451 <- merge_245_1$df_merged
 venn_df_245_1a <- merge_245_1$venn_after
+
+rm(df245, df1, merge_245_1)
+gc()
 
 
 # df's left: 3, 6, 7 
@@ -126,6 +136,9 @@ merge_6_7 <- merge_dfs(df6, df7, df6_old_cols, df6_new_cols, df7_old_cols, df7_n
 df67 <- merge_6_7$df_merged
 venn_6_7a <- merge_6_7$venn_after
 
+rm(df6, df7, merge_6_7)
+gc()
+
 # Merge df67 with df3
 venn_67_3 <- inspect_columns(names(df67), names(df3))
 
@@ -144,12 +157,26 @@ merge_67_3 <- merge_dfs(df67, df3, df67_old_cols, df67_new_cols, df3_old_cols, d
 venn_67_3a <- merge_67_3$venn_after
 df673 <- merge_67_3$df_merged
 
+rm(df67, df3, merge_67_3)
+rm(df_list, shared_cols_matrix)
+gc()
 # Master merge: df2451 and df673
 venn_df_2451_673 <- inspect_columns(names(df2451), names(df673))
 
-df673_old_cols <- c("Book_Out_Date_Time", "Most_Serious_Conviction_Date", "Most_Serious_Sentence_Months", "Most_Serious_Sentence_Years", "Release_Reason", "Alien_Number_Unique_Identifier")
-df673_new_cols <- c("Detention_Book_Out_Date_Time", "MSC_Conviction_Date", "MSC_Sentence_Months", "MSC_Sentence_Years", "Detention_Release_Reason", "Unique_Identifier")
+df673_old_cols <- c("Book_Out_Date_Time", "Most_Serious_Conviction_Date", "Most_Serious_Sentence_Months", "Most_Serious_Sentence_Years", "Release_Reason", "Alien_Number_Unique_Identifier", "Book_in_Date_And_Time")
+df673_new_cols <- c("Detention_Book_Out_Date_Time", "MSC_Conviction_Date", "MSC_Sentence_Months", "MSC_Sentence_Years", "Detention_Release_Reason", "Unique_Identifier", "Detention_Book_In_Date_Time")
 
-merge_all <- merge_dfs(df2451, df673, df673_old_cols, df673_new_cols, NULL, NULL)
+df2451_old_cols <- c("Eid_Dt_Civ_Id")
+df2451_new_cols <- c("EID_Civilian_Id")
+
+merge_all <- merge_dfs(df2451, df673,  df2451_old_cols, df2451_new_cols, df673_old_cols, df673_new_cols)
 venn_all <- merge_all$venn_after
 
+df_all <- merge_all$df_merged
+
+rm(df2451, df673, merge_all)
+gc()
+
+
+## Write out!!!! 
+write_feather(df_all, "data/ice-processed/detentions-merged.feather")
