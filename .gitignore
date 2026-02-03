@@ -50,5 +50,5 @@ rsconnect/
 # macOS
 .DS_Store
 
-# big intermediate outputs
-code/detentions-cpang/merge_step*.csv
+# ignore pushing this file
+data/ice-processed/detentions-merged.feather
