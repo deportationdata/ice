@@ -3,21 +3,20 @@ rm(list=ls())
 library(dplyr)
 library(tidyr)
 library(lubridate)
-library(vroom)
 library(arrow)
 
-detentions_data <- read_feather("data/ice-processed/detentions-merged.feather")|>
-  mutate(
-    Detention_Book_In_Date = as.Date(Detention_Book_In_Date)
-  )
+detentions_data <- read_feather(
+  "data/ice-processed/detentions-merged.feather",
+  col_select = c("Detention_Book_In_Date")   # read only what you need
+)
 
 weekly_counts_bookIn <- detentions_data |>
   filter(!is.na(Detention_Book_In_Date)) |>
   mutate(
-    week_start = floor_date(Detention_Book_In_Date, unit = "week", week_start = 7), # Sunday
-    year = year(week_start),
-    week = week(week_start),
-    year_week = sprintf("%d-W%02d", year, week)
+    Detention_Book_In_Date = as.Date(Detention_Book_In_Date),
+    week_start = floor_date(Detention_Book_In_Date, unit = "week", week_start = 7)
   ) |>
-  count(year_week, week_start, name = "n") |>
+  count(week_start, name = "n") |>
   arrange(week_start)
+
+write_feather(weekly_counts_bookIn, "data/ice-counts/detentions-weekly-counts.feather")
