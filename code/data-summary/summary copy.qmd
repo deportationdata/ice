@@ -1,0 +1,352 @@
+---
+title: "Missing Counts Summary for ICE Data"
+author: "Cindy J. Pang"
+date: "2026-02-04"
+format:
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    geometry: margin=1in
+    number-sections: false
+    colorlinks: true
+    keep-tex: false
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+rm(list=ls())
+```
+
+```{r}
+library(arrow)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(here)
+```
+
+```{r}
+all_data <- read_feather(here("data", "ice-counts", "all-events-by-week.feather")) |>
+  select(week_start, event_type, count) |>
+  mutate(Year = year(week_start))
+```
+
+## Arrests - `Apprehension_Date` Counts  
+
+### By-Week
+```{r}
+all_data |>
+  subset(event_type == "arrests") |>
+  ggplot(aes(x = week_start, y = count)) +
+  geom_col(fill = "black", color = "black", linewidth = 0.2) +
+  scale_x_date(expand = c(0, 0)) +
+  theme_minimal()+
+  labs(
+    title = "Arrests by Week", 
+    x = "Week", 
+    y = "Counts"
+  )
+```
+
+Subset to 2010 onwards to see what is going on. 
+
+```{r}
+all_data |>
+  filter(event_type == "arrests", week_start >= as.Date("2010-01-01")) |>
+  ggplot(aes(x = week_start, y = count)) +
+  geom_col(fill = "grey70", color = "black", linewidth = 0.2) +
+  scale_x_date(expand = c(0, 0)) +
+  theme_minimal()+
+  labs(
+    title = "Arrests from 2010 Onwards", 
+    x = "Week", 
+    y = "Counts"
+  )
+```
+
+### By-Year 
+```{r}
+all_data |>
+  subset(event_type == "arrests") |>
+  ggplot(aes(x = Year, y = count)) +
+  geom_col(fill = "black", color = "black", linewidth = 0.2) +
+  theme_minimal()+
+  labs(
+    title = "Arrests by Year", 
+    x = "Year", 
+    y = "Counts"
+  )
+```
+
+
+## Detentions - `Detention_Book_In_Date` Counts  
+
+### By-Week
+```{r}
+all_data |>
+  subset(event_type == "detentions") |>
+  ggplot(aes(x = week_start, y = count)) +
+  geom_col(fill = "grey70", color = "black", linewidth = 0.2) +
+  scale_x_date(expand = c(0, 0)) +
+  theme_minimal()+
+  labs(
+    title = "Detentions by Week", 
+    x = "Week", 
+    y = "Counts"
+  )
+```
+
+### By-Year 
+
+```{r}
+all_data |>
+  subset(event_type == "detentions") |>
+  ggplot(aes(x = Year, y = count)) +
+  geom_col(fill = "black", color = "black", linewidth = 0.2) +
+  theme_minimal()+
+  labs(
+    title = "Detentions by Year", 
+    x = "Year", 
+    y = "Counts"
+  )
+```
+
+## Detainers  
+
+### By-Week 
+```{r}
+all_data |>
+  subset(event_type == "detainers") |>
+  ggplot(aes(x = week_start, y = count)) +
+  geom_col(fill = "grey70", color = "black", linewidth = 0.2) +
+  scale_x_date(expand = c(0, 0)) +
+  theme_minimal()+
+  labs(
+    title = "Detainers by Week", 
+    x = "Week", 
+    y = "Counts"
+  )
+```
+
+### By-Year 
+
+```{r}
+all_data |>
+  subset(event_type == "detainers") |>
+  ggplot(aes(x = Year, y = count)) +
+  geom_col(fill = "black", color = "black", linewidth = 0.2) +
+  theme_minimal()+
+  labs(
+    title = "Detainers by Year", 
+    x = "Year", 
+    y = "Counts"
+  )
+```
+
+## Encounters  
+
+### By-Week 
+```{r}
+all_data |>
+  subset(event_type == "encounters") |>
+  ggplot(aes(x = week_start, y = count)) +
+  geom_col(fill = "grey70", color = "black", linewidth = 0.2) +
+  scale_x_date(expand = c(0, 0)) +
+  theme_minimal()+
+  labs(
+    title = "Encounters by Week", 
+    x = "Week", 
+    y = "Counts"
+  )
+```
+
+### By-Year 
+
+```{r}
+all_data |>
+  subset(event_type == "encounters") |>
+  ggplot(aes(x = Year, y = count)) +
+  geom_col(fill = "black", color = "black", linewidth = 0.2) +
+  theme_minimal()+
+  labs(
+    title = "Encounters by Year", 
+    x = "Year", 
+    y = "Counts"
+  )
+```
+
+By inspection we are **missing data** from `2023-02-05`-`2023-08-20`. 
+
+## Removals  
+
+### By-Week 
+```{r}
+all_data |>
+  subset(event_type == "removals") |>
+  ggplot(aes(x = week_start, y = count)) +
+  geom_col(fill = "grey70", color = "black", linewidth = 0.2) +
+  scale_x_date(expand = c(0, 0)) +
+  theme_minimal()+
+  labs(
+    title = "Removals by Week", 
+    x = "Week", 
+    y = "Counts"
+  )
+```
+
+### By-Year 
+
+```{r}
+all_data |>
+  subset(event_type == "removals") |>
+  ggplot(aes(x = Year, y = count)) +
+  geom_col(fill = "black", color = "black", linewidth = 0.2) +
+  theme_minimal()+
+  labs(
+    title = "Removals by Year", 
+    x = "Year", 
+    y = "Counts"
+  )
+```
+
+## Summary of Data Missingness  
+
+| Event Type | Years Covered | Missing Gaps |
+|------------|---------------|--------------|
+| Arrests    | 2011-Oct. 12, 2025     | Jan. 2011-Sept. 18|
+| Detentions | 1983-Oct. 12, 2025     |              |
+| Detainers  | 1998-Mar 16, 2025     | 1999-2000, 2022-2004, 2006, 2008, 2012; Mar. 23,2025-Oct. 12, 2025 |
+| Encounters | 2011-2025     | Jan. 2011 - Sept. 18, 2011; Feb. 2023 - Aug 2023; Aug. 2025-Oct. 2025 |
+| Removals   | 2013-Jul. 27, 2025 | Feb. 5, 2023-Aug. 20, 2023; Aug. 3, 2025-Oct. 12, 2025 |
+
+## Appendix 
+
+### By Year  
+
+```{r}
+# Arrests 
+arrests_yearly <- all_data |>
+  filter(event_type == "arrests", count > 0) |>
+  mutate(Year = year(week_start)) |>
+  group_by(Year) |>
+  summarise(
+    total_arrests = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(Year)
+
+# Detainers
+detainers_yearly <- all_data |>
+  filter(event_type == "detainers", count > 0) |>
+  mutate(Year = year(week_start)) |>
+  group_by(Year) |>
+  summarise(
+    total_detainers = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(Year)
+
+# Detentions 
+detentions_yearly <- all_data |>
+  filter(event_type == "detentions", count > 0) |>
+  mutate(Year = year(week_start)) |>
+  group_by(Year) |>
+  summarise(
+    total_detention_BookIns = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(Year)
+
+# Encounters 
+encounters_yearly <- all_data |>
+  filter(event_type == "encounters", count > 0) |>
+  mutate(Year = year(week_start)) |>
+  group_by(Year) |>
+  summarise(
+    total_encounters = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(Year)
+
+# Removals 
+removals_yearly <- all_data |>
+  filter(event_type == "removals", count > 0) |>
+  mutate(Year = year(week_start)) |>
+  group_by(Year) |>
+  summarise(
+    total_removals = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(Year)
+```
+```{r}
+years_all <- Reduce(function(x, y) full_join(x, y, by = "Year"),
+                     list(arrests_yearly, detainers_yearly, detentions_yearly, encounters_yearly, removals_yearly))|>
+                      arrange(Year)
+```
+```{r}
+knitr::kable(years_all, col.names = c("Year", "Arrests", "Detainers", "Detentions", "Encounters", "Removals"))
+```
+
+### Inspect Weekly Patterns for Data-Missingness  
+
+```{r}
+arrests_weekly_past2011 <- all_data |>
+  filter(event_type == "arrests", week_start >= as.Date("2011-01-01")) |>
+  group_by(week_start) |>
+  summarise(
+    total_arrests = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(week_start)
+
+detainers_weekly_past1998 <- all_data |>
+  filter(event_type == "detainers", week_start >= as.Date("1998-01-01")) |>
+  group_by(week_start) |>
+  summarise(
+    total_arrests = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(week_start)
+
+detentions_weekly_past1983 <- all_data |>
+  filter(event_type == "detentions", week_start >= as.Date("1983-01-01")) |>
+  group_by(week_start) |>
+  summarise(
+    total_detentions = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(week_start)
+
+encounters_weekly_past2011<- all_data |>
+  filter(event_type == "encounters", week_start >= as.Date("2011-01-01")) |>
+  group_by(week_start) |>
+  summarise(
+    total_encounters = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(week_start)
+
+removals_weekly_past2013 <- all_data |>
+  filter(event_type == "encounters", week_start >= as.Date("2013-01-01")) |>
+  group_by(week_start) |>
+  summarise(
+    total_removals = sum(count, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(week_start)
+
+knitr::kable(arrests_weekly_past2011, col.names = c("Week", "Arrests"), caption = "Arrests Past 2011")
+knitr::kable(detainers_weekly_past1998, col.names = c("Week", "Detainers"), caption = "Detainers Past 1998")
+knitr:: kable(detentions_weekly_past1983, col.names = c("Week", "Detention Book Ins"), caption = "Detentions Past 1983")
+knitr::kable(encounters_weekly_past2011, col.names = c("Week", "Encounters"), caption = "Encounters Past 2011")
+knitr::kable(removals_weekly_past2013, col.names = c("Week", "Removals"), caption = "Removals Past 2013")
+```
+
+
+
+
