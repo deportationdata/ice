@@ -85,6 +85,8 @@ all_data |>
 
 ## Detentions - `Detention_Book_In_Date` Counts  
 
+`Stay_Book_In_Date` is missing for more than half of the observations. 
+
 ### By-Week
 ```{r}
 all_data |>
@@ -115,7 +117,7 @@ all_data |>
   )
 ```
 
-## Detainers  
+## Detainers - `Prepare_Date` Counts  
 
 ### By-Week 
 ```{r}
@@ -147,7 +149,7 @@ all_data |>
   )
 ```
 
-## Encounters  
+## Encounters - `Event_Date` Counts    
 
 ### By-Week 
 ```{r}
@@ -181,7 +183,7 @@ all_data |>
 
 By inspection we are **missing data** from `2023-02-05`-`2023-08-20`. 
 
-## Removals  
+## Removals - `Departed_Date` Counts  
 
 ### By-Week 
 ```{r}
@@ -217,11 +219,11 @@ all_data |>
 
 | Event Type | Years Covered | Missing Gaps |
 |------------|---------------|--------------|
-| Arrests    | 2011-Oct. 12, 2025     | Jan. 2011-Sept. 18|
-| Detentions | 1983-Oct. 12, 2025     |              |
-| Detainers  | 1998-Mar 16, 2025     | 1999-2000, 2022-2004, 2006, 2008, 2012; Mar. 23,2025-Oct. 12, 2025 |
-| Encounters | 2011-2025     | Jan. 2011 - Sept. 18, 2011; Feb. 2023 - Aug 2023; Aug. 2025-Oct. 2025 |
-| Removals   | 2013-Jul. 27, 2025 | Feb. 5, 2023-Aug. 20, 2023; Aug. 3, 2025-Oct. 12, 2025 |
+| Arrests    | Sept. 25, 2011-Oct. 12, 2025|          |
+| Detentions | 1983-Oct. 12, 2025|              |
+| Detainers  | Sept. 30, 2007 - Oct. 12, 2025|  |
+| Encounters | Sept. 25, 2011- Jul. 27, 2025     | Feb.-Aug. 2023 |
+| Removals   | Sept. 29, 2002-Jul. 27, 2025|  |
 
 ## Appendix 
 
@@ -331,21 +333,93 @@ encounters_weekly_past2011<- all_data |>
   ) |>
   arrange(week_start)
 
-removals_weekly_past2013 <- all_data |>
-  filter(event_type == "encounters", week_start >= as.Date("2013-01-01")) |>
+removals_weekly_past2002 <- all_data |>
+  filter(event_type == "removals", week_start >= as.Date("2002-01-01")) |>
   group_by(week_start) |>
   summarise(
     total_removals = sum(count, na.rm = TRUE),
     .groups = "drop"
   ) |>
   arrange(week_start)
+```
 
+```{r}
 knitr::kable(arrests_weekly_past2011, col.names = c("Week", "Arrests"), caption = "Arrests Past 2011")
 knitr::kable(detainers_weekly_past1998, col.names = c("Week", "Detainers"), caption = "Detainers Past 1998")
 knitr:: kable(detentions_weekly_past1983, col.names = c("Week", "Detention Book Ins"), caption = "Detentions Past 1983")
 knitr::kable(encounters_weekly_past2011, col.names = c("Week", "Encounters"), caption = "Encounters Past 2011")
-knitr::kable(removals_weekly_past2013, col.names = c("Week", "Removals"), caption = "Removals Past 2013")
+knitr::kable(removals_weekly_past2002, col.names = c("Week", "Removals"), caption = "Removals Past 2002")
 ```
+
+### Inspect Monthly patterns  
+```{r}
+week_to_month_year <- function(df, date_col = week_start){
+  df %>%
+    dplyr::mutate(
+      year       = lubridate::year({{ date_col }}),
+      month      = lubridate::month({{ date_col }}),
+      month_year = format({{ date_col }}, "%m-%Y")
+    )
+}
+```
+
+```{r}
+arrests_by_month <- week_to_month_year(arrests_weekly_past2011)
+detainers_by_month <- week_to_month_year(detainers_weekly_past1998)
+detentions_by_month <- week_to_month_year(detentions_weekly_past1983)
+encounters_by_month <- week_to_month_year(encounters_weekly_past2011)
+removals_by_month <- week_to_month_year(removals_weekly_past2002)
+```
+
+```{r}
+arrests_by_month_summary <- arrests_by_month %>%
+  mutate(month_year_date = as.Date(paste0("01-", month_year), format = "%d-%m-%Y"))%>%
+  group_by(month_year_date)|>
+  summarise(
+    monthly_total = sum(total_arrests, na.rm = TRUE), 
+    .groups="drop"
+  )|>
+  arrange(month_year_date)
+
+ggplot(arrests_by_month_summary, aes(month_year_date, monthly_total))+
+  geom_col(fill = "black", color = "black", linewidth = 0.2) +
+  theme_minimal()+
+  labs(
+    title = "Arrests per Month-Year", 
+    x = "Month-Year", 
+    y = "Counts"
+  )+
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1)
+  )
+```
+
+Arrests appears to be fine as is -- all available files (0) to attempt to fill in gaps have been used.  
+
+```{r}
+detainers_by_month_summary <- detainers_by_month %>%
+  mutate(month_year_date = as.Date(paste0("01-", month_year), format = "%d-%m-%Y"))%>%
+  group_by(month_year_date)|>
+  summarise(
+    monthly_total = sum(total_arrests, na.rm = TRUE), 
+    .groups="drop"
+  )|>
+  arrange(month_year_date)
+
+ggplot(detainers_by_month_summary, aes(month_year_date, monthly_total))+
+  geom_col(fill = "black", color = "black", linewidth = 0.2) +
+  theme_minimal()+
+  labs(
+    title = "Detainers per Month-Year", 
+    x = "Month-Year", 
+    y = "Counts"
+  )+
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1)
+  )
+
+```
+
 
 
 

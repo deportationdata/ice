@@ -11,12 +11,12 @@ detainers_data <- vroom("./data/ice-processed/detainers-merged.csv",
   na = c("", "NA", "N/A", "NULL", "UNK", "UNKNOWN"))
   
 detainers_data2 <- detainers_data |>
-  mutate(Detainer_Lift_Date = as.Date(Detainer_Lift_Date))
+  mutate(Prepare_Date = as.Date(Prepare_Date))
 
 weekly_counts <- detainers_data2 |>
-  filter(!is.na(Detainer_Lift_Date)) |>
+  filter(!is.na(Prepare_Date)) |>
   mutate(
-    week_start = floor_date(Detainer_Lift_Date, unit = "week", week_start = 7), # Sunday
+    week_start = floor_date(Prepare_Date, unit = "week", week_start = 7), # Sunday
     year = year(week_start),
     week = week(week_start),
     year_week = sprintf("%d-W%02d", year, week)

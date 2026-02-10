@@ -1,6 +1,7 @@
 rm(list=ls())
 
 library(dplyr)
+library(tidyr)
 library(arrow)
 
 # read data
@@ -34,7 +35,7 @@ weekly_long <- weekly_all |>
   )|>
   mutate(
     event_type = gsub("^n_", "", event_type)
-  )
-
+  )|>
+  select(week_start, event_type, count)
 
 write_feather(weekly_long, "data/ice-counts/all-events-by-week.feather")

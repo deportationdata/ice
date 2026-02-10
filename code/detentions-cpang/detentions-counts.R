@@ -7,7 +7,7 @@ library(arrow)
 
 detentions_data <- read_feather(
   "data/ice-processed/detentions-merged.feather",
-  col_select = c("Detention_Book_In_Date")   # read only what you need
+  col_select = c("Detention_Book_In_Date", "Stay_Book_In_Date")   # read only what you need
 )
 
 weekly_counts_bookIn <- detentions_data |>
