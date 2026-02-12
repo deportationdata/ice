@@ -107,16 +107,16 @@ facilities_daily_population <-
 
 arrow::write_feather(
   facilities_daily_population,
-  "data/facilities-daily-population.feather"
+  "data/facilities-daily-population-latest.feather"
 )
 haven::write_dta(
   facilities_daily_population,
-  "data/facilities-daily-population.dta"
+  "data/facilities-daily-population-latest.dta"
 )
 haven::write_sav(
   facilities_daily_population,
-  "data/facilities-daily-population.sav"
+  "data/facilities-daily-population-latest.sav"
 )
 
 facilities_daily_population |>
-  writexl::write_xlsx("data/facilities-daily-population.xlsx")
+  writexl::write_xlsx("data/facilities-daily-population-latest.xlsx")
