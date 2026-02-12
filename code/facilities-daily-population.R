@@ -51,19 +51,19 @@ daily_population_statistics <-
       unique_identifier_nona[detained_at_midnight],
       na.rm = TRUE
     ),
-    n_male = n_distinct(
+    n_detained_male = n_distinct(
       unique_identifier_nona[gender == "Male"],
       na.rm = TRUE
     ),
-    n_female = n_distinct(
+    n_detained_female = n_distinct(
       unique_identifier_nona[gender == "Female"],
       na.rm = TRUE
     ),
-    n_convicted_criminal = n_distinct(
+    n_detained_convicted_criminal = n_distinct(
       unique_identifier_nona[book_in_criminality == "1 Convicted Criminal"],
       na.rm = TRUE
     ),
-    n_possibly_under_18 = n_distinct(
+    n_detained_possibly_under_18 = n_distinct(
       unique_identifier_nona[date < as.Date(str_c(birth_year + 18, "-01-01"))],
       na.rm = TRUE
     ),
@@ -91,10 +91,10 @@ facilities_daily_population <-
       n_missing_ID = 0L,
       n_detained = 0L,
       n_detained_at_midnight = 0L,
-      n_male = 0L,
-      n_female = 0L,
-      n_convicted_criminal = 0L,
-      n_possibly_under_18 = 0L
+      n_detained_male = 0L,
+      n_detained_female = 0L,
+      n_detained_convicted_criminal = 0L,
+      n_detained_possibly_under_18 = 0L
     )
   ) |>
   left_join(
@@ -103,7 +103,6 @@ facilities_daily_population <-
       distinct(),
     by = "detention_facility_code"
   ) |>
-  relocate(n_book_ins, n_book_outs, .after = date) |>
   relocate(detention_facility, .after = detention_facility_code)
 
 arrow::write_feather(
