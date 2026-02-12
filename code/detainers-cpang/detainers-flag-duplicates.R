@@ -14,47 +14,55 @@ detainers_data <- fread(
   na.strings = c("", "NA", "N/A", "NULL", "UNK", "UNKNOWN"),
   showProgress = TRUE
 )
+detainers_data <- 
+  detainers_data |>
+  mutate(
+    Prepare_Date = as.Date(Prepare_Date)
+  )
 
+# ---- Construct Duplicates Indicator ----
+# two (or more) arrests within 24 hours of each other
+setDT(detainers_data)
+setorder(detainers_data, Unique_Identifier, Prepare_Date)
 
-
-detainers_data <- detainers_data |>
-  mutate(row_id = row_number()) # Create this row_id for 
-npr_detentions <- detainers_data |>
-  filter(source_file == "npr")
-na_counts <- detainers_data[, lapply(.SD, \(x) sum(is.na(x)))]
-setcolorder(na_counts, names(na_counts)[order(as.numeric(na_counts[1]))])
-
-temp <- detainers_data |>
-  arrange(Prepare_Date) |>
-  select(row_id, Prepare_Date, source_file, Detention_Facility, Detainer_Lift_Reason, Detention_Facility_Code, Detainer_AOR, Birth_Country, Gender, Birth_Year)
-
-match_cols <- c("Detention_Facility", "Detainer_Lift_Reason", "Detention_Facility_Code", "Detainer_AOR", "Birth_Country", "Gender", "Birth_Year")
-
-# Always-available date
-temp[, app_date := as.IDate(Prepare_Date)]  # works for "YYYY-mm-dd"; if not, tell me your format
-
-# Sort within blocks (date always, time when present)
-setorderv(temp, c(match_cols, "app_date"), na.last = TRUE)
-
-# Compute "gap" to previous row within each block:
-# - if both have timestamps -> hours gap
-# - else -> day gap (proxy)
-temp[, `:=`(
-  prev_date = shift(app_date)
-), by = match_cols]
-
-
-temp[, gap_ok :=# fallback when either time missing: within ±1 day by date
-    !is.na(prev_date) & abs(as.integer(app_date - prev_date)) <= 1L
-  ,
-  by = match_cols
+detainers_data[,
+  `:=`(
+    hours_since_last = as.numeric(
+      Prepare_Date - shift(Prepare_Date, type = "lag"),
+      units = "hours"
+    ),
+    hours_until_next = as.numeric(
+      shift(Prepare_Date, type = "lead") - Prepare_Date,
+      units = "hours"
+    )
+  ),
+  by = Unique_Identifier
 ]
-# Start a new cluster when the gap is NOT ok (or first row in block)
-temp[, dup_cluster_in_block := cumsum(is.na(gap_ok) | !gap_ok), by = match_cols]
 
-# Create a readable ID (stable, interpretable)
-temp[, dup_id := paste(
-  Apprehension_Method, Gender, Citizenship_Country, Apprehension_AOR, Apprehension_Landmark,
-  dup_cluster_in_block,
-  sep = "|"
-)]
+detainers_data <-
+  detainers_data |>
+  as_tibble() |>
+  mutate(
+    within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
+    within_24hrs_next  = !is.na(hours_until_next) & hours_until_next <= 24,
+
+    duplicate_likely = case_when(
+      !is.na(Unique_Identifier) ~ within_24hrs_prior | within_24hrs_next,
+      TRUE ~ FALSE
+    ),
+
+    # NEW: which rows to drop (drop the later row in a <=24hr pair)
+    drop_row = case_when(
+      is.na(Unique_Identifier) ~ FALSE,
+      within_24hrs_prior ~ TRUE,   # later-than-previous within 24h => drop
+      TRUE ~ FALSE
+    )
+  ) |>
+  select(
+    -within_24hrs_prior,
+    -within_24hrs_next,
+    -hours_since_last,
+    -hours_until_next
+  )
+
+write_feather(detainers_data, "data/ice-processed/detainers-merged-with-flags.feather")
