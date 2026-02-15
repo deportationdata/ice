@@ -5,6 +5,7 @@ rm(list=ls())
 library(dplyr)
 library(tibble)
 library(stringdist)
+library(data.table)
 
 # --- Source Functions ---
 source("code/functions/inspect_columns.R")
@@ -12,14 +13,22 @@ source("code/functions/merge_two_df.R")
 
 # --- Read in Combined Data ---
 
-df1 <- read.csv("data/ice-raw/detentions-selected/2019-ICFO-21307_combined.csv", stringsAsFactors = FALSE)
-df2 <- read.csv("data/ice-raw/detentions-selected/2023_ICFO_42034_combined.csv", stringsAsFactors = FALSE)
-df3 <- read.csv("data/ice-raw/detentions-selected/2024-ICFO-41855_combined.csv", stringsAsFactors = FALSE)
-df4 <- read.csv("data/ice-raw/detentions-selected/120125_combined.csv", stringsAsFactors = FALSE)
-df5 <- read.csv("data/ice-raw/detentions-selected/uwchr_combined.csv", stringsAsFactors = FALSE)
-df6 <- read.csv("data/ice-raw/detentions-selected/From-Emily-Excel-X-RIF_combined.csv", stringsAsFactors = FALSE)
-df7 <- read.csv("data/ice-raw/detentions-selected/From-Emily-FOIA-10-2554-527_combined.csv", stringsAsFactors = FALSE)
+na_vals <- c("", "NA", "N/A", "NULL", "UNK", "UNKNOWN")
 
+df1 <- fread("data/ice-raw/detentions-selected/2019-ICFO-21307_combined.csv",
+             na.strings = na_vals)|> as.tibble()
+df2 <- fread("data/ice-raw/detentions-selected/2023_ICFO_42034_combined.csv",
+             na.strings = na_vals)|> as.tibble()
+df3 <- fread("data/ice-raw/detentions-selected/2024-ICFO-41855_combined.csv",
+             na.strings = na_vals)|> as.tibble()
+df4 <- fread("data/ice-raw/detentions-selected/120125_combined.csv",
+             na.strings = na_vals)|> as.tibble()
+df5 <- fread("data/ice-raw/detentions-selected/uwchr_combined.csv",
+             na.strings = na_vals)|> as.tibble()
+df6 <- fread("data/ice-raw/detentions-selected/From-Emily-Excel-X-RIF_combined.csv",
+             na.strings = na_vals)|> as.tibble()
+df7 <- fread("data/ice-raw/detentions-selected/From-Emily-FOIA-10-2554-527_combined.csv",
+             na.strings = na_vals)|> as.tibble()
 # Step 1 (a). Inspect the columns that are shared and unique between datasets
 df_list <- list(
   df1 = df1,
@@ -37,10 +46,15 @@ print(shared_cols_matrix)
 venn_df_2_4 <- inspect_columns(names(df2), names(df4))
 
 # Create "_Date" columns for "Date_Time" columns in df4
-colnames(df4)[colnames(df4) == "Book_In_Date_Time"] <- "Detention_Book_In_Date_Time" # Guess based on context
-df4$Stay_Book_In_Date <- as.Date(df4$Stay_Book_In_Date_Time)
-df4$Detention_Book_In_Date <- as.Date(df4$Detention_Book_In_Date_Time)
-df4$Detention_Book_Out_Date <- as.Date(df4$Detention_Book_Out_Date_Time)
+df4 <- df4 %>%
+  rename(
+    Detention_Book_In_Date_Time = Book_In_Date_Time
+  ) %>%
+  mutate(
+    Stay_Book_In_Date        = as.Date(Stay_Book_In_Date_Time),
+    Detention_Book_In_Date   = as.Date(Detention_Book_In_Date_Time),
+    Detention_Book_Out_Date  = as.Date(Detention_Book_Out_Date_Time)
+  )
 
 # Merge df2 and df4
 df2_cols_old <- c("Marital", "Anonymized_Identifier", "Case_ID", "Subject_ID")
@@ -57,8 +71,11 @@ gc()
 venn_df_24_5 <- inspect_columns(names(df24), names(df5))
 
 # Change df5 names and add _Date column 
-colnames(df5)[colnames(df5) == "Detention_Book_In_Date_And_Time"] <- "Detention_Book_In_Date_Time"
-df5$Detention_Book_In_Date <- as.Date(df5$Detention_Book_In_Date_Time)
+df5 <- df5 %>%
+  rename(Detention_Book_In_Date_Time = Detention_Book_In_Date_And_Time) %>%
+  mutate(
+    Detention_Book_In_Date = as.Date(Detention_Book_In_Date_Time)
+  )
 
 df24_cols_old <- c("Most_Serious_Conviction_.MSC._Charge_Code")
 df24_cols_new <- c("MSC_Charge_Code")
@@ -149,9 +166,12 @@ df3_old_cols <- c("Book_in_DCO")
 df3_new_cols <- c("Book_In_DCO")
 
 # add new columns to Book_In_Date/Time objects in df3
-df3$Detention_Book_In_Date <- substring(df3$Book_in_Date_And_Time,1,10)
-df3$Detention_Book_Out_Date <- substring(df3$Book_Out_Date_Time, 1,10)
-df3$Initial_Book_In_Date <- substring(df3$Initial_Book_In_Date_Time, 1, 10)
+df3 <- df3 %>%
+  mutate(
+    Detention_Book_In_Date  = substr(Book_in_Date_And_Time, 1, 10),
+    Detention_Book_Out_Date = substr(Book_Out_Date_Time, 1, 10),
+    Initial_Book_In_Date    = substr(Initial_Book_In_Date_Time, 1, 10)
+  )
 
 merge_67_3 <- merge_dfs(df67, df3, df67_old_cols, df67_new_cols, df3_old_cols, df3_new_cols)
 venn_67_3a <- merge_67_3$venn_after
