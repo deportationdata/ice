@@ -1,6 +1,8 @@
 library(tidyverse)
 library(tidylog)
 
+facilities_states <- arrow::read_feather("data/facilities-state.feather")
+
 detention_stints <- arrow::read_feather(
   "data/detention-stints-latest.feather"
 ) |>
@@ -103,7 +105,17 @@ facilities_daily_population <-
       distinct(),
     by = "detention_facility_code"
   ) |>
-  relocate(detention_facility, .after = detention_facility_code)
+  relocate(detention_facility, .after = detention_facility_code) |>
+  left_join(
+    facilities_states |>
+      select(
+        detention_facility_code,
+        state,
+        source_state = source,
+        date_state = date
+      ),
+    by = "detention_facility_code"
+  )
 
 arrow::write_feather(
   facilities_daily_population,

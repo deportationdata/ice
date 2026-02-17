@@ -3,6 +3,9 @@ library(tidyverse)
 library(tidylog)
 library(data.table)
 
+# ---- Input data ---
+facilities_states <- arrow::read_feather("data/facilities-state.feather")
+
 # ---- Functions ----
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
@@ -157,8 +160,17 @@ detentions_df[,
 ]
 
 detentions_df <-
-  detentions_df |> 
+  detentions_df |>
   rename(book_out_date_time = detention_book_out_date_time)
+
+detentions_df <-
+  detentions_df |>
+  left_join(
+    facilities_states |>
+      select(-name) |>
+      rename(source_state = source, date_state = date),
+    by = "detention_facility_code"
+  )
 
 # ---- Save Outputs ----
 
