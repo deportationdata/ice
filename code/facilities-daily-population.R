@@ -105,7 +105,6 @@ facilities_daily_population <-
       distinct(),
     by = "detention_facility_code"
   ) |>
-  relocate(detention_facility, .after = detention_facility_code) |>
   left_join(
     facilities_states |>
       select(
@@ -115,7 +114,8 @@ facilities_daily_population <-
         date_state = date
       ),
     by = "detention_facility_code"
-  )
+  ) |>
+  relocate(detention_facility, state, .after = detention_facility_code)
 
 arrow::write_feather(
   facilities_daily_population,
