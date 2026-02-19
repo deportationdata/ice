@@ -5,6 +5,7 @@ rm(list=ls())
 library(dplyr)
 library(tibble)
 library(stringdist)
+library(stringr)
 
 # --- Source Functions ---
 source("code/functions/inspect_columns.R")
@@ -12,10 +13,10 @@ source("code/functions/merge_two_df.R")
 
 # --- Read in Combined Data ---
 
-df1 <- read.csv("data/ice-raw/arrests-selected/2022-ICFO-22955_combined.csv", stringsAsFactors = FALSE)
-df2 <- read.csv("data/ice-raw/arrests-selected/2023_ICFO_42034_combined.csv", stringsAsFactors = FALSE)
-df3 <- read.csv("data/ice-raw/arrests-selected/120125_combined.csv", stringsAsFactors = FALSE)
-df4 <- read.csv("data/ice-raw/arrests-selected/uwchr_combined.csv", stringsAsFactors = FALSE)
+df1 <- read_feather("data/ice-raw/arrests-selected/2022-ICFO-22955_combined.feather")
+df2 <- read_feather("data/ice-raw/arrests-selected/2023_ICFO_42034_combined.feather")
+df3 <- read_feather("data/ice-raw/arrests-selected/120125_combined.feather")
+df4 <- read_feather("data/ice-raw/arrests-selected/uwchr_combined.feather")
 
 # Step 0. Get Shared column matrix to determine which datasets to compare FIRST 
 df_list <- list(df1 = df1, 
@@ -33,7 +34,12 @@ venn_1_2b <- inspect_columns(names(df1), names(df3))
 near_matches_1_2 <- flag_near_matches(names(df3), names(df1), max_dist = 2)
 
 # Step 2. Rename the columns that are probably mergeable (i.e., similar names for the same field)
-df1$Apprehension_Date <- df1$Apprehension_Date <- substr(df1$Apprehension_Date_And_Time, 1, 10)
+# add Apprehension_Date column 
+
+df1 <- df1 %>%
+  mutate(
+    Apprehension_Date = str_sub(Apprehension_Date_And_Time, 1, 10)
+  )
 
 df1_cols_old <- c("Final_Order_Yes_No.Blank",
                       "Sequence_Number.Unique_Identifier",
@@ -64,7 +70,7 @@ venn_13_2b <- inspect_columns(names(df13), names(df2))
 df2_cols_old <- c("Anonymized_Identifier")
 df2_cols_new <- c("Unique_Identifier")
 merge_13_2_out <- merge_dfs(df13, df2,
-                            NULL, NULL,
+                            character(0), character(0),
                             df2_cols_old, df2_cols_new)
 
 ## ! NOTE: Consider in df2 there are columns "Arrest_Created_By", "Arrest_Create_By", and "Arrested_Created_By" that may be the same field
