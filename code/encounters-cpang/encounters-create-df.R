@@ -8,6 +8,7 @@ library(purrr)
 library(janitor)
 library(tibble)
 library(stringr)
+library(arrow)
 
 # --- Source Functions ---
 source("code/functions/process_folder_data.R")
@@ -20,18 +21,17 @@ df1 <- get_folder_df(
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
-)
+)|>
+  mutate(source_file = "082025")
 
 df2 <- get_folder_df(
   folder_dir = "data/ice-raw/encounters-selected/uwchr",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
-)
-
-df1$source_file <- "082025"
-df2$source_file <- "uwchr"
+)|>
+  mutate(source_file = "uwchr")
 
 # --- Write out files ---
-write.csv(df1, "data/ice-raw/encounters-selected/f082025_combined.csv", row.names = FALSE)
-write.csv(df2, "data/ice-raw/encounters-selected/uwchr_combined.csv", row.names = FALSE)
+write_feather(df1, "data/ice-raw/encounters-selected/f082025_combined.feather")
+write_feather(df2, "data/ice-raw/encounters-selected/uwchr_combined.feather")

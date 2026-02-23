@@ -2,13 +2,10 @@ rm(list=ls())
 
 library(dplyr)
 library(lubridate)
-library(vroom)
 library(arrow)
 
 # fast data reader
-arrests_data <- vroom("./data/ice-processed/arrests-merged.csv",
-    col_types = cols(.default = col_character()),
-  na = c("", "NA", "N/A", "NULL", "UNK", "UNKNOWN"))
+arrests_data <- read_feather("data/ice-processed/arrests-merged.feather")
   
 arrests_data2 <- arrests_data |>
   mutate(Apprehension_Date = as.Date(Apprehension_Date))

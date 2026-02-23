@@ -12,10 +12,10 @@ source("code/functions/merge_two_df.R")
 
 # --- Read in Combined Data ---
 
-df1 <- read.csv("data/ice-raw/removals-selected/14-03290_combined.csv", stringsAsFactors = FALSE)
-df2 <- read.csv("data/ice-raw/removals-selected/2023_ICFO_42034_combined.csv", stringsAsFactors = FALSE)
-df3 <- read.csv("data/ice-raw/removals-selected/082025_combined.csv", stringsAsFactors = FALSE)
-df4 <- read.csv("data/ice-raw/removals-selected/uwchr_combined.csv", stringsAsFactors = FALSE)
+df1 <- read_feather("data/ice-raw/removals-selected/14-03290_combined.feather")
+df2 <- read_feather("data/ice-raw/removals-selected/2023_ICFO_42034_combined.feather")
+df3 <- read_feather("data/ice-raw/removals-selected/082025_combined.feather")
+df4 <- read_feather("data/ice-raw/removals-selected/uwchr_combined.feather")
 
 # Step 0. Get Shared column matrix to determine which datasets to compare FIRST 
 df_list <- list(df1 = df1, 
@@ -35,7 +35,7 @@ near_matches_1_2 <- flag_near_matches(names(df2), names(df1), max_dist = 2)
 df2_cols_old <- c("Anonymized_Identifer", "Departure_Date")
 df2_cols_new <- c("Unique_Identifier", "Departed_Date")
 
-merge_2_3 <- merge_dfs(df2, df3, df2_cols_old, df2_cols_new, NULL, NULL)
+merge_2_3 <- merge_dfs(df2, df3, df2_cols_old, df2_cols_new, character(0), character(0))
 df23 <- merge_2_3$df_merged
 venn_2_3a <- merge_2_3$venn_after
 

@@ -20,21 +20,24 @@ df1 <- get_folder_df(
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
-)
+)|>
+  mutate(source_file = "2023_ICFO_42034")
 
 df2 <- get_folder_df(
   folder_dir = "data/ice-raw/removals-selected/082025",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
-)
+)|>
+  mutate(source_file = "082025")
 
 df3 <- get_folder_df(
   folder_dir = "data/ice-raw/removals-selected/uwchr",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
-)
+)|>
+  mutate(source_file = "uwchr")
 
 # --- df4 needs separate processing --- 
 get_folder_df2 <- function(folder_dir, pattern, recursive, anchor_idx, sheet_n = 2){
@@ -59,16 +62,11 @@ df4 <- get_folder_df2(
   recursive = TRUE,
   anchor_idx = 2, 
   sheet_n = 2
-)
-
-# --- Add "source_file" column --- 
-df1$source_file <- "2023_ICFO_42034"
-df2$source_file <- "082025"
-df3$source_file <- "uwchr"
-df4$source_file <- "14-03290"
+)|>
+  mutate(source_file = "14-03290")
 
 # --- Write out files ---
-write.csv(df1, "data/ice-raw/removals-selected/2023_ICFO_42034_combined.csv", row.names = FALSE)
-write.csv(df2, "data/ice-raw/removals-selected/082025_combined.csv", row.names = FALSE)
-write.csv(df3, "data/ice-raw/removals-selected/uwchr_combined.csv", row.names = FALSE)
-write.csv(df4, "data/ice-raw/removals-selected/14-03290_combined.csv", row.names = FALSE)
+write_feather(df1, "data/ice-raw/removals-selected/2023_ICFO_42034_combined.feather")
+write_feather(df2, "data/ice-raw/removals-selected/082025_combined.feather")
+write_feather(df3, "data/ice-raw/removals-selected/uwchr_combined.feather")
+write_feather(df4, "data/ice-raw/removals-selected/14-03290_combined.feather")

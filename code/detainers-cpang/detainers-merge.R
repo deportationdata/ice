@@ -5,6 +5,7 @@ rm(list=ls())
 library(dplyr)
 library(tibble)
 library(stringdist)
+library(arrow)
 
 # --- Source Functions ---
 source("code/functions/inspect_columns.R")
@@ -12,9 +13,9 @@ source("code/functions/merge_two_df.R")
 
 # --- Read in Combined Data ---
 
-df1 <- read.csv("data/ice-raw/detainers-selected/2025-ICFO-18038_combined.csv", stringsAsFactors = FALSE)
-df2 <- read.csv("data/ice-raw/detainers-selected/120125_combined.csv", stringsAsFactors = FALSE)
-df3 <- read.csv("data/ice-raw/detainers-selected/npr_combined.csv", stringsAsFactors = FALSE)
+df1 <- read_feather("data/ice-raw/detainers-selected/2025-ICFO-18038_combined.feather")
+df2 <- read_feather("data/ice-raw/detainers-selected/120125_combined.feather")
+df3 <- read_feather("data/ice-raw/detainers-selected/npr_combined.feather")
 
 # Merge Detention_Facility and Detainer_Detention_Facility in df3 
 df3 <- df3 %>%
@@ -68,7 +69,7 @@ df1_cols_new <- c("Multiple_Prior_MISD_Yes_No",
 
 df2_cols_old <- c("Detainer_Prep_Threat_Level",
                   "MSC_Charge_Code",
-                  "Most_Serious_Conviction_.MSC._Charge",
+                  "Most_Serious_Conviction_MSC_Charge",
                   "MSC_Conviction_Date",
                   "MSC_Sentence_Days",
                   "MSC_Sentence_Months",
@@ -102,7 +103,7 @@ df12_cols_new <- c("Prepare_Date")
 df3_cols_old <- c("Detainer_Lift_Reason_2_Code",
                   "Osc_Served_Yes_No",
                   "Osc_Served_Date",
-                "Area_of_Responsibility")
+                "Area_Of_Responsibility")
 
 df3_cols_new <- c("Detainer_Lift_Reason_Code2",
                   "Order_to_Show_Cause_Served_Yes_No",
@@ -120,4 +121,4 @@ df_final<- df123 %>%
   select(-Detainer_Detention_Facility)
 
 # --- Write out merged data ---
-write.csv(df_final, "data/ice-processed/detainers-merged.csv", row.names = FALSE)
+write_feather(df_final, "data/ice-processed/detainers-merged.feather")
