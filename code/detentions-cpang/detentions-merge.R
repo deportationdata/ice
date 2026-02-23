@@ -6,6 +6,7 @@ library(dplyr)
 library(tibble)
 library(stringdist)
 library(data.table)
+library(arrow)
 
 # --- Source Functions ---
 source("code/functions/inspect_columns.R")
@@ -13,22 +14,13 @@ source("code/functions/merge_two_df.R")
 
 # --- Read in Combined Data ---
 
-na_vals <- c("", "NA", "N/A", "NULL", "UNK", "UNKNOWN")
-
-df1 <- fread("data/ice-raw/detentions-selected/2019-ICFO-21307_combined.csv",
-             na.strings = na_vals)|> as.tibble()
-df2 <- fread("data/ice-raw/detentions-selected/2023_ICFO_42034_combined.csv",
-             na.strings = na_vals)|> as.tibble()
-df3 <- fread("data/ice-raw/detentions-selected/2024-ICFO-41855_combined.csv",
-             na.strings = na_vals)|> as.tibble()
-df4 <- fread("data/ice-raw/detentions-selected/120125_combined.csv",
-             na.strings = na_vals)|> as.tibble()
-df5 <- fread("data/ice-raw/detentions-selected/uwchr_combined.csv",
-             na.strings = na_vals)|> as.tibble()
-df6 <- fread("data/ice-raw/detentions-selected/From-Emily-Excel-X-RIF_combined.csv",
-             na.strings = na_vals)|> as.tibble()
-df7 <- fread("data/ice-raw/detentions-selected/From-Emily-FOIA-10-2554-527_combined.csv",
-             na.strings = na_vals)|> as.tibble()
+df1 <- read_feather("data/ice-raw/detentions-selected/2019-ICFO-21307_combined.feather")
+df2 <- read_feather("data/ice-raw/detentions-selected/2023_ICFO_42034_combined.feather")
+df3 <- read_feather("data/ice-raw/detentions-selected/2024-ICFO-41855_combined.feather")
+df4 <- read_feather("data/ice-raw/detentions-selected/120125_combined.feather")
+df5 <- read_feather("data/ice-raw/detentions-selected/uwchr_combined.feather")
+df6 <- read_feather("data/ice-raw/detentions-selected/From-Emily-Excel-X-RIF_combined.feather")
+df7 <- read_feather("data/ice-raw/detentions-selected/From-Emily-FOIA-10-2554-527_combined.feather")
 # Step 1 (a). Inspect the columns that are shared and unique between datasets
 df_list <- list(
   df1 = df1,
@@ -59,12 +51,12 @@ df4 <- df4 %>%
 # Merge df2 and df4
 df2_cols_old <- c("Marital", "Anonymized_Identifier", "Case_ID", "Subject_ID")
 df2_cols_new <- c("Marital_Status", "Unique_Identifier", "EID_Case_ID", "EID_Subject_ID")
-df_2_4_merged <- merge_dfs(df2, df4, df2_cols_old, df2_cols_new, NULL, NULL)
+df_2_4_merged <- merge_dfs(df2, df4, df2_cols_old, df2_cols_new, character(0), character(0))
 df24 <- df_2_4_merged$df_merged
 venn_df_2_4a <- df_2_4_merged$venn_after
 
 ## drop variables relating to df2 and df4 to free up memory 
-rm(df2, df4, df_2_4_merged)
+rm(df2, df4, df_2_4_merged, venn_df_2_4a)
 gc()
 
 # Merge df5 with df24
@@ -77,7 +69,7 @@ df5 <- df5 %>%
     Detention_Book_In_Date = as.Date(Detention_Book_In_Date_Time)
   )
 
-df24_cols_old <- c("Most_Serious_Conviction_.MSC._Charge_Code")
+df24_cols_old <- c("Most_Serious_Conviction_MSC_Charge_Code")
 df24_cols_new <- c("MSC_Charge_Code")
 df5_cols_old <- c("Ethnic", "Anonymized_Identifier")
 df5_cols_new <- c("Ethnicity", "Unique_Identifier")
@@ -86,6 +78,7 @@ df245 <- df_24_5_merged$df_merged
 venn_df_24_5a <- df_24_5_merged$venn_after
 
 rm(df24, df5, df_24_5_merged)
+rm(df2_cols_new)
 gc()
 
 # Merge df245 and df1 (hopefully this works but we'll see)
