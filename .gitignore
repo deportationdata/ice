@@ -47,3 +47,8 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+# macOS
+.DS_Store
+
+# ignore pushing this file
+data/ice-processed/detentions-merged.feather
