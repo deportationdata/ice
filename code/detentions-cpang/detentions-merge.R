@@ -13,14 +13,14 @@ source("code/functions/inspect_columns.R")
 source("code/functions/merge_two_df.R")
 
 # --- Read in Combined Data ---
+df1 <- read_feather("data/ice-raw/detentions-selected/2019-ICFO-21307_combined.feather")|> as_tibble()
+df2 <- read_feather("data/ice-raw/detentions-selected/2023_ICFO_42034_combined.feather")|> as_tibble()
+df3 <- read_feather("data/ice-raw/detentions-selected/2024-ICFO-41855_combined.feather")|> as_tibble()
+df4 <- read_feather("data/ice-raw/detentions-selected/120125_combined.feather")|> as_tibble()
+df5 <- read_feather("data/ice-raw/detentions-selected/uwchr_combined.feather")|> as_tibble()
+df6 <- read_feather("data/ice-raw/detentions-selected/From-Emily-Excel-X-RIF_combined.feather")|> as_tibble()
+df7 <- read_feather("data/ice-raw/detentions-selected/From-Emily-FOIA-10-2554-527_combined.feather")|> as_tibble()
 
-df1 <- read_feather("data/ice-raw/detentions-selected/2019-ICFO-21307_combined.feather")
-df2 <- read_feather("data/ice-raw/detentions-selected/2023_ICFO_42034_combined.feather")
-df3 <- read_feather("data/ice-raw/detentions-selected/2024-ICFO-41855_combined.feather")
-df4 <- read_feather("data/ice-raw/detentions-selected/120125_combined.feather")
-df5 <- read_feather("data/ice-raw/detentions-selected/uwchr_combined.feather")
-df6 <- read_feather("data/ice-raw/detentions-selected/From-Emily-Excel-X-RIF_combined.feather")
-df7 <- read_feather("data/ice-raw/detentions-selected/From-Emily-FOIA-10-2554-527_combined.feather")
 # Step 1 (a). Inspect the columns that are shared and unique between datasets
 df_list <- list(
   df1 = df1,
@@ -56,7 +56,8 @@ df24 <- df_2_4_merged$df_merged
 venn_df_2_4a <- df_2_4_merged$venn_after
 
 ## drop variables relating to df2 and df4 to free up memory 
-rm(df2, df4, df_2_4_merged, venn_df_2_4a)
+rm(df2, df4, df_2_4_merged)
+rm(df2_cols_new, df2_cols_old)
 gc()
 
 # Merge df5 with df24
@@ -78,7 +79,7 @@ df245 <- df_24_5_merged$df_merged
 venn_df_24_5a <- df_24_5_merged$venn_after
 
 rm(df24, df5, df_24_5_merged)
-rm(df2_cols_new)
+rm(df24_cols_old, df24_cols_new, df5_cols_new, df5_cols_old)
 gc()
 
 # Merge df245 and df1 (hopefully this works but we'll see)
@@ -106,7 +107,9 @@ df2451 <- merge_245_1$df_merged
 venn_df_245_1a <- merge_245_1$venn_after
 
 rm(df245, df1, merge_245_1)
+rm(df1_cols_old, df1_cols_new, df245_cols_old, df245_cols_new)
 gc()
+
 
 
 # df's left: 3, 6, 7 
@@ -117,7 +120,7 @@ df6_old_cols <- c(
   "History_Detention_Facility",
   "History_Detention_Facility_Code",
   "History_Intake_Date",
-  "History_Book.out_Date",
+  "History_Book_out_Date",
   "History_Release_Reason",
   "ERO_Apprehension_Date",
   "ERO_Apprehension_Landmark",
@@ -139,6 +142,9 @@ df6_new_cols <- c(
   "Book_In_DCO"
 )
 
+df7 <- df7 %>%
+  rename_with(~ gsub("\\s+", "_", .x))
+
 df7_old_cols <- c("Book_In_Date", "Book_Out_Date", "Book_In_Dco")
 df7_new_cols <- c("Detention_Book_In_Date", "Detention_Book_Out_Date", "Book_In_DCO")
 
@@ -147,6 +153,7 @@ df67 <- merge_6_7$df_merged
 venn_6_7a <- merge_6_7$venn_after
 
 rm(df6, df7, merge_6_7)
+rm(df6_new_cols, df6_old_cols, df7_new_cols, df7_old_cols)
 gc()
 
 # Merge df67 with df3
@@ -171,8 +178,9 @@ venn_67_3a <- merge_67_3$venn_after
 df673 <- merge_67_3$df_merged
 
 rm(df67, df3, merge_67_3)
-rm(df_list, shared_cols_matrix)
+rm(df3_new_cols, df3_old_cols, df67_new_cols, df67_old_cols)
 gc()
+
 # Master merge: df2451 and df673
 venn_df_2451_673 <- inspect_columns(names(df2451), names(df673))
 
