@@ -6,7 +6,7 @@ library(tibble)
 # Assumes inspect_columns() is available from your sourced file
 source("code/functions/inspect_columns.R")
 
-merge_dfs_old <- function(df1, df2, df1_cols_old, df1_cols_new, df2_cols_old, df2_cols_new){ 
+merge_dfs <- function(df1, df2, df1_cols_old, df1_cols_new, df2_cols_old, df2_cols_new){ 
 # Rename columns in df1 ]
   for (i in 1:length(df1_cols_old)) { 
     old_name <- df1_cols_old[i] 
