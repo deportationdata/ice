@@ -20,7 +20,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          lfs: true
+          lfs: false
+          sparse-checkout: |
+            code/offices-scraper.R
+            data/ice-offices.feather
+            renv.lock
+            renv/
+
+      - name: Fetch LFS file
+        run: git lfs pull --include="data/ice-offices.feather"
 
       - name: Save current offices snapshot
         run: cp data/ice-offices.feather /tmp/old-ice-offices.feather
