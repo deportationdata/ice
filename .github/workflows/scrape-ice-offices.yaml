@@ -1,0 +1,111 @@
+name: "Scrape ICE field offices"
+
+on:
+  schedule:
+    - cron: '0 5 * * 1' # every Monday at 05:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+
+  scrape:
+    runs-on: macsilicon
+
+    env:
+      RENV_PATHS_LIBRARY: ~/renv-cache/ice
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Save current offices snapshot
+        run: cp data/ice-offices.feather /tmp/old-ice-offices.feather
+
+      - uses: r-lib/actions/setup-renv@v2
+
+      - name: Run scraper
+        run: Rscript code/offices-scraper.R
+
+      - name: Check for changes
+        id: check_changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout -b offices-update-$(date +%Y-%m-%d)
+          git add data/
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check if any open PR already contains these files
+          changed_files=$(git diff --cached --name-only)
+          open_prs=$(gh pr list --state open --json number --jq '.[].number')
+          for pr in $open_prs; do
+            pr_files=$(gh pr view "$pr" --json files --jq '.files[].path')
+            for file in $changed_files; do
+              if echo "$pr_files" | grep -qF "$file"; then
+                echo "File '$file' already present in open PR #$pr — skipping."
+                echo "changed=false" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            done
+          done
+
+          echo "changed=true" >> $GITHUB_OUTPUT
+
+          # Generate change summary comparing old vs new offices
+          Rscript -e "
+            suppressPackageStartupMessages(library(arrow))
+            suppressPackageStartupMessages(library(dplyr))
+
+            new <- read_feather('data/ice-offices.feather')
+            old <- read_feather('/tmp/old-ice-offices.feather')
+
+            added   <- setdiff(new\$office_name, old\$office_name)
+            removed <- setdiff(old\$office_name, new\$office_name)
+
+            lines <- character(0)
+            if (length(added) > 0) {
+              lines <- c(lines, paste0('**', length(added), ' office(s) added:**'))
+              lines <- c(lines, paste0('- ', added))
+            }
+            if (length(removed) > 0) {
+              lines <- c(lines, paste0('**', length(removed), ' office(s) removed:**'))
+              lines <- c(lines, paste0('- ', removed))
+            }
+            if (length(lines) == 0) {
+              lines <- 'Office details updated (no offices added or removed).'
+            }
+            writeLines(lines, '/tmp/office-changes.txt')
+          "
+
+      - name: Commit and push
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -m "Update field offices data [skip ci]"
+          git pull --rebase origin main
+          git push --set-upstream origin HEAD
+
+      - name: Create pull request
+        if: steps.check_changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "Automated update: changes detected in ICE field offices."
+            echo ""
+            cat /tmp/office-changes.txt
+          } > /tmp/pr-body.txt
+
+          gh pr create \
+            --title "Field offices update $(date +%Y-%m-%d)" \
+            --body-file /tmp/pr-body.txt \
+            --reviewer graemeblair \
+            --base main
