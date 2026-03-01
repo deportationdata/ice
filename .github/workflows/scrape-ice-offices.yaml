@@ -12,7 +12,7 @@ permissions:
 jobs:
 
   scrape:
-    runs-on: macsilicon
+    runs-on: [self-hosted, macOS]
 
     env:
       RENV_PATHS_LIBRARY: ~/renv-cache/ice
