@@ -26,6 +26,7 @@ jobs:
             data/ice-offices.feather
             renv.lock
             renv/
+          sparse-checkout-cone-mode: false
 
       - name: Fetch LFS file
         run: git lfs pull --include="data/ice-offices.feather"
