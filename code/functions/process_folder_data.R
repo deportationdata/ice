@@ -35,25 +35,25 @@ process_sheet<- function(sheet_df, anchor_idx){
     stop("anchor_idx is out of bounds for sheet_df.")
   }
 
-  anchor_vec <- sheet_df %>% dplyr::pull(anchor_idx)
+  anchor_vec <- sheet_df |> dplyr::pull(anchor_idx)
 
   first_non_na_row <- which(!is.na(anchor_vec))[1]
   if (is.na(first_non_na_row)) {
     return(tibble())
   }
 
-  trimmed_df <- sheet_df %>%
+  trimmed_df <- sheet_df |>
     slice(first_non_na_row:n())
 
-  cleaned_names <- trimmed_df %>%
-    slice(1) %>%
-    unlist(use.names = FALSE) %>%
-    as.character() %>%
-    str_replace_all("\\s+", "_") %>%
+  cleaned_names <- trimmed_df |>
+    slice(1) |>
+    unlist(use.names = FALSE) |>
+    as.character() |>
+    str_replace_all("\\s+", "_") |>
     make_clean_names(case = "none")
 
-  trimmed_df %>%
-    slice(-1) %>%
+  trimmed_df |>
+    slice(-1) |>
     set_names(cleaned_names)
 
 }
@@ -67,15 +67,15 @@ get_folder_df <- function(folder_dir, pattern, recursive, anchor_idx, guess_max)
 
   # If list_files_in_dir() returns a tibble(file_path=...), handle that
   if (inherits(file_paths, "tbl_df") && "file_path" %in% names(file_paths)) {
-    file_paths <- file_paths %>% pull(file_path)
+    file_paths <- file_paths |> pull(file_path)
   }
 
-  combined_df <- file_paths %>%
+  combined_df <- file_paths |>
     map_dfr(
-      ~ read_sheets_from_file(.x) %>%
+      ~ read_sheets_from_file(.x) |>
         imap_dfr(~ process_sheet(.x, anchor_idx = anchor_idx))
     )
 
-  combined_df %>%
+  combined_df |>
     convert_df_temporal_columns()
 }
