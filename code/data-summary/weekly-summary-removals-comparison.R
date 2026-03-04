@@ -23,3 +23,11 @@ ggplot(removals_comparison, aes(x = week_start, y = n_drop)) +
   geom_col(fill = "darkgreen") +
   theme_minimal()
 
+ggplot(removals_comparison, aes(x = week_start, y = n_drop_duplicates)) +
+  geom_col() +
+  theme_minimal()
+
+ggplot(removals_comparison, aes(x = week_start, y = n_original)) +
+  geom_col() +
+  theme_minimal()
+

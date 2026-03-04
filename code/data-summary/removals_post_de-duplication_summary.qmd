@@ -1,0 +1,71 @@
+---
+title: "Removals, post- de-duplication"
+author: "Cindy J. Pang"
+date: "2026-03-04"
+format:
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    geometry: margin=1in
+    number-sections: false
+    colorlinks: true
+    keep-tex: false
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+rm(list=ls()) 
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(arrow)
+library(ggplot2)
+```
+
+```{r}
+# read and process data
+removals_counts <- read_feather(here::here("data/ice-counts/removals-weekly-counts.feather"))|>
+  rename(n_original = n)
+removals_drop_dup <- read_feather(here::here("data/ice-counts/removals-weekly-counts-drop-duplicates.feather"))|>
+  rename(n_drop_duplicates = n)
+
+removals_comparison <- merge(removals_counts, 
+                            removals_drop_dup, 
+                            by = c("year_week", "week_start"), 
+                            all = TRUE)
+
+removals_comparison <- removals_comparison |>
+  mutate(n_drop = n_original - n_drop_duplicates)
+```
+
+# Number of Dropped Observations  
+```{r}
+ggplot(removals_comparison, aes(x = week_start, y = n_drop)) +
+  geom_col(fill = "darkgreen") +
+  theme_minimal()
+```
+
+# Plot of Removals (post-duplication drops)  
+```{r}
+ggplot(removals_comparison, aes(x = week_start, y = n_drop_duplicates)) +
+  geom_col() +
+  theme_minimal()
+```
+
+# Original  
+```{r}
+ggplot(removals_comparison, aes(x = week_start, y = n_original)) +
+  geom_col() +
+  theme_minimal()
+```
+
+# Comparison Table  
+```{r}
+knitr::kable(removals_comparison, col.names = c("Year-Week", "Week Start", "Original Counts", "De-duplicated Counts", "# Dropped Observations"))
+```
+
