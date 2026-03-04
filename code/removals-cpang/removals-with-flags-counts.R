@@ -17,7 +17,13 @@ weekly_counts <- removals_data |>
     week = week(week_start),
     year_week = sprintf("%d-W%02d", year, week)
   ) |>
-  count(year_week, week_start, name = "n") |>
+  group_by(year_week, week_start) |>
+  summarise(
+    n = n(),
+    n_source_files = n_distinct(source_file),
+    source_files = paste(sort(unique(source_file)), collapse = ", "),
+    .groups = "drop"
+  ) |>
   arrange(week_start)
 
 write_feather(weekly_counts, "data/ice-counts/removals-weekly-counts-drop-duplicates.feather")
