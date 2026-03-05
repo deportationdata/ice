@@ -1,0 +1,137 @@
+---
+title: "Removals, post- de-duplication"
+author: "Cindy J. Pang"
+date: "2026-03-04"
+format:
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    geometry: margin=1in
+    number-sections: false
+    colorlinks: true
+    keep-tex: false
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+rm(list=ls()) 
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(arrow)
+library(ggplot2)
+```
+
+```{r}
+# read and process data
+removals_counts <- read_feather(here::here("data/ice-counts/removals-weekly-counts.feather"))|>
+  rename(n_original = n)
+removals_drop_dup <- read_feather(here::here("data/ice-counts/removals-weekly-counts-drop-duplicates.feather"))|>
+  rename(n_drop_duplicates = n)
+
+removals_comparison <- merge(removals_counts, 
+                            removals_drop_dup, 
+                            by = c("year_week", "week_start"), 
+                            all = TRUE)
+
+removals_comparison <- removals_comparison |>
+  mutate(n_drop = n_original - n_drop_duplicates)
+```
+
+```{r}
+ggplot(removals_comparison, aes(x = week_start, y = n_drop)) +
+  geom_col(fill = "darkgreen") +
+  labs(
+    x = "Week start",
+    y = "Count",
+    title = "# of Dropped Observations"
+  )+
+  theme_minimal()
+```
+
+# Plot of Removals (post-duplication drops)  
+```{r}
+df <- removals_comparison |>
+  arrange(week_start) |>
+  mutate(
+    source_files_norm = ifelse(is.na(source_files), "", source_files),
+    changed = source_files_norm != lag(source_files_norm, default = first(source_files_norm)),
+    seg_id = cumsum(changed),
+    seg_code = paste0("S", seg_id)
+  )
+
+# segment metadata (for label placement)
+segments <- df |>
+  group_by(seg_id, seg_code) |>
+  summarise(
+    seg_start = min(week_start),
+    seg_end   = max(week_start),
+    seg_mid   = seg_start + as.numeric(seg_end - seg_start)/2,
+    source_files = first(source_files_norm),
+    .groups = "drop"
+  )
+
+# vlines at segment starts (exclude first segment)
+vlines <- segments |>
+  arrange(seg_start) |>
+  slice(-1)
+
+# y position for segment codes (near top)
+y_top <- max(df$n_original, df$n_drop_duplicates, na.rm = TRUE)
+
+ggplot(df, aes(x = week_start)) +
+  geom_line(aes(y = n_drop_duplicates), linewidth = 0.5) +
+  geom_vline(
+    data = vlines,
+    aes(xintercept = as.numeric(seg_start)),
+    linetype = "dashed",
+    alpha = 0.6,
+    inherit.aes = FALSE
+  ) +
+  geom_label(
+    data = segments,
+    aes(x = seg_mid, y = y_top, label = seg_code),
+    vjust = -0.2,
+    size = 3,
+    label.size = 0.2,
+    alpha = 0.95,
+    inherit.aes = FALSE
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.15))) +
+  labs(
+    title = "Weekly Removals with Data Source Change Points",
+    subtitle = "See Segment Codes (SX) to see time periods",
+    x = "Week start",
+    y = "Counts",
+    color = NULL
+  ) +
+  theme_minimal()
+
+segments_print <- segments |>
+  select(seg_code, seg_start, seg_end, source_files)
+knitr::kable(segments_print, col.names = c("Segment Code", "Start Date", "End Date", "Source Files"))
+```
+
+```{r}
+ggplot(removals_comparison, aes(x = week_start, y = n_original)) +
+  geom_col() +
+  labs(
+    title = "Original Removal Counts (without de-duplication)", 
+    x = "Week start", 
+    y = "Counts"
+  )+
+  theme_minimal()
+```
+
+# Comparison Table  
+```{r}
+removals_comparison_to_print <- removals_comparison |>
+  select(year_week, week_start, n_original, n_drop_duplicates, n_drop,source_files)
+knitr::kable(removals_comparison_to_print, col.names = c("Year-Week", "Week Start", "Original Counts", "De-duplicated Counts", "# Dropped Observations", "Source Files"))
+```
+
