@@ -1,0 +1,214 @@
+---
+title: "Detentions, post- de-duplication"
+author: "Cindy J. Pang"
+date: "2026-03-04"
+format:
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    geometry: margin=1in
+    number-sections: false
+    colorlinks: true
+    keep-tex: false
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+rm(list=ls()) 
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(arrow)
+library(ggplot2)
+library(lubridate)
+```
+
+# Compare Dropped Counts to Original
+```{r}
+# only read-in a few rows of the detentions data to avoid storing the whole thing and create flags for which rows from the original to drop  
+detentions_temp <- read_feather(here::here("data/ice-processed/detentions-merged-with-flags.feather"), col_select = c("Detention_Book_In_Date", "source_file", "drop_row"))|>
+  mutate(
+    week_start = floor_date(Detention_Book_In_Date, unit = "week", week_start = 7),
+    row_id = row_number()
+  )|>
+    arrange(week_start)|>
+    filter(drop_row == FALSE)
+
+detentions_counts_original <- read_feather(here::here("data/ice-counts/detentions-weekly-counts.feather"))|>
+  rename(n0 = n)
+
+weekly_counts <- detentions_temp |>
+  group_by(week_start) |>
+  summarise(
+    n = n(),
+    n_source_files = n_distinct(source_file),
+    source_files = paste(sort(unique(source_file)), collapse = ", "),
+    .groups = "drop"
+  ) |>
+  arrange(week_start)
+
+compare_counts <- merge(weekly_counts, 
+  detentions_counts_original, 
+  by = c("week_start"), 
+  all = TRUE)|>
+  mutate(
+    n_dropped = n0-n
+  )
+
+# Visual Inspection of Counts - counts look like they mostly overlap
+ggplot(compare_counts, aes(x=week_start))+
+  geom_line(aes(y=n0, color = "Original Count"), alpha = 0.5)+
+  geom_line(aes(y=n, color = "Dropped Count"), alpha = 0.5)+
+  labs(
+    x = "Week", 
+    y = "Counts", 
+    title = "Comparison of Dropped Counts vs. Original Counts"
+  )+
+  theme_minimal()
+```
+
+The dropped counts and original seem to mostly overlap (no big concerns/issues). The time period between 2015-2020 seem to have aggresive drops in counts.  
+```{r}
+ggplot(compare_counts, aes(x=week_start, y=n_dropped))+
+  geom_line()+
+  labs(
+    x = "Week", 
+    y = "Counts", 
+    title = "# dropped counts"
+  )+
+  theme_minimal()
+```
+
+# Plot of Detentions (post-duplication drops)  
+```{r}
+df <- compare_counts |>
+  arrange(week_start) |>
+  mutate(
+    source_files_norm = ifelse(is.na(source_files), "", source_files),
+    changed = source_files_norm != lag(source_files_norm, default = first(source_files_norm)),
+    seg_id = cumsum(changed),
+    seg_code = paste0("S", seg_id)
+  )
+
+# segment metadata (for label placement)
+segments <- df |>
+  group_by(seg_id, seg_code) |>
+  summarise(
+    seg_start = min(week_start),
+    seg_end   = max(week_start),
+    seg_mid   = seg_start + as.numeric(seg_end - seg_start)/2,
+    source_files = first(source_files_norm),
+    .groups = "drop"
+  )
+
+# vlines at segment starts (exclude first segment)
+vlines <- segments |>
+  arrange(seg_start) |>
+  slice(-1)
+
+# y position for segment codes (near top)
+y_top <- max(df$n0, df$n_dropped, na.rm = TRUE)
+
+ggplot(df, aes(x = week_start)) +
+  geom_line(aes(y = n), linewidth = 0.5) +
+  geom_vline(
+    data = vlines,
+    aes(xintercept = as.numeric(seg_start)),
+    linetype = "dashed",
+    alpha = 0.6,
+    inherit.aes = FALSE
+  ) +
+  geom_label(
+    data = segments,
+    aes(x = seg_mid, y = y_top, label = seg_code),
+    vjust = -0.2,
+    size = 3,
+    label.size = 0.2,
+    alpha = 0.95,
+    inherit.aes = FALSE
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.15))) +
+  labs(
+    title = "Weekly Removals with Data Source Change Points",
+    subtitle = "See Segment Codes (SX) to see time periods",
+    x = "Week start",
+    y = "Counts",
+    color = NULL
+  ) +
+  theme_minimal()
+
+segments_print <- segments |>
+  select(seg_code, seg_start, seg_end, source_files)
+knitr::kable(segments_print, col.names = c("Segment Code", "Start Date", "End Date", "Source Files"))
+```
+
+# Weekly Detentions by Source File  
+```{r}
+weekly_counts_by_src <- detentions_temp |>
+  group_by(source_file, week_start) |>
+  summarise(
+    n = n(),
+    .groups = "drop"
+  ) |>
+  arrange(source_file, week_start)
+
+ggplot(weekly_counts_by_src, 
+       aes(x = week_start, y = n, color = source_file)) +
+  geom_line(size = 0.5, alpha = 0.5) +
+  labs(
+    title = "Weekly Detention Counts by Source File",
+    x = "Week Start",
+    y = "Number of Detentions",
+    color = "Source File"
+  ) +
+  theme_minimal()
+```
+
+It looks like the only files we need would be `2023_ICFO_42034` and `120125` past a certain point.  
+
+## Drop other source files for final dataset  
+```{r}
+detentions_data_final <- detentions_temp |>
+  mutate(keep_row = case_when(
+    source_file == "2024-ICFO-41855" & Detention_Book_In_Date < as.Date("2009-09-27") ~ TRUE, 
+    source_file == "uwchr" & Detention_Book_In_Date >= as.Date("2009-09-27") & Detention_Book_In_Date < as.Date("2023-12-31")~ TRUE, 
+    source_file == "120125" & Detention_Book_In_Date >= as.Date("2023-12-31") ~ TRUE, 
+    TRUE ~ FALSE
+  ))
+
+weekly_counts_by_src <- detentions_data_final |>
+  filter(keep_row == TRUE)|>
+  group_by(source_file, week_start) |>
+  summarise(
+    n = n(),
+    .groups = "drop"
+  ) |>
+  arrange(source_file, week_start)
+
+ggplot(weekly_counts_by_src, 
+       aes(x = week_start, y = n, color = source_file)) +
+  geom_line(size = 0.5, alpha = 0.5) +
+  labs(
+    title = "Weekly Detainer Counts by Source File",
+    x = "Week Start",
+    y = "Number of Detentions",
+    color = "Source File"
+  ) +
+  theme_minimal()
+```
+
+```{r, eval=F}
+rows_to_drop <- detentions_data_final |>
+  filter(keep_row == FALSE)|>
+  select(row_id)
+
+write_feather(rows_to_drop, "detentions_rows_to_drop.feather")
+```
+
+
+
