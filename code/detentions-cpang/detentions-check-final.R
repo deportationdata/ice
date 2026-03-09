@@ -6,7 +6,7 @@ library(arrow)
 library(ggplot2)
 library(lubridate)
 
-detentions_temp <- read_feather(here::here("data/ice-final/detentions-final.feather"), col_select = c("Detention_Book_In_Date", "source_file"))|>
+detentions_temp <- read_feather(here::here("data/ice-final/detentions-final-v2.feather"), col_select = c("Detention_Book_In_Date", "source_file"))|>
   mutate(
     week_start = floor_date(Detention_Book_In_Date, unit = "week", week_start = 7)
   )|>

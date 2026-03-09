@@ -207,7 +207,7 @@ rows_to_keep <- detentions_data_final |>
   filter(keep_row == TRUE)|>
   select(row_id)
 
-write_feather(rows_to_keep, "code/detentions-cpang/detentions_rows_to_drop.feather")
+write_feather(rows_to_keep, "code/detentions-cpang/detentions_rows_to_keep.feather")
 ```
 
 
