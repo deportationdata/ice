@@ -53,3 +53,4 @@ rsconnect/
 # ignore pushing this file
 data/ice-processed/detentions-merged.feather
 data/ice-processed/detentions-merged-with-flags.feather
+data/ice-final/detentions-final.feather
