@@ -77,7 +77,7 @@ ggplot(compare_counts, aes(x=week_start))+
 
 The dropped counts and original seem to mostly overlap (no big concerns/issues)  
 
-# Plot of Removals (post-duplication drops)  
+# Plot of Arrests (post-duplication drops)  
 ```{r}
 df <- compare_counts |>
   arrange(week_start) |>
@@ -127,7 +127,7 @@ ggplot(df, aes(x = week_start)) +
   ) +
   scale_y_continuous(expand = expansion(mult = c(0.02, 0.15))) +
   labs(
-    title = "Weekly Removals with Data Source Change Points",
+    title = "Weekly Arrests with Data Source Change Points",
     subtitle = "See Segment Codes (SX) to see time periods",
     x = "Week start",
     y = "Counts",
@@ -194,7 +194,7 @@ ggplot(weekly_counts_by_src,
   theme_minimal()
 ```
 
-```{r}
+```{r, eval=F}
 arrests_data_final <- arrests_data_final |>
   select(-drop_row, -year, -week, -year_week, -duplicate_likely, -keep_row, -keep_row)
 

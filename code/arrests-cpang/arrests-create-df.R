@@ -21,7 +21,8 @@ df1 <- get_folder_df(
   recursive = TRUE,
   anchor_idx = 2
 )|>
-  mutate(source_file = "2022-ICFO-22955")
+  mutate(source_file = "2022-ICFO-22955")|>
+  select(where(is_not_blank_or_redacted))
 
 df2 <- get_folder_df(
   folder_dir = "data/ice-raw/arrests-selected/2023_ICFO_42034",
@@ -29,7 +30,8 @@ df2 <- get_folder_df(
   recursive = TRUE,
   anchor_idx = 2
 )|>
-  mutate(source_file = "2023_ICFO_42034")
+  mutate(source_file = "2023_ICFO_42034")|>
+  select(where(is_not_blank_or_redacted))
 
 df3 <- get_folder_df(
   folder_dir = "data/ice-raw/arrests-selected/120125",
@@ -37,7 +39,8 @@ df3 <- get_folder_df(
   recursive = TRUE,
   anchor_idx = 2
 )|>
-  mutate(source_file = "120125")
+  mutate(source_file = "120125")|>
+  select(where(is_not_blank_or_redacted))
 
 df4 <- get_folder_df(
   folder_dir = "data/ice-raw/arrests-selected/uwchr",
@@ -45,13 +48,21 @@ df4 <- get_folder_df(
   recursive = TRUE,
   anchor_idx = 2
 )|>
-  mutate(source_file = "uwchr", 
-         Alien_File_Number = coalesce(Alien_File_Numbe, Alien_File_Number))|>
-  select(-Alien_File_Numbe)
+  mutate(source_file = "uwchr")|>
+  select(where(is_not_blank_or_redacted))
 
+df5 <- get_folder_df(
+  folder_dir = "data/ice-raw/arrests-selected/November 2025 Release", 
+  pattern = "\\.xlsx$",
+  recursive = TRUE,
+  anchor_idx = 2
+)|>
+  mutate(source_file = "November 2025 Release")|>
+  select(where(is_not_blank_or_redacted))
 
 # -- Save Combined Data ---
 write_feather(df1, "data/ice-raw/arrests-selected/2022-ICFO-22955_combined.feather")
 write_feather(df2, "data/ice-raw/arrests-selected/2023_ICFO_42034_combined.feather")
 write_feather(df3, "data/ice-raw/arrests-selected/120125_combined.feather")
 write_feather(df4, "data/ice-raw/arrests-selected/uwchr_combined.feather")
+write_feather(df5, "data/ice-raw/arrests-selected/nov2025_combined.feather")

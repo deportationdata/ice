@@ -8,19 +8,9 @@ library(tidyr)
 library(data.table)
 library(arrow)
 
-arrests_data <- fread(
-  "./data/ice-processed/arrests-merged.csv",
-  colClasses = "character",
-  na.strings = c("", "NA", "N/A", "NULL", "UNK", "UNKNOWN"),
-  showProgress = TRUE
-)
-
-arrests_data <- 
-  arrests_data |>
-  mutate(
-    # convert apprehension date to as.Date() object
-    Apprehension_Date = as.Date(Apprehension_Date)
-  )
+arrests_data <- read_feather("data/ice-processed/arrests-merged.feather")
+arrests_data <- arrests_data |>
+  mutate(Apprehension_Date = as.Date(Apprehension_Date))
 
 # ---- Construct Duplicates Indicator ----
 # two (or more) arrests within 24 hours of each other

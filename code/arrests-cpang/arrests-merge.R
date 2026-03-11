@@ -11,6 +11,7 @@ library(arrow)
 # --- Source Functions ---
 source("code/functions/inspect_columns.R")
 source("code/functions/merge_two_df.R")
+source("code/functions/is_not_blank_or_redacted.R")
 
 # --- Read in Combined Data ---
 
@@ -18,14 +19,7 @@ df1 <- read_feather("data/ice-raw/arrests-selected/2022-ICFO-22955_combined.feat
 df2 <- read_feather("data/ice-raw/arrests-selected/2023_ICFO_42034_combined.feather")
 df3 <- read_feather("data/ice-raw/arrests-selected/120125_combined.feather")
 df4 <- read_feather("data/ice-raw/arrests-selected/uwchr_combined.feather")
-
-# Step 0. Get Shared column matrix to determine which datasets to compare FIRST 
-df_list <- list(df1 = df1, 
-                df2 = df2, 
-                df3 = df3, 
-                df4 = df4)
-shared_col_matrix <- get_shared_cols(df_list)
-print(shared_col_matrix)
+df5 <- read_feather("data/ice-raw/arrests-selected/nov2025_combined.feather")
 
 # Step 1 (a). Inspect the columns that are shared and unique between datasets
 venn_1_2b <- inspect_columns(names(df1), names(df3)) 
@@ -39,7 +33,7 @@ near_matches_1_2 <- flag_near_matches(names(df3), names(df1), max_dist = 2)
 
 df1 <- df1 |>
   mutate(
-    Apprehension_Date = str_sub(Apprehension_Date_And_Time, 1, 10)
+    Apprehension_Date = as.Date(Apprehension_Date_And_Time)
   )
 
 df1_cols_old <- c("Final_Order_Yes_No_Blank",
@@ -81,17 +75,6 @@ df132 <- merge_13_2_out$df_merged
 
 # merge df132 with df4
 venn_132_4b <- inspect_columns(names(df132), names(df4))
-
-# Need to merge "Alien_File_Number" with "Alien_File_Numbe" in df4
-
-df4 <- df4 |>
-  mutate(
-    Alien_File_Number = ifelse(is.na(Alien_File_Number), Alien_File_Numbe, Alien_File_Number)
-  )|>
-  select(-Alien_File_Numbe)
-
-# double check columns again
-venn_132_4b <- inspect_columns(names(df132), names(df4))
 df4_cols_old <- c("Area_of_Responsibility", "Arrest_Date", "Arrest_Method") # guessing this is for apprehension AOR, Need confirmation from Amber & David
 df4_cols_new <- c("Apprehension_AOR", "Apprehension_Date", "Apprehension_Method")
 merge_132_4_out <- merge_dfs(df132, df4,
@@ -99,18 +82,17 @@ merge_132_4_out <- merge_dfs(df132, df4,
                             df4_cols_old, df4_cols_new)
 df1324 <- merge_132_4_out$df_merged
 
-df1324 <- df1324 |>
-  mutate(
-    Arrest_Created_By = coalesce(
-      Arrest_Created_By,
-      Arrested_Created_By,
-      Arrest_Create_By
-    )
-  ) |>
-  select(-Arrested_Created_By, -Arrest_Create_By)
+## Add new df5
+venn_1324_5b <- inspect_columns(names(df1324), names(df5))
+df5_cols_old <- c("Apprehension_Site_Landmark")
+df5_cols_new <- c("Apprehension_Landmark")
 
+merge_1324_5_out <- merge_dfs(df1324, df5,
+                            character(0), character(0),
+                            df5_cols_old, df5_cols_new)
+df13245 <- merge_1324_5_out$df_merged
 
-df_final <- df1324 |>
+df_final <- df13245 |>
   select(all_of(sort(names(df1324)))) |>
   relocate(source_file, .after = last_col())
 

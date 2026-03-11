@@ -10,9 +10,7 @@ library(tibble)
 library(stringr)
 
 # --- Source Functions ---
-source("code/functions/process_folder_data.R")
-source("code/functions/inspect_columns.R")
-source("code/functions/convert_temporal_columns.R")
+source("code/functions/process_folder_data_v2.R")
 
 # --- Read all arrests data --- 
 # ROOT: ice/
