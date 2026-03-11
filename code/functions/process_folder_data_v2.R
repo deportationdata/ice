@@ -32,7 +32,7 @@ find_first_non_na_row <- function(file_path, sheet, anchor_idx, guess_max = 1000
     stop("anchor_idx is out of bounds for this sheet.")
   }
 
-  anchor_vec <- raw_df %>% pull(anchor_idx)
+  anchor_vec <- raw_df |> pull(anchor_idx)
   first_non_na_row <- which(!is.na(anchor_vec))[1]
 
   if (is.na(first_non_na_row)) {
@@ -54,7 +54,6 @@ process_sheet <- function(file_path, sheet, anchor_idx, guess_max = 10000) {
     return(tibble())
   }
 
-  # Read just the header row
   header_df <- read_excel(
     path = file_path,
     sheet = sheet,
@@ -62,25 +61,26 @@ process_sheet <- function(file_path, sheet, anchor_idx, guess_max = 10000) {
     col_names = FALSE
   )
 
-  cleaned_names <- header_df %>%
-    slice(1) %>%
-    unlist(use.names = FALSE) %>%
-    as.character() %>%
-    str_replace_all("\\s+", "_") %>%
+  cleaned_names <- header_df |>
+    slice(1) |>
+    unlist(use.names = FALSE) |>
+    as.character() |>
+    str_replace_all("\\s+", "_") |>
     make_clean_names(case = "none")
 
-  # Read actual data below header row, using clean names
   data_df <- read_excel(
     path = file_path,
     sheet = sheet,
     skip = first_non_na_row,
-    col_names = cleaned_names,
+    col_names = FALSE,
     guess_max = guess_max
   )
 
-  data_df|>
-    select(where(is_not_blank_or_redacted))
+  n_keep <- min(ncol(data_df), length(cleaned_names))
 
+  data_df <- data_df |>
+  select(1:n_keep) |>
+  set_names(cleaned_names[seq_len(n_keep)])
 }
 # read sheets from a file
 read_sheets_from_file <- function(file_path, guess_max = 10000){
