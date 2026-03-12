@@ -19,14 +19,70 @@ df1 <- get_folder_df(
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
-)
+)|>
+  mutate(source_file = "2025-ICFO-18038")|>
+  select(where(is_not_blank_or_redacted))
+
+
+df1_files <- list_files_in_dir("data/ice-raw/detainers-selected/2025-ICFO-18038",pattern = "\\.xlsx$",recursive = TRUE)
+master_df <- tibble()
+
+for (fp in df1_files) {
+  print(paste0("========== FILE PATH: ", fp, " ============="))
+  
+  df_temp <- get_file_df(fp, anchor_idx = 2, guess_max = 10000)
+  dplyr::glimpse(df_temp)
+  
+  if ("Latest_Entry_Date" %in% names(df_temp) &&
+      is.character(df_temp$Latest_Entry_Date)) {
+    df_temp <- df_temp |>
+      mutate(
+        Latest_Entry_Date = as.Date(as.numeric(Latest_Entry_Date), origin = "1899-12-30")
+      )
+  }
+
+  if ("Most_Serious_Charge_Conviction_Date" %in% names(df_temp)) {
+  df_temp <- df_temp |>
+    mutate(
+      Most_Serious_Charge_Conviction_Date = as.Date(as.numeric(Most_Serious_Charge_Conviction_Date), origin = "1899-12-30")
+    )
+}
+  if ("Detainer_Most_Serious_Conviction_Conviction_Date" %in% names(df_temp)) {
+  df_temp <- df_temp |>
+    mutate(
+      Detainer_Most_Serious_Conviction_Conviction_Date = as.Date(as.numeric(Detainer_Most_Serious_Conviction_Conviction_Date), origin = "1899-12-30")
+    )
+}
+  if ("Detainer_Most_Serious_Conviction_Conviction_Date" %in% names(df_temp)) {
+  df_temp <- df_temp |>
+    mutate(
+      Detainer_Most_Serious_Conviction_Conviction_Date = as.Date(as.numeric(Detainer_Most_Serious_Conviction_Conviction_Date), origin = "1899-12-30")
+    )
+}
+  
+  master_df <- bind_rows(master_df, df_temp)
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 df2 <- get_folder_df(
   folder_dir = "data/ice-raw/detainers-selected/120125",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
-)
+)|>
+  mutate(source_file = "120125")|>
+  select(where(is_not_blank_or_redacted))
 
 # --- For npr, there are .csv and .txt files so get_folder_df won't work ---
 npr_csv_files <- list.files(

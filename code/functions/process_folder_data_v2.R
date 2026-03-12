@@ -82,6 +82,9 @@ process_sheet <- function(file_path, sheet, anchor_idx, guess_max = 10000) {
   select(1:n_keep) |>
   set_names(cleaned_names[seq_len(n_keep)])
 }
+
+
+
 # read sheets from a file
 read_sheets_from_file <- function(file_path, guess_max = 10000){
   sheet_names <- excel_sheets(file_path)
