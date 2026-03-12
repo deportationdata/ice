@@ -14,6 +14,7 @@ source("code/functions/process_folder_data_v2.R")
 
 # --- Read all arrests data --- 
 # ROOT: ice/
+# use the OLD folder parser that doesn't guess and converts everything to character and then guess the columns later... 
 df1 <- get_folder_df(
   folder_dir = "data/ice-raw/detainers-selected/2025-ICFO-18038",
   pattern = "\\.xlsx$",
