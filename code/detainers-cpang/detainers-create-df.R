@@ -8,73 +8,26 @@ library(purrr)
 library(janitor)
 library(tibble)
 library(stringr)
+library(arrow)
 
 # --- Source Functions ---
-source("code/functions/process_folder_data_v2.R")
+source("code/functions/process_folder_data.R")
+source("code/functions/is_not_blank_or_redacted.R")
 
 # --- Read all arrests data --- 
 # ROOT: ice/
 # use the OLD folder parser that doesn't guess and converts everything to character and then guess the columns later... 
-df1 <- get_folder_df(
+df1 <- get_folder_df0(
   folder_dir = "data/ice-raw/detainers-selected/2025-ICFO-18038",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
 )|>
   mutate(source_file = "2025-ICFO-18038")|>
-  select(where(is_not_blank_or_redacted))
+  select(where(is_not_blank_or_redacted))|>
+  mutate(across(ends_with("_Date"), as.Date))
 
-
-df1_files <- list_files_in_dir("data/ice-raw/detainers-selected/2025-ICFO-18038",pattern = "\\.xlsx$",recursive = TRUE)
-master_df <- tibble()
-
-for (fp in df1_files) {
-  print(paste0("========== FILE PATH: ", fp, " ============="))
-  
-  df_temp <- get_file_df(fp, anchor_idx = 2, guess_max = 10000)
-  dplyr::glimpse(df_temp)
-  
-  if ("Latest_Entry_Date" %in% names(df_temp) &&
-      is.character(df_temp$Latest_Entry_Date)) {
-    df_temp <- df_temp |>
-      mutate(
-        Latest_Entry_Date = as.Date(as.numeric(Latest_Entry_Date), origin = "1899-12-30")
-      )
-  }
-
-  if ("Most_Serious_Charge_Conviction_Date" %in% names(df_temp)) {
-  df_temp <- df_temp |>
-    mutate(
-      Most_Serious_Charge_Conviction_Date = as.Date(as.numeric(Most_Serious_Charge_Conviction_Date), origin = "1899-12-30")
-    )
-}
-  if ("Detainer_Most_Serious_Conviction_Conviction_Date" %in% names(df_temp)) {
-  df_temp <- df_temp |>
-    mutate(
-      Detainer_Most_Serious_Conviction_Conviction_Date = as.Date(as.numeric(Detainer_Most_Serious_Conviction_Conviction_Date), origin = "1899-12-30")
-    )
-}
-  if ("Detainer_Most_Serious_Conviction_Conviction_Date" %in% names(df_temp)) {
-  df_temp <- df_temp |>
-    mutate(
-      Detainer_Most_Serious_Conviction_Conviction_Date = as.Date(as.numeric(Detainer_Most_Serious_Conviction_Conviction_Date), origin = "1899-12-30")
-    )
-}
-  
-  master_df <- bind_rows(master_df, df_temp)
-}
-
-
-
-
-
-
-
-
-
-
-
-
+source("code/functions/process_folder_data_v2.R")
 
 df2 <- get_folder_df(
   folder_dir = "data/ice-raw/detainers-selected/120125",
@@ -98,7 +51,6 @@ npr_txt_files <- list.files(
   recursive = TRUE,
   full.names = TRUE
 )
-
 
 # ---------- Helpers ----------
 read_npr_delim <- function(path) {
@@ -159,7 +111,6 @@ batch_to_date <- function(df, cols, verbose = TRUE) {
 
 # ---------- Read NPR files ----------
 df3 <- map_dfr(npr_csv_files, read_npr_delim)
-
 # Equivalent of npr_txt_files[1:5] + separate read of [6]
 df4 <- map_dfr(npr_txt_files[1:5], read_npr_csv)
 df5 <- read_npr_csv(npr_txt_files[6])
@@ -183,14 +134,19 @@ npr_merge_final <- npr_merge_final |>
       str_split("_") |>
       lapply(\(parts) paste(str_to_title(str_to_lower(parts)), collapse = "_")) |>
       unlist()
-  })
+  })|>
+  mutate(source_file = "npr")
 
-
-# ---------- Add source_file ----------
-df1 <- df1 |> mutate(source_file = "2025-ICFO-18038")
-df2 <- df2 |> mutate(source_file = "120125")
-npr_merge_final <- npr_merge_final |> mutate(source_file = "npr")
+df_nov2025 <- get_folder_df(
+  folder_dir = "data/ice-raw/detainers-selected/November 2025 Release",
+  pattern = "\\.xlsx$",
+  recursive = TRUE,
+  anchor_idx = 2
+)|>
+  mutate(source_file = "November 2025 Release")|>
+  select(where(is_not_blank_or_redacted))
 
 write_feather(df1, "data/ice-raw/detainers-selected/2025-ICFO-18038_combined.feather")
 write_feather(df2, "data/ice-raw/detainers-selected/120125_combined.feather")
 write_feather(npr_merge_final, "data/ice-raw/detainers-selected/npr_combined.feather")
+write_feather(df_nov2025, "data/ice-raw/detainers-selected/nov2025_combined.feather")

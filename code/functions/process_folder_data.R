@@ -58,7 +58,7 @@ process_sheet<- function(sheet_df, anchor_idx){
 
 }
 
-get_folder_df <- function(folder_dir, pattern, recursive, anchor_idx, guess_max){
+get_folder_df0 <- function(folder_dir, pattern, recursive, anchor_idx, guess_max){
   file_paths <- list_files_in_dir(
     dir = folder_dir,
     pattern = pattern,

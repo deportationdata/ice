@@ -11,8 +11,9 @@ library(stringr)
 library(arrow)
 
 # --- Source Functions ---
-source("code/functions/process_folder_data.R")
+source("code/functions/process_folder_data_v2.R")
 source("code/functions/inspect_columns.R")
+
 
 # --- Read all arrests data --- 
 # ROOT: ice/
@@ -57,6 +58,7 @@ df6 <- get_folder_df(
   recursive = TRUE,
   anchor_idx = 2
 )
+
 library(readxl)
 
 # do separate processing for df7 since it's a CSV file

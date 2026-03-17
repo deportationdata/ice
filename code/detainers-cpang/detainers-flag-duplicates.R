@@ -8,14 +8,7 @@ library(tidyr)
 library(data.table)
 library(arrow)
 
-detainers_data <- fread(
-  "./data/ice-processed/detainers-merged.csv",
-  colClasses = "character",
-  na.strings = c("", "NA", "N/A", "NULL", "UNK", "UNKNOWN"),
-  showProgress = TRUE
-)
-detainers_data <- 
-  detainers_data |>
+detainers_data <- read_feather("data/ice-processed/detainers-merged.feather")|>
   mutate(
     Prepare_Date = as.Date(Prepare_Date)
   )

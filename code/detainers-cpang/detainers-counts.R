@@ -6,10 +6,7 @@ library(vroom)
 library(arrow)
 
 # fast data reader
-detainers_data <- vroom("./data/ice-processed/detainers-merged.csv",
-    col_types = cols(.default = col_character()),
-  na = c("", "NA", "N/A", "NULL", "UNK", "UNKNOWN"))
-  
+detainers_data <- read_feather("data/ice-processed/detainers-merged.feather")
 detainers_data2 <- detainers_data |>
   mutate(Prepare_Date = as.Date(Prepare_Date))
 
@@ -24,5 +21,4 @@ weekly_counts <- detainers_data2 |>
   count(year_week, week_start, name = "n") |>
   arrange(week_start)
 
-weekly_counts |>
-  write_feather("data/ice-counts/detainers-weekly-counts.feather")
+write_feather(weekly_counts, "data/ice-counts/detainers-weekly-counts.feather")

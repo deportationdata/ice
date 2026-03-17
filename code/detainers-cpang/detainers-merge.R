@@ -15,17 +15,14 @@ source("code/functions/merge_two_df.R")
 
 df1 <- read_feather("data/ice-raw/detainers-selected/2025-ICFO-18038_combined.feather")
 df2 <- read_feather("data/ice-raw/detainers-selected/120125_combined.feather")
-df3 <- read_feather("data/ice-raw/detainers-selected/npr_combined.feather")
-
-# Merge Detention_Facility and Detainer_Detention_Facility in df3 
-df3 <- df3 %>%
+df3 <- read_feather("data/ice-raw/detainers-selected/npr_combined.feather")|>
   mutate(
     Detention_Facility = coalesce(
       Detention_Facility,
       Detainer_Detention_Facility
     )
   )
-
+df4 <- read_feather("data/ice-raw/detainers-selected/nov2025_combined.feather")
 # Step 0. Get Shared column matrix to determine which datasets to compare FIRST 
 df_list <- list(df1 = df1, 
                 df2 = df2, 
@@ -113,12 +110,34 @@ merge_12_3 <- merge_dfs(df12, df3,
                           df12_cols_old, df12_cols_new,
                           df3_cols_old, df3_cols_new)
 
-df123 <- merge_12_3$df_merged
-venn_12_3_after <- merge_12_3$venn_after
-
-# drop Detainer_Detention_Facility 
-df_final<- df123 %>%
+df123 <- merge_12_3$df_merged |>
   select(-Detainer_Detention_Facility)
 
+venn_123_4b <- inspect_columns(names(df123), names(df4))
+  
+df4_cols_old <- c("Detainer_Prepare_Date", 
+                  "Detainer_Prep_Threat_Level", 
+                  "Most_Serious_Conviction_MSC_Charge", 
+                  "MSC_Sentence_Days", 
+                  "MSC_Sentence_Months", 
+                  "MSC_Sentence_Years", 
+                  "MSC_Charge_Code",
+                  "MSC_Charge_Date", 
+                  "MSC_Conviction_Date")
+df4_cols_new <- c("Prepare_Date", 
+                  "Detainer_Threat_Level", 
+                  "Most_Serious_Conviction_Charge", 
+                  "Most_Serious_Conviction_Sentence_Days", 
+                  "Most_Serious_Conviction_Sentence_Months", 
+                  "Most_Serious_Conviction_Sentence_Years", 
+                  "Most_Serious_Conviction_Charge_Code", 
+                  "Most_Serious_Conviction_Charge_Date", 
+                  "Most_Serious_Conviction_Conviction_Date")
+
+merge_123_4 <- merge_dfs(df123, df4,
+                          character(0), character(0),
+                          df4_cols_old, df4_cols_new)
+
+df_final <- merge_123_4$df_merged
 # --- Write out merged data ---
 write_feather(df_final, "data/ice-processed/detainers-merged.feather")

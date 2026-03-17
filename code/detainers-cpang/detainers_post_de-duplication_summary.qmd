@@ -74,9 +74,9 @@ ggplot(compare_counts, aes(x=week_start))+
   theme_minimal()
 ```
 
-The dropped counts and original seem to mostly overlap (no big concerns/issues)  
+The last few datasets have multiple IDs that have lots of duplicates (I verified this). 
 
-# Plot of Removals (post-duplication drops)  
+# Plot of Detainers (post-duplication drops)  
 ```{r}
 df <- compare_counts |>
   arrange(week_start) |>
@@ -161,7 +161,7 @@ ggplot(weekly_counts_by_src,
   theme_minimal()
 ```
 
-It looks like the only files we need would be `2023_ICFO_42034` and `120125` past a certain point.  
+The `November 2025 Release` dataset does not seem to reflect trends and patterns. We drop this dataset.  
 
 ## Drop other source files for final dataset  
 ```{r}
