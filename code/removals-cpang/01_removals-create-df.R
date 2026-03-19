@@ -10,34 +10,41 @@ library(tibble)
 library(stringr)
 
 # --- Source Functions ---
+# use old process_folder_data as fallback 
 source("code/functions/process_folder_data.R")
-source("code/functions/inspect_columns.R")
+source("code/functions/is_not_blank_or_redacted.R")
 
 # --- Read all arrests data --- 
 # ROOT: ice/
-df1 <- get_folder_df(
+df1 <- get_folder_df0(
   folder_dir = "data/ice-raw/removals-selected/2023_ICFO_42034",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
 )|>
-  mutate(source_file = "2023_ICFO_42034")
+  mutate(source_file = "2023_ICFO_42034")|>
+  select(where(is_not_blank_or_redacted))|>
+  mutate(across(ends_with("_Date"), as.Date))
 
-df2 <- get_folder_df(
+df2 <- get_folder_df0(
   folder_dir = "data/ice-raw/removals-selected/082025",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
 )|>
-  mutate(source_file = "082025")
+  mutate(source_file = "082025")|>
+  select(where(is_not_blank_or_redacted))|>
+  mutate(across(ends_with("_Date"), as.Date))
 
-df3 <- get_folder_df(
+df3 <- get_folder_df0(
   folder_dir = "data/ice-raw/removals-selected/uwchr",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
 )|>
-  mutate(source_file = "uwchr")
+  mutate(source_file = "uwchr")|>
+  select(where(is_not_blank_or_redacted))|>
+  mutate(across(ends_with("_Date"), as.Date))
 
 # --- df4 needs separate processing --- 
 get_folder_df2 <- function(folder_dir, pattern, recursive, anchor_idx, sheet_n = 2){
@@ -63,7 +70,9 @@ df4 <- get_folder_df2(
   anchor_idx = 2, 
   sheet_n = 2
 )|>
-  mutate(source_file = "14-03290")
+  mutate(source_file = "14-03290")|>
+  select(where(is_not_blank_or_redacted))|>
+  mutate(across(ends_with("_Date"), as.Date))
 
 # --- Write out files ---
 write_feather(df1, "data/ice-raw/removals-selected/2023_ICFO_42034_combined.feather")

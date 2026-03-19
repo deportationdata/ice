@@ -13,6 +13,7 @@ library(lubridate)
 # --- Source Functions ---
 source("code/functions/inspect_columns.R")
 source("code/functions/merge_two_df.R")
+source("code/functions/summarize_weekly_counts.R")
 
 df1 <- read_feather("data/ice-raw/detentions-selected/2019-ICFO-21307_combined.feather")|> as_tibble()
 df2 <- read_feather("data/ice-raw/detentions-selected/2023_ICFO_42034_combined.feather")|> as_tibble()
@@ -22,26 +23,6 @@ df5 <- read_feather("data/ice-raw/detentions-selected/uwchr_combined.feather")|>
 df6 <- read_feather("data/ice-raw/detentions-selected/From-Emily-Excel-X-RIF_combined.feather")|> as_tibble()
 df7 <- read_feather("data/ice-raw/detentions-selected/From-Emily-FOIA-10-2554-527_combined.feather")|> as_tibble()
 df8 <- read_feather("data/ice-raw/detentions-selected/nov2025_combined.feather")|> as_tibble()
-
-# determine which files to merge 
-get_weekly_counts <- function(df, date_col_name){
-  df <- df |>
-    rename(Detention_Book_In_Date = date_col_name)
-
-  source_file = unique(df$source_file)
-
-  weekly_counts <- df |>
-  filter(!is.na(Detention_Book_In_Date)) |>
-  mutate(
-    Detention_Book_In_Date = as.Date(Detention_Book_In_Date),
-    week_start = floor_date(Detention_Book_In_Date, unit = "week", week_start = 7)
-  ) |>
-  count(week_start, name = "n") |>
-  arrange(week_start)|>
-  mutate(source_file = source_file)
-  
-  return(weekly_counts)
-}
 
 df1_weekly_counts <- get_weekly_counts(df1, "Book_In_Date")
 df2_weekly_counts <- get_weekly_counts(df2, "Detention_Book_In_Date")
@@ -71,12 +52,6 @@ ggplot(temp ,aes(week_start, y=n, color = source_file))+
   theme_minimal()
 
 # at minimum, we merge "120125", "From-Emily-Excel-X-RIF", "From-Emily-FOIA-10-2554-527", and "uwchr"  
-rm(df1, df2, df8, df3) # remove these to clear memory space
-gc()
-
-# filter dates that we want 
-
-
 
 
 

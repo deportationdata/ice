@@ -12,18 +12,21 @@ library(arrow)
 
 # --- Source Functions ---
 source("code/functions/process_folder_data.R")
-source("code/functions/inspect_columns.R")
-
+source("code/functions/is_not_blank_or_redacted.R")
 # --- Read all arrests data --- 
 # ROOT: ice/
-df1 <- get_folder_df(
+df1 <- get_folder_df0(
   folder_dir = "data/ice-raw/encounters-selected/082025",
   pattern = "\\.xlsx$",
   recursive = TRUE,
   anchor_idx = 2
 )|>
-  mutate(source_file = "082025")
+  mutate(source_file = "082025")|>
+  select(where(is_not_blank_or_redacted))|>
+  mutate(across(ends_with("_Date"), as.Date))
 
+
+source("code/functions/process_folder_data_v2.R")
 df2 <- get_folder_df(
   folder_dir = "data/ice-raw/encounters-selected/uwchr",
   pattern = "\\.xlsx$",
