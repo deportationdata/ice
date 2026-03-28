@@ -121,6 +121,11 @@ arrow::write_feather(
   facilities_daily_population,
   "data/facilities-daily-population-latest.feather"
 )
+arrow::write_parquet(
+  facilities_daily_population,
+  "data/facilities-daily-population-latest.parquet",
+  compression = "zstd"
+)
 haven::write_dta(
   facilities_daily_population,
   "data/facilities-daily-population-latest.dta"
