@@ -1,10 +1,10 @@
 library(tidyverse)
 library(tidylog)
 
-facilities_states <- arrow::read_feather("data/facilities-state.feather")
+# facilities_states <- arrow::read_feather("data/facilities-state.feather")
 
-detention_stints <- arrow::read_feather(
-  "data/detention-stints-latest.feather"
+detention_stints <- arrow::read_parquet(
+  "data/detention-stints-latest.parquet"
 ) |>
   as_tibble() |>
   mutate(
@@ -20,7 +20,7 @@ daily_population <-
   mutate(
     start_date = as_date(book_in_date_time),
     end_date = as_date(book_out_date_time),
-    end_date = if_else(is.na(end_date), as_date("2025-10-15"), end_date)
+    end_date = if_else(is.na(end_date), as_date("2026-03-10"), end_date)
   ) |>
   # ensure end_date is not before start_date (recode to start_date if so)
   mutate(end_date = pmax(start_date, end_date)) |>
@@ -66,7 +66,9 @@ daily_population_statistics <-
       na.rm = TRUE
     ),
     n_detained_possibly_under_18 = n_distinct(
-      unique_identifier_nona[date < as.Date(str_c(birth_year + 18, "-01-01"))],
+      unique_identifier_nona[
+        date < as.Date(str_c(birth_year + 18, "-01-01"))
+      ],
       na.rm = TRUE
     ),
     .groups = "drop"
@@ -79,14 +81,14 @@ facilities_daily_population <-
     date
   ) |>
   filter(
-    date >= as.Date("2023-09-01"),
-    date <= as.Date("2025-10-15")
+    date >= as.Date("2022-10-01"),
+    date <= as.Date("2026-03-10")
   ) |>
   complete(
     detention_facility_code,
     date = seq(
-      as.Date("2023-09-01"),
-      as.Date("2025-10-15"),
+      as.Date("2022-10-01"),
+      as.Date("2026-03-10"),
       by = "day"
     ),
     fill = list(
@@ -101,26 +103,23 @@ facilities_daily_population <-
   ) |>
   left_join(
     detention_stints |>
-      select(detention_facility_code, detention_facility) |>
-      distinct(),
+      arrange(desc(book_in_date_time)) |>
+      distinct(detention_facility_code, .keep_all = TRUE) |>
+      select(detention_facility_code, detention_facility),
     by = "detention_facility_code"
-  ) |>
-  left_join(
-    facilities_states |>
-      select(
-        detention_facility_code,
-        state,
-        source_state = source,
-        date_state = date
-      ),
-    by = "detention_facility_code"
-  ) |>
-  relocate(detention_facility, state, .after = detention_facility_code)
+  ) # |>
+# left_join(
+#   facilities_states |>
+#     select(
+#       detention_facility_code,
+#       state,
+#       source_state = source,
+#       date_state = date
+#     ),
+#   by = "detention_facility_code"
+# ) |>
+# relocate(detention_facility, state, .after = detention_facility_code)
 
-arrow::write_feather(
-  facilities_daily_population,
-  "data/facilities-daily-population-latest.feather"
-)
 arrow::write_parquet(
   facilities_daily_population,
   "data/facilities-daily-population-latest.parquet",
