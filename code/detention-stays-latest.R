@@ -5,7 +5,11 @@ library(data.table)
 library(pointblank)
 
 # ---- Input data ---
-# facilities_states <- arrow::read_feather("data/facilities-states.feather")
+facilities_df <- arrow::read_parquet(
+  "https://media.githubusercontent.com/media/deportationdata/ice-detention-facilities/main/data/facilities-latest.parquet"
+) |>
+  select(-field_office) |>
+  distinct(detention_facility_code, .keep_all = TRUE)
 
 # ---- Set random seed ----
 # some sort operations involve random sampling to break ties
@@ -341,7 +345,10 @@ detention_stay_level_vars_df <-
         "detention_facility",
         "detention_facility_code",
         "book_in_date_time",
-        "book_out_date_time"
+        "book_out_date_time",
+        "detention_release_reason",
+        "book_in_site",
+        "book_in_aor"
       )
     )
   ]
@@ -642,6 +649,39 @@ detention_stays_df <-
   )
 
 
+# ---- Merge in facility info (city, state, county) for first/longest/last ----
+n_before_facility_join <- nrow(detention_stays_df)
+detention_stays_df <-
+  detention_stays_df |>
+  left_join(
+    facilities_df |>
+      select(detention_facility_code, city, state, county) |>
+      rename_with(~ str_c(., "_first"), -detention_facility_code),
+    by = c("detention_facility_code_first" = "detention_facility_code"),
+    relationship = "many-to-one"
+  ) |>
+  left_join(
+    facilities_df |>
+      select(detention_facility_code, city, state, county) |>
+      rename_with(~ str_c(., "_longest"), -detention_facility_code),
+    by = c("detention_facility_code_longest" = "detention_facility_code"),
+    relationship = "many-to-one"
+  ) |>
+  left_join(
+    facilities_df |>
+      select(detention_facility_code, city, state, county) |>
+      rename_with(~ str_c(., "_last"), -detention_facility_code),
+    by = c("detention_facility_code_last" = "detention_facility_code"),
+    relationship = "many-to-one"
+  )
+stopifnot(nrow(detention_stays_df) == n_before_facility_join)
+
+
+# ---- Sort by stay book-in date ----
+detention_stays_df <- detention_stays_df |>
+  arrange(stay_book_in_date_time)
+
+
 # ---- Save Outputs ----
 
 arrow::write_parquet(
@@ -649,7 +689,14 @@ arrow::write_parquet(
   "data/detention-stays-latest.parquet",
   compression = "zstd"
 )
-haven::write_dta(detention_stays_df, "data/detention-stays-latest.dta")
+detention_stays_df |>
+  rename_with(
+    ~ make.unique(
+      abbreviate(.x, minlength = 32, strict = FALSE),
+      sep = "_"
+    )
+  ) |>
+  haven::write_dta("data/detention-stays-latest.dta")
 haven::write_sav(detention_stays_df, "data/detention-stays-latest.sav")
 detention_stays_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
