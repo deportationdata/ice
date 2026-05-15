@@ -5,7 +5,11 @@ library(data.table)
 library(pointblank)
 
 # ---- Input data ---
-facilities_states <- arrow::read_feather("data/facilities-state.feather")
+facilities_df <- arrow::read_parquet(
+  "https://media.githubusercontent.com/media/deportationdata/ice-detention-facilities/main/data/facilities-latest.parquet"
+) |>
+  select(-field_office) |>
+  distinct(detention_facility_code, .keep_all = TRUE)
 
 # ---- Functions ----
 source("code/functions/check_dttm_and_convert_to_date.R")
@@ -233,19 +237,21 @@ detentions_df[,
   by = stint_ID
 ]
 
+n_before_facility_join <- nrow(detentions_df)
 detentions_df <-
   detentions_df |>
   left_join(
-    facilities_states |>
-      select(-name) |>
-      rename(source_state = source, date_state = date),
-    by = "detention_facility_code"
+    facilities_df |>
+      select(detention_facility_code, city, state, county),
+    by = "detention_facility_code",
+    relationship = "many-to-one"
   )
+stopifnot(nrow(detentions_df) == n_before_facility_join)
 
 # ---- Check: duplicate flag + facility join ----
 detentions_df |>
   col_exists(
-    c(likely_duplicate, book_out_date_time, state)
+    c(likely_duplicate, book_out_date_time, city, state, county)
   ) |>
   col_vals_in_set(
     likely_duplicate,
@@ -500,6 +506,11 @@ detentions_df <-
   )
 
 
+# ---- Sort by book-in date ----
+detentions_df <- detentions_df |>
+  arrange(book_in_date_time)
+
+
 # ---- Save Outputs ----
 
 arrow::write_parquet(
@@ -507,7 +518,14 @@ arrow::write_parquet(
   "data/detention-stints-latest.parquet",
   compression = "zstd"
 )
-haven::write_dta(detentions_df, "data/detention-stints-latest.dta")
+detentions_df |>
+  rename_with(
+    ~ make.unique(
+      abbreviate(.x, minlength = 32, strict = FALSE),
+      sep = "_"
+    )
+  ) |>
+  haven::write_dta("data/detention-stints-latest.dta")
 haven::write_sav(detentions_df, "data/detention-stints-latest.sav")
 
 detentions_df |>
