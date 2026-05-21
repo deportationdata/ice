@@ -5,26 +5,16 @@ library(janitor)
 library(tibble)
 library(stringr)
 
-rm(list=ls())
 source("code/functions/convert_temporal_columns.R")
 
 # list files in a directory
 list_files_in_dir <- function(
-  dir = "data/ice-raw/arrests-selected",
+  dir = "inputs/arrests",
   pattern = "\\.xlsx$",
   recursive = TRUE
 ){
   files <- list.files(path = dir, pattern = pattern, full.names = TRUE, recursive = recursive)
   return(files)
-}
-
-
-# read sheets from a file
-read_sheets_from_file <- function(file_path, guess_max = 10000){
-  sheet_names <- excel_sheets(file_path)
-  sheets <- map(sheet_names, ~ read_excel(file_path, sheet = .x, guess_max = guess_max))
-  names(sheets) <- sheet_names
-  return(sheets)
 }
 
 process_sheet<- function(sheet_df, anchor_idx){
@@ -71,10 +61,13 @@ get_folder_df0 <- function(folder_dir, pattern, recursive, anchor_idx, guess_max
   }
 
   combined_df <- file_paths |>
-    map_dfr(
-      ~ read_sheets_from_file(.x) |>
+    map_dfr(\(fp) {
+      sheet_names <- excel_sheets(fp)
+      sheets <- map(sheet_names, ~ read_excel(fp, sheet = .x, guess_max = guess_max))
+      names(sheets) <- sheet_names
+      sheets |>
         imap_dfr(~ process_sheet(.x, anchor_idx = anchor_idx))
-    )
+    })
 
   combined_df |>
     convert_df_temporal_columns()

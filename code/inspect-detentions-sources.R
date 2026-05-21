@@ -1,6 +1,3 @@
-# --- Clear Memory ---
-rm(list=ls())
-
 # --- Packages ---
 library(dplyr)
 library(tibble)
@@ -12,17 +9,16 @@ library(lubridate)
 
 # --- Source Functions ---
 source("code/functions/inspect_columns.R")
-source("code/functions/merge_two_df.R")
 source("code/functions/summarize_weekly_counts.R")
 
-df1 <- read_feather("data/ice-raw/detentions-selected/2019-ICFO-21307_combined.feather")|> as_tibble()
-df2 <- read_feather("data/ice-raw/detentions-selected/2023_ICFO_42034_combined.feather")|> as_tibble()
-df3 <- read_feather("data/ice-raw/detentions-selected/2024-ICFO-41855_combined.feather")|> as_tibble()
-df4 <- read_feather("data/ice-raw/detentions-selected/120125_combined.feather")|> as_tibble()
-df5 <- read_feather("data/ice-raw/detentions-selected/uwchr_combined.feather")|> as_tibble()
-df6 <- read_feather("data/ice-raw/detentions-selected/From-Emily-Excel-X-RIF_combined.feather")|> as_tibble()
-df7 <- read_feather("data/ice-raw/detentions-selected/From-Emily-FOIA-10-2554-527_combined.feather")|> as_tibble()
-df8 <- read_feather("data/ice-raw/detentions-selected/nov2025_combined.feather")|> as_tibble()
+df1 <- read_parquet("data/cache/detentions-2019-ICFO-21307.parquet")|> as_tibble()
+df2 <- read_parquet("data/cache/detentions-2023_ICFO_42034.parquet")|> as_tibble()
+df3 <- read_parquet("data/cache/detentions-2024-ICFO-41855.parquet")|> as_tibble()
+df4 <- read_parquet("data/cache/detentions-120125.parquet")|> as_tibble()
+df5 <- read_parquet("data/cache/detentions-uwchr.parquet")|> as_tibble()
+df6 <- read_parquet("data/cache/detentions-From-Emily-Excel-X-RIF.parquet")|> as_tibble()
+df7 <- read_parquet("data/cache/detentions-From-Emily-FOIA-10-2554-527.parquet")|> as_tibble()
+df8 <- read_parquet("data/cache/detentions-nov2025.parquet")|> as_tibble()
 
 df1_weekly_counts <- get_weekly_counts(df1, "Book_In_Date")
 df2_weekly_counts <- get_weekly_counts(df2, "Detention_Book_In_Date")

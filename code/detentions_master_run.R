@@ -1,17 +1,17 @@
 rm(list=ls())
 
 print("Building Dataframes from folders...")
-source("code/01_detentions_create_df.R")
+source("code/detentions-prep.R")
 print("Done.")
 
 # Code below is optional
 print("Determine which data sources to use...")
-source("code/02_inspect_detentions_sources.R")
+source("code/inspect-detentions-sources.R")
 
 print("Building Master dataframe for Detentions... ")
-source("code/03_build_detentions_master")
+source("code/detentions-historical.R")
 print("Done.")
 
 print("Flag Duplicates for Detentions...")
-source("code/04_flag_detention_duplicates.R")
+source("code/detentions-flag-duplicates.R")
 print("Done.")

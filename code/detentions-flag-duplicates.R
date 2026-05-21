@@ -1,5 +1,3 @@
-rm(list=ls())
-
 library(arrow)
 library(data.table)
 library(dplyr)
@@ -13,7 +11,7 @@ library(tidylog)
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 
-df <- read_feather("data/ice-final/detentions-final.feather")
+df <- read_parquet("data/cache/detentions-historical-no-flags.parquet")
 
 detentions_df <- df |> 
   janitor::clean_names(allow_dupes = FALSE)|>
@@ -92,4 +90,4 @@ detentions_df[,
   by = stint_ID
 ]
 
-write_feather(detentions_df, "data/ice-final/detentions-final-with-flags.feather")
+write_parquet(detentions_df, "data/detentions-historical.parquet", compression = "zstd", compression_level = 19)
