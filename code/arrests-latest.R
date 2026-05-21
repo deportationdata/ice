@@ -1,67 +1,101 @@
 # ---- Packages ----
 library(tidyverse)
 library(tidylog)
+library(pointblank)
 
 # ---- Functions ----
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 
 # ---- Read in to temporary file ----
-url <- "https://ucla.box.com/shared/static/tvdx5ulcg4hj3ul91qhggs3yxcdjdcib.xlsx"
-f <- tempfile(fileext = ".xlsx")
-download.file(url, f, mode = "wb")
+# url <- "https://ucla.box.com/shared/static/tvdx5ulcg4hj3ul91qhggs3yxcdjdcib.xlsx"
+# f <- tempfile(fileext = ".xlsx")
+# download.file(url, f, mode = "wb")
 
 col_types <- c(
   "date", # Apprehension Date
-  "text", # Apprehension State
-  "logical", # Apprehension County
-  "text", # Apprehension AOR
-  "text", # Final Program
-  "text", # Final Program Group
+  "text", # Apprehension Type
+  "text", # State
+  "text", # County
+  "text", # TOA Current Duty AOR
+  "text", # Apprehension Final Program
+  "text", # Arresting Agency
   "text", # Apprehension Method
   "text", # Apprehension Criminality
   "text", # Case Status
   "text", # Case Category
-  "date", # Departed Date
   "text", # Departure Country
   "text", # Final Order Yes No
-  "date", # Final Order Date
   "text", # Birth Date
   "numeric", # Birth Year
   "text", # Citizenship Country
   "text", # Gender
+  "date", # Departed Date
+  "date", # Final Order Date
   "text", # Apprehension Site Landmark
-  "text", # Alien File Number
-  "text", # EID Case ID
-  "text", # EID Subject ID
-  "text" # Unique Identifier
+  "text", # Operation
+  "text", # TOA Current Duty Site
+  "text", # Case Criminality
+  "text", # Case Threat Level
+  "text" # Anonymized Identifier
 )
 
-arrests_df <- readxl::read_excel(
-  path = f,
-  sheet = 1,
-  col_types = col_types,
-  skip = 6
-)
+arrests_df <-
+  list.files(
+    Sys.getenv("ICE_RAW_DATA_DIR"),
+    pattern = "^[^~].*Arrests",
+    full.names = TRUE
+  ) |>
+  set_names(basename) |>
+  map_dfr(
+    function(f) {
+      readxl::excel_sheets(f) |>
+        set_names() |>
+        map_dfr(
+          function(s) {
+            readxl::read_excel(
+              path = f,
+              sheet = s,
+              col_types = col_types,
+              skip = 6
+            )
+          },
+          .id = "sheet_original"
+        )
+    },
+    .id = "file_original"
+  )
+
+# ---- Check: read ----
+arrests_df |>
+  col_exists(
+    c(`Apprehension Date`, `Anonymized Identifier`, `Gender`, `Case Status`)
+  ) |>
+  col_vals_not_null(
+    `Apprehension Date`,
+    actions = action_levels(warn_at = 0.01, stop_at = 0.05)
+  ) |>
+  invisible()
+
 
 arrests_df <-
   arrests_df |>
   # clean names
   janitor::clean_names(allow_dupes = FALSE) |>
-  # add file name
-  mutate(
-    file_original = "ERO Admin Arrests_LESA-STU-FINAL Release_raw.xlsx"
-  ) |>
-  # add sheets indicator
-  mutate(sheet_original = "Admin Arrests") |>
   # add row number from original file
-  mutate(row_original = as.integer(row_number() + 6 + 1)) |>
+  mutate(
+    row_original = as.integer(row_number() + 6 + 1),
+    .by = "sheet_original"
+  ) |>
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |>
   # convert dttm to date if there is no time information in the column
   mutate(
     across(where(~ inherits(., "POSIXt")), check_dttm_and_convert_to_date)
   ) |>
+  # replace redacted values with NA
+  mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
+  mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
   mutate(
     # create apprehension date without time
     apprehension_date_time = apprehension_date,
@@ -69,6 +103,28 @@ arrests_df <-
     # convert birth year to integer
     birth_year = as.integer(birth_year)
   )
+
+# ---- Check: clean ----
+arrests_df |>
+  col_exists(
+    c(
+      apprehension_date,
+      anonymized_identifier,
+      gender,
+      case_status,
+      file_original,
+      sheet_original,
+      row_original,
+      apprehension_date_time,
+      birth_year
+    )
+  ) |>
+  col_vals_not_null(
+    row_original,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  invisible()
+
 
 # ---- Construct Duplicates Indicator ----
 # two (or more) arrests within 24 hours of each other
@@ -88,7 +144,7 @@ arrests_df[,
       units = "hours"
     )
   ),
-  by = unique_identifier
+  by = anonymized_identifier
 ]
 
 arrests_df <-
@@ -98,7 +154,7 @@ arrests_df <-
     within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
     within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
     duplicate_likely = case_when(
-      !is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next
+      !is.na(anonymized_identifier) ~ within_24hrs_prior | within_24hrs_next
     ),
   ) |>
   select(
@@ -109,9 +165,180 @@ arrests_df <-
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
 
+# ---- Check: duplicates ----
+arrests_df |>
+  col_exists(duplicate_likely) |>
+  col_vals_in_set(
+    duplicate_likely,
+    c(TRUE, FALSE, NA),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  invisible()
+
+
+# ---- Pointblank Validation ----
+
+arrests_df |>
+  # -- Primary key / identifier checks --
+  col_vals_not_null(
+    anonymized_identifier,
+    actions = action_levels(warn_at = 0.02, stop_at = 0.05)
+  ) |>
+  col_vals_not_null(
+    apprehension_date,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  # -- Date range checks --
+  col_vals_between(
+    apprehension_date,
+    as.Date("2022-09-01"),
+    Sys.Date(),
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  col_vals_between(
+    departed_date,
+    as.Date("2022-09-01"),
+    Sys.Date(),
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  col_vals_between(
+    final_order_date,
+    as.Date("1990-01-01"),
+    Sys.Date(),
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  # -- Birth year range --
+  col_vals_between(
+    birth_year,
+    1900L,
+    as.integer(format(Sys.Date(), "%Y")),
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  # -- Categorical value checks --
+  col_vals_in_set(
+    gender,
+    c("Male", "Female", "Unknown", NA),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    apprehension_criminality,
+    c(
+      "1 Convicted Criminal",
+      "2 Pending Criminal Charges",
+      "3 Other Immigration Violator",
+      NA
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    final_order_yes_no,
+    c("YES", "NO", NA),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    case_status,
+    c(
+      "ACTIVE",
+      "0-Withdrawal Permitted - I-275 Issued",
+      "3-Voluntary Departure Confirmed",
+      "5-Title 50 Expulsion",
+      "6-Deported/Removed - Deportability",
+      "7-Died",
+      "8-Excluded/Deported/Removed",
+      "8-Excluded/Removed - Inadmissibility",
+      "9-VR Witnessed",
+      "10-USC Prosecution Case Closed",
+      "A-Proceedings Terminated",
+      "B-Relief Granted",
+      "E-Charging Document Canceled by ICE",
+      "L-Legalization - Permanent Residence Granted",
+      "Z-SAW - Permanent Residence Granted",
+      NA
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    case_category,
+    c(
+      "[10] Visa Waiver Deportation / Removal",
+      "[11] Administrative Deportation / Removal",
+      "[12] Judicial Deportation / Removal",
+      "[13] Section 250 Removal",
+      "[14] Crewmen, Stowaways, S-Visa Holders, 235(c) Cases",
+      "[15] Terrorist Court Case (Title 5)",
+      "[16] Reinstated Final Order",
+      "[17] USC Prosecution Case",
+      "[1A] Voluntary Departure - Un-Expired and Un-Extended Departure Period",
+      "[1B] Voluntary Departure - Extended Departure Period",
+      "[1C] Expired Voluntary Departure Period - Referred to Investigation",
+      "[2A] Deportable - Under Adjudication by IJ",
+      "[2B] Deportable - Under Adjudication by BIA",
+      "[3] Deportable - Administratively Final Order",
+      "[5A] Referred for Investigation - No Show for Hearing - No Final Order",
+      "[5B] Removable - ICE Fugitive",
+      "[5C] Relief Granted - Withholding of Deportation / Removal",
+      "[5D] Final Order of Deportation / Removal - Deferred Action Granted",
+      "[5E] Relief Granted - Extended Voluntary Departure",
+      "[5F] Unable to Obtain Travel Document",
+      "[8A] Excludable / Inadmissible - Hearing Not Commenced",
+      "[8B] Excludable / Inadmissible - Under Adjudication by IJ",
+      "[8C] Excludable / Inadmissible - Administrative Final Order Issued",
+      "[8D] Excludable / Inadmissible - Under Adjudication by BIA",
+      "[8E] Inadmissible - ICE Fugitive",
+      "[8F] Expedited Removal",
+      "[8G] Expedited Removal - Credible Fear Referral",
+      "[8H] Expedited Removal - Status Claim Referral",
+      "[8I] Inadmissible - ICE Fugitive - Expedited Removal",
+      "[8K] Expedited Removal Terminated due to Credible Fear Finding / NTA Issued",
+      "[9] VR Under Safeguards",
+      "[H] Historical Category For Migration Only",
+      NA
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  # -- Logical consistency: departed_date implies departure_country --
+  col_vals_expr(
+    expr(is.na(departed_date) | !is.na(departure_country)),
+    actions = action_levels(warn_at = 0.01, stop_at = 0.05)
+  ) |>
+  # -- Logical consistency: final_order_date only when final_order = YES --
+  col_vals_expr(
+    expr(is.na(final_order_date) | final_order_yes_no == "YES"),
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.01, stop_at = 0.05)
+  ) |>
+  # -- duplicate_likely should not be null for rows with anonymized_identifier --
+  col_vals_not_null(
+    duplicate_likely,
+    preconditions = \(x) dplyr::filter(x, !is.na(anonymized_identifier)),
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  invisible()
+
+
+
+# ---- Rename to match Oct 2025 release ----
+arrests_df <-
+  arrests_df |>
+  rename(
+    apprehension_state = state,
+    apprehension_aor = toa_current_duty_aor,
+    final_program = apprehension_final_program,
+    unique_identifier = anonymized_identifier
+  )
+
+
 # ---- Save Outputs ----
 
-arrow::write_feather(arrests_df, "data/arrests-latest.feather")
+arrow::write_parquet(
+  arrests_df,
+  "data/arrests-latest.parquet",
+  compression = "zstd"
+)
 writexl::write_xlsx(arrests_df, "data/arrests-latest.xlsx")
 haven::write_dta(arrests_df, "data/arrests-latest.dta")
 haven::write_sav(arrests_df, "data/arrests-latest.sav")
