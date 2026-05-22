@@ -33,7 +33,7 @@ find_first_non_na_row <- function(file_path, sheet, anchor_idx, guess_max = 1000
 }
 
 process_sheet <- function(file_path, sheet, anchor_idx, guess_max = 10000,
-                          col_type_overrides = NULL) {
+                          col_type_overrides = NULL, force_col_type = NULL) {
   first_non_na_row <- find_first_non_na_row(
     file_path = file_path,
     sheet = sheet,
@@ -59,7 +59,9 @@ process_sheet <- function(file_path, sheet, anchor_idx, guess_max = 10000,
     str_replace_all("\\s+", "_") |>
     make_clean_names(case = "none")
 
-  col_types <- if (is.null(col_type_overrides)) {
+  col_types <- if (!is.null(force_col_type)) {
+    rep(force_col_type, length(cleaned_names))
+  } else if (is.null(col_type_overrides)) {
     NULL
   } else {
     unname(ifelse(

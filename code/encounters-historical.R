@@ -1,7 +1,7 @@
 # Source-file selection
 # | df  | folder  | window                   | role | reason                             |
 # |-----|---------|--------------------------|------|------------------------------------|
-# | df1 | 082025  | (whole)                  | use  | recent release                     |
+# | df1 | March 2026 Release | (whole)       | use  | recent release                     |
 # | df2 | uwchr   | (whole)                  | use  | historical coverage                |
 
 # --- Packages ---
@@ -16,23 +16,66 @@ library(arrow)
 library(ggplot2)
 library(data.table)
 library(tidylog)
+library(pointblank)
+library(haven)
 
 # --- Source Functions ---
-source("code/functions/process_folder_data.R")
 source("code/functions/process_folder_data_v2.R")
 source("code/functions/is_not_blank_or_redacted.R")
+source("code/functions/if_has.R")
+source("code/functions/coalesce_rename.R")
+source("code/functions/save_historical_outputs.R")
 # source("code/functions/inspect_columns.R")
 # source("code/functions/summarize_weekly_counts.R")
 
 # --- Build dataframes directly from folders (no intermediate parquet save) ---
-df1 <- get_folder_df0(
-  folder_dir = "inputs/encounters/082025",
-  pattern = "\\.xlsx$",
-  recursive = TRUE,
-  anchor_idx = 2
-)|>
-  mutate(source_file = "082025")|>
-  select(where(is_not_blank_or_redacted))|>
+col_types_march2026_encounters <- c(
+  "date",    # Event Date
+  "text",    # Event Type
+  "text",    # Event Landmark
+  "text",    # Operation
+  "text",    # Encounter Threat Level
+  "text",    # Responsible AOR
+  "text",    # Responsible Site
+  "text",    # Lead Event Type
+  "text",    # Lead Source
+  "text",    # Final Program
+  "text",    # Arresting Agency
+  "text",    # Encounter Criminality
+  "text",    # Processing Disposition
+  "text",    # Case Status
+  "text",    # Case Category
+  "date",    # Departed Date
+  "text",    # Departure Country
+  "text",    # Final Order Yes No
+  "date",    # Final Order Date
+  "numeric", # Birth Year
+  "text",    # Citizenship County
+  "text",    # Gender
+  "text"     # Anonymized Identifier
+)
+
+df1 <- list.files(
+    path = "inputs/encounters/March 2026 Release",
+    pattern = "\\.xlsx$",
+    recursive = TRUE,
+    full.names = TRUE
+  ) |>
+  set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
+  map_dfr(
+    \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
+      \(sh) read_excel(fp, sheet = sh, col_types = col_types_march2026_encounters, skip = 6),
+      .id = "sheet_original"
+    ),
+    .id = "file_original"
+  ) |>
+  rename_with(\(nms) nms |> str_replace_all("\\s+", "_") |> make_clean_names(case = "none")) |>
+  mutate(
+    row_original = as.integer(row_number() + 6 + 1),
+    .by = c("file_original", "sheet_original")
+  ) |>
+  select(where(is_not_blank_or_redacted)) |>
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
   mutate(across(ends_with("_Date"), as.Date))
 
 df2 <- list.files(
@@ -41,12 +84,23 @@ df2 <- list.files(
     recursive = TRUE,
     full.names = TRUE
   ) |>
-  map_dfr(\(fp) {
-    excel_sheets(fp) |>
-      map_dfr(\(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000))
-  }) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
-  mutate(source_file = "uwchr")
+  set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
+  map_dfr(
+    \(fp) {
+      excel_sheets(fp) |>
+        set_names() |>
+        map_dfr(
+          \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000),
+          .id = "sheet_original"
+        )
+    },
+    .id = "file_original"
+  ) |>
+  mutate(
+    row_original = as.integer(row_number()),
+    .by = c("file_original", "sheet_original")
+  ) |>
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
 
 # # --- Weekly counts for source-coverage check ---
 # df1_weekly_counts <- get_weekly_counts(df1, "Event_Date")
@@ -66,36 +120,34 @@ df2 <- list.files(
 source("code/functions/safe_bind_rows.R")
 
 encounters_df <- df1 |>
-  rename(Event_Date_Time = Event_Date) |>
-  mutate(Event_Date_Time = as.POSIXct(Event_Date_Time, tz = "UTC")) |>
   safe_bind_rows(
-    df2 |>
-      rename(
-        Event_Date_Time = Event_Date,
-        Responsible_AOR = Area_of_Responsibility,
-        Event_Landmark  = Landmark
-      ) |>
-      mutate(Event_Date_Time = as.POSIXct(Event_Date_Time, tz = "UTC"))
+    df2 |> rename(
+      Responsible_AOR = Area_of_Responsibility,
+      Event_Landmark  = Landmark
+    )
   ) |>
   janitor::clean_names(allow_dupes = FALSE) |>
-  mutate(event_date = as.Date(event_date_time))
+  coalesce_rename("unique_identifier", "anonymized_identifier") |>
+  mutate(event_date = as.Date(event_date)) |>
+  redact_to_na() |>
+  mutate(across(any_of("birth_year"), as.integer))
 
 # Free per-source dfs now that they're merged
-rm(list = setdiff(ls(), "encounters_df"))
+rm(df1, df2)
 gc()
 
 # FLAG Duplicates
 setDT(encounters_df)
-setorder(encounters_df, unique_identifier, event_date_time)
+setorder(encounters_df, unique_identifier, event_date)
 
 encounters_df[,
   `:=`(
     hours_since_last = as.numeric(
-      event_date_time - shift(event_date_time, type = "lag"),
+      event_date - shift(event_date, type = "lag"),
       units = "hours"
     ),
     hours_until_next = as.numeric(
-      shift(event_date_time, type = "lead") - event_date_time,
+      shift(event_date, type = "lead") - event_date,
       units = "hours"
     )
   ),
@@ -128,4 +180,24 @@ encounters_df <-
     -hours_until_next
   )
 
-write_parquet(encounters_df, "data/encounters-historical.parquet", compression = "zstd", compression_level = 19)
+encounters_df |>
+  if_has("event_date", \(d) col_vals_not_null(d, event_date,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
+  if_has("event_date", \(d) col_vals_between(d, event_date,
+    as.Date("2007-01-01"), Sys.Date(), na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
+  if_has("birth_year", \(d) col_vals_between(d, birth_year,
+    1900L, as.integer(format(Sys.Date(), "%Y")), na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
+  if_has("gender", \(d) col_vals_in_set(d, gender,
+    c("Male", "Female", "Unknown", NA),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001))) |>
+  if_has("final_order_yes_no", \(d) col_vals_in_set(d, final_order_yes_no,
+    c("YES", "NO", NA),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001))) |>
+  if_has(c("duplicate_likely", "unique_identifier"), \(d) col_vals_not_null(d, duplicate_likely,
+    preconditions = \(x) dplyr::filter(x, !is.na(unique_identifier)),
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
+  invisible()
+
+save_historical_outputs(encounters_df, "encounters-historical")

@@ -3,7 +3,7 @@
 # |-----|------------------|--------------------------|----------------|---------------------------------------|
 # | df4 | 14-03290         | < 2013-09-29             | use            | only source with pre-2013 coverage    |
 # | df1 | 2023_ICFO_42034  | 2013-09-29 .. 2023-09-23 | use            | mid-window coverage                   |
-# | df2 | 082025           | >= 2023-09-24            | use            | most recent release                   |
+# | df2 | March 2026 Release | >= 2023-09-24          | use            | most recent release                   |
 # | df3 | uwchr            | (whole)                  | loaded, unused | not used downstream                   |
 
 # --- Packages ---
@@ -18,69 +18,100 @@ library(arrow)
 library(ggplot2)
 library(data.table)
 library(tidylog)
+library(pointblank)
+library(haven)
 
 # --- Source Functions ---
 source("code/functions/process_folder_data.R")
+source("code/functions/process_folder_data_v2.R")
 source("code/functions/is_not_blank_or_redacted.R")
+source("code/functions/if_has.R")
+source("code/functions/coalesce_rename.R")
+source("code/functions/save_historical_outputs.R")
 # source("code/functions/inspect_columns.R")
 # source("code/functions/summarize_weekly_counts.R")
 
 # --- Build dataframes directly from folders (no intermediate parquet save) ---
 # ROOT: ice/
-df1 <- get_folder_df0(
-  folder_dir = "inputs/removals/2023_ICFO_42034",
-  pattern = "\\.xlsx$",
-  recursive = TRUE,
-  anchor_idx = 2
-)|>
-  mutate(source_file = "2023_ICFO_42034")|>
-  select(where(is_not_blank_or_redacted))|>
+df1 <- list.files(
+    path = "inputs/removals/2023_ICFO_42034",
+    pattern = "\\.xlsx$",
+    recursive = TRUE,
+    full.names = TRUE
+  ) |>
+  set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
+  map_dfr(
+    \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
+      \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+      .id = "sheet_original"
+    ),
+    .id = "file_original"
+  ) |>
+  mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
+  convert_df_temporal_columns() |>
+  select(where(is_not_blank_or_redacted)) |>
   mutate(across(ends_with("_Date"), as.Date))
 
-df2 <- get_folder_df0(
-  folder_dir = "inputs/removals/082025",
-  pattern = "\\.xlsx$",
-  recursive = TRUE,
-  anchor_idx = 2
-)|>
-  mutate(source_file = "082025")|>
-  select(where(is_not_blank_or_redacted))|>
+df2 <- list.files(
+    path = "inputs/removals/March 2026 Release",
+    pattern = "\\.xlsx$",
+    recursive = TRUE,
+    full.names = TRUE
+  ) |>
+  set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
+  map_dfr(
+    \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
+      \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+      .id = "sheet_original"
+    ),
+    .id = "file_original"
+  ) |>
+  mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
+  convert_df_temporal_columns() |>
+  select(where(is_not_blank_or_redacted)) |>
   mutate(across(ends_with("_Date"), as.Date))
 
-df3 <- get_folder_df0(
-  folder_dir = "inputs/removals/uwchr",
-  pattern = "\\.xlsx$",
-  recursive = TRUE,
-  anchor_idx = 2
-)|>
-  mutate(source_file = "uwchr")|>
-  select(where(is_not_blank_or_redacted))|>
+df3 <- list.files(
+    path = "inputs/removals/uwchr",
+    pattern = "\\.xlsx$",
+    recursive = TRUE,
+    full.names = TRUE
+  ) |>
+  set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
+  map_dfr(
+    \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
+      \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+      .id = "sheet_original"
+    ),
+    .id = "file_original"
+  ) |>
+  mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
+  convert_df_temporal_columns() |>
+  select(where(is_not_blank_or_redacted)) |>
   mutate(across(ends_with("_Date"), as.Date))
 
-# --- df4 needs separate processing ---
-get_folder_df2 <- function(folder_dir, pattern, recursive, anchor_idx, sheet_n = 2){
-  files <- list_files_in_dir(dir = folder_dir, pattern = pattern, recursive = recursive) #df4_files
-  folder_df <- tibble::tibble()
-  for (f in files){
-    sheet_df <- read_excel(f, sheet = sheet_n, guess_max = 10000) # read the nth sheet
-    processed_df <- process_sheet(sheet_df, anchor_idx = anchor_idx)
-    folder_df <- bind_rows(folder_df, processed_df)
-    print(head(processed_df))
-  }
-  # Convert temporal columns
-  folder_df2 <- convert_df_temporal_columns(folder_df)
-  return(folder_df2)
-}
-
-df4 <- get_folder_df2(
-  folder_dir = "inputs/removals/14-03290",
-  pattern = "\\.xlsx$",
-  recursive = TRUE,
-  anchor_idx = 2,
-  sheet_n = 2
-)|>
-  mutate(source_file = "14-03290")|>
-  select(where(is_not_blank_or_redacted))|>
+# --- df4 needs separate processing: read sheet 2 only from each file ---
+df4 <- list.files(
+    path = "inputs/removals/14-03290",
+    pattern = "\\.xlsx$",
+    recursive = TRUE,
+    full.names = TRUE
+  ) |>
+  set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
+  map_dfr(
+    \(fp) {
+      sh <- excel_sheets(fp)[2]
+      process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000) |>
+        mutate(sheet_original = sh)
+    },
+    .id = "file_original"
+  ) |>
+  mutate(
+    row_original = as.integer(row_number()),
+    .by = c("file_original", "sheet_original")
+  ) |>
+  convert_df_temporal_columns() |>
+  select(where(is_not_blank_or_redacted)) |>
   mutate(across(ends_with("_Date"), as.Date))
 
 # # --- Weekly counts for source-coverage check ---
@@ -108,67 +139,55 @@ df2_trimmed <- df2 |>
   filter(Departed_Date >= as.Date("2023-09-24"))
 
 # Drop the untrimmed originals and df3 (not used downstream)
-rm(list = setdiff(ls(), c("df1_trimmed", "df2_trimmed", "df4_trimmed")))
+rm(df1, df2, df3, df4)
 gc()
 
 source("code/functions/safe_bind_rows.R")
 
 df12 <- df1_trimmed |>
-  rename(
-    Departed_Date_Time = Departure_Date,
-    Unique_Identifier  = Anonymized_Identifier
-  ) |>
-  mutate(Departed_Date_Time = as.POSIXct(Departed_Date_Time, tz = "UTC")) |>
-  safe_bind_rows(
-    df2_trimmed |>
-      rename(Departed_Date_Time = Departed_Date) |>
-      mutate(Departed_Date_Time = as.POSIXct(Departed_Date_Time, tz = "UTC"))
-  ) |>
-  mutate(Unique_Identifier = coalesce(Anonymized_Identifer, Unique_Identifier)) |>
-  select(-Anonymized_Identifer)
+  coalesce_rename("Departed_Date", "Departure_Date") |>
+  coalesce_rename("Unique_Identifier", "Anonymized_Identifier") |>
+  coalesce_rename("Unique_Identifier", "Anonymized_Identifer") |>
+  safe_bind_rows(df2_trimmed)
 
 rm(df1_trimmed, df2_trimmed)
 gc()
 
 removals_df <- df12 |>
-  rename(
-    Latest_Arrest_Program = Latest_Arrest_Program_Current,
-    Latest_Arrest_Program_Code = Latest_Arrest_Program_Current_Code,
-    Latest_Arrest_Apprehension_Date = Latest_Person_Apprehension_Date,
-    Most_Recent_Prior_Depart_Date = Latest_Person_Departed_Date
-  ) |>
+  coalesce_rename("Latest_Arrest_Program", "Latest_Arrest_Program_Current") |>
+  coalesce_rename("Latest_Arrest_Program_Code", "Latest_Arrest_Program_Current_Code") |>
+  coalesce_rename("Latest_Arrest_Apprehension_Date", "Latest_Person_Apprehension_Date") |>
+  coalesce_rename("Most_Recent_Prior_Depart_Date", "Latest_Person_Departed_Date") |>
   safe_bind_rows(
     df4_trimmed |>
-      rename(
-        Departed_Date_Time  = Departed_Date,
-        Port_of_Departure   = Port_Of_Departure,
-        Departure_Country   = Departed_To_Country,
-        Birth_Country       = Country_of_Birth,
-        Citizenship_Country = Country_of_Citizenship,
-        Birth_Year          = Year_of_Birth,
-        Case_Threat_Level   = Rc_Threat_Level,
-        Unique_Identifier   = Unique_ID
-      ) |>
-      mutate(Departed_Date_Time = as.POSIXct(Departed_Date_Time, tz = "UTC"))
+      coalesce_rename("Port_of_Departure",   "Port_Of_Departure") |>
+      coalesce_rename("Departure_Country",   "Departed_To_Country") |>
+      coalesce_rename("Birth_Country",       "Country_of_Birth") |>
+      coalesce_rename("Citizenship_Country", "Country_of_Citizenship") |>
+      coalesce_rename("Birth_Year",          "Year_of_Birth") |>
+      coalesce_rename("Case_Threat_Level",   "Rc_Threat_Level") |>
+      coalesce_rename("Unique_Identifier",   "Unique_ID")
   ) |>
   janitor::clean_names(allow_dupes = FALSE) |>
-  mutate(departed_date = as.Date(departed_date_time))
+  mutate(departed_date = as.Date(departed_date)) |>
+  redact_to_na() |>
+  mutate(across(any_of("birth_year"), as.integer))
 
 rm(df12, df4_trimmed)
 gc()
 
 # FLAG Duplicates
 setDT(removals_df)
-setorder(removals_df, unique_identifier, departed_date_time)
+setorder(removals_df, unique_identifier, departed_date)
 
 removals_df[,
   `:=`(
     hours_since_last = as.numeric(
-      departed_date_time - shift(departed_date_time, type = "lag"),
+      departed_date - shift(departed_date, type = "lag"),
       units = "hours"
     ),
     hours_until_next = as.numeric(
-      shift(departed_date_time, type = "lead") - departed_date_time,
+      shift(departed_date, type = "lead") - departed_date,
       units = "hours"
     )
   ),
@@ -201,4 +220,23 @@ removals_df <-
     -hours_until_next
   )
 
-write_parquet(removals_df, "data/removals-historical.parquet", compression = "zstd", compression_level = 19)
+removals_df |>
+  if_has("unique_identifier", \(d) col_vals_not_null(d, unique_identifier,
+    actions = action_levels(warn_at = 0.50, stop_at = 0.75))) |>
+  if_has("departed_date", \(d) col_vals_not_null(d, departed_date,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
+  if_has("departed_date", \(d) col_vals_between(d, departed_date,
+    as.Date("2000-01-01"), Sys.Date(), na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
+  if_has("birth_year", \(d) col_vals_between(d, birth_year,
+    1900L, as.integer(format(Sys.Date(), "%Y")), na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
+  if_has("gender", \(d) col_vals_in_set(d, gender,
+    c("Male", "Female", "Unknown", NA),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001))) |>
+  if_has(c("duplicate_likely", "unique_identifier"), \(d) col_vals_not_null(d, duplicate_likely,
+    preconditions = \(x) dplyr::filter(x, !is.na(unique_identifier)),
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
+  invisible()
+
+save_historical_outputs(removals_df, "removals-historical")
