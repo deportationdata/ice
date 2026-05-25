@@ -29,30 +29,30 @@ source("code/functions/save_historical_outputs.R")
 # source("code/functions/summarize_weekly_counts.R")
 
 # --- Build dataframes directly from folders (no intermediate parquet save) ---
-col_types_march2026_encounters <- c(
-  "date",    # Event Date
-  "text",    # Event Type
-  "text",    # Event Landmark
-  "text",    # Operation
-  "text",    # Encounter Threat Level
-  "text",    # Responsible AOR
-  "text",    # Responsible Site
-  "text",    # Lead Event Type
-  "text",    # Lead Source
-  "text",    # Final Program
-  "text",    # Arresting Agency
-  "text",    # Encounter Criminality
-  "text",    # Processing Disposition
-  "text",    # Case Status
-  "text",    # Case Category
-  "date",    # Departed Date
-  "text",    # Departure Country
-  "text",    # Final Order Yes No
-  "date",    # Final Order Date
-  "numeric", # Birth Year
-  "text",    # Citizenship County
-  "text",    # Gender
-  "text"     # Anonymized Identifier
+col_type_overrides_march2026_encounters <- c(
+  Event_Date             = "date",
+  Event_Type             = "text",
+  Event_Landmark         = "text",
+  Operation              = "text",
+  Encounter_Threat_Level = "text",
+  Responsible_AOR        = "text",
+  Responsible_Site       = "text",
+  Lead_Event_Type        = "text",
+  Lead_Source            = "text",
+  Final_Program          = "text",
+  Arresting_Agency       = "text",
+  Encounter_Criminality  = "text",
+  Processing_Disposition = "text",
+  Case_Status            = "text",
+  Case_Category          = "text",
+  Departed_Date          = "date",
+  Departure_Country      = "text",
+  Final_Order_Yes_No     = "text",
+  Final_Order_Date       = "date",
+  Birth_Year             = "numeric",
+  Citizenship_County     = "text",
+  Gender                 = "text",
+  Anonymized_Identifier  = "text"
 )
 
 df1 <- list.files(
@@ -64,19 +64,35 @@ df1 <- list.files(
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
-      \(sh) read_excel(fp, sheet = sh, col_types = col_types_march2026_encounters, skip = 6),
+      \(sh) process_sheet(
+        file_path = fp,
+        sheet = sh,
+        anchor_idx = 2,
+        guess_max = 10000,
+        col_type_overrides = col_type_overrides_march2026_encounters
+      ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
-  rename_with(\(nms) nms |> str_replace_all("\\s+", "_") |> make_clean_names(case = "none")) |>
   mutate(
-    row_original = as.integer(row_number() + 6 + 1),
+    row_original = as.integer(row_number()),
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+
+col_type_overrides_uwchr_encounters <- c(
+  Area_of_Responsibility = "text",
+  Event_Date             = "date",
+  Landmark               = "text",
+  Operation              = "text",
+  Processing_Disposition = "text",
+  Citizenship_Country    = "text",
+  Gender                 = "text",
+  Encounter_Threat_Level = "text",
+  Alien_File_Number      = "text"
+)
 
 df2 <- list.files(
     path = "inputs/encounters/uwchr",
@@ -90,7 +106,12 @@ df2 <- list.files(
       excel_sheets(fp) |>
         set_names() |>
         map_dfr(
-          \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000),
+          \(sh) process_sheet(
+            file_path = fp,
+            sheet = sh,
+            anchor_idx = 2,
+            col_type_overrides = col_type_overrides_uwchr_encounters
+          ),
           .id = "sheet_original"
         )
     },

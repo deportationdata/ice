@@ -32,8 +32,91 @@ source("code/functions/save_historical_outputs.R")
 
 # --- Build dataframes directly from folders (no intermediate parquet save) ---
 # ROOT: ice/
-# use the OLD folder parser that doesn't guess and converts everything to character and then guess the columns later...
-source("code/functions/convert_temporal_columns.R")
+
+col_type_overrides_2025_ICFO_18038_detainers <- c(
+  all_text(c(
+    "Detainer_Lift_Reason", "Detainer_Type", "Detainer_Lift_Reason_Code",
+    "Detainer_Lift_Reason2", "Detainer_Lift_Reason_Code2",
+    "Arrest_Warrant_Served_Yes_No", "Deportation_Ordered_Yes_No",
+    "Active_Investigation_Yes_No", "Order_to_Show_Cause_Served_Yes_No",
+    "Biometric_Match_Yes_No", "Statements_Made_Yes_No", "Prior_Felony_Yes_No",
+    "Multiple_Prior_Misd_Yes_No", "Violent_Misdemeanor_Yes_No",
+    "Illegal_Entry_Yes_No", "Illegal_Reentry_Yes_No", "Immigration_Fraud_Yes_No",
+    "Significant_Risk_Yes_No", "Other_Removal_Reason_Yes_No", "Other_Removal_Reason",
+    "Aggravated_Felony_Yes_No", "Criminal_Street_Gang_Yes_No",
+    "Detainer_Request_Upon_Conviction_Yes_No", "Resume_Custody_Yes_No",
+    "Component_Notified", "Previous_Detainer_Cancel_Yes_No",
+    "Unlawful_Entry_Yes_No", "Unlawful_Attempt_Yes_No", "Final_Order_Yes_No",
+    "Federal_Interest_Yes_No", "Visa_Yes_No",
+    "Death_Transfer_Notify_Request_Yes_No", "Federal_Register_Notice_Yes_No",
+    "Notify_Release_Request_Yes_No", "Request_Acceptance_Yes_No",
+    "Return_Signature_Request_Yes_No", "Return_Envelope_Include_Yes_No",
+    "Return_by_Fax_Yes_No", "Detainer_AOR", "Program", "Active_Yes_No",
+    "Detainer_Detention_Facility_Code", "Government_Employee_ID",
+    "Return_to_Employee_ID", "Detainer_Inmate_Number_Type_Code",
+    "Detainer_Facility_Other_Type", "Other_Detainer_Facility_Name",
+    "Projected_Release_Day", "Projected_Release_Month",
+    "Detainer_Detention_Facility", "Detainer_Facility_Function",
+    "Detainer_Facility_Type", "Apprehension_AOR", "Apprehension_Site",
+    "Apprehension_Final_Program", "Apprehension_Method",
+    "Apprehension_Program_Group", "Port_of_Departure", "Departure_Country",
+    "Case_Category", "Gender", "Birth_Country", "Birth_City", "Birth_State",
+    "Citizenship_Country", "Birth_Date", "Race", "Ethnicity", "Admission_Class",
+    "Student_Violator_Yes_No", "Non_Immigrant_Status_Violation_Yes_No",
+    "Non_Immigrant_Overstay_Yes_No", "EO_VISA_Abuse_Flag",
+    "EO_Person_Visa_Abuse_Yes_No", "EO_Gang_Flag", "EO_Person_Gang_Flag",
+    "Entry_Status", "Latest_Entry_Status",
+    "Detainer_Most_Serious_Conviction_Charge_Code",
+    "Detainer_Most_Serious_Conviction_Charge",
+    "Detainer_Most_Serious_Conviction_Crime_Class",
+    "Detainer_Most_Serious_Conviction_Criminal_Charge_Status",
+    "Detainer_Most_Serious_Charge_Code", "Detainer_Most_Serious_Charge",
+    "Detainer_Most_Serious_Charge_Crime_Class",
+    "Detainer_Most_Serious_Criminal_Charge_Status",
+    "Detainer_Most_Serious_Pending_Charge_Code",
+    "Detainer_Most_Serious_Pending_Charge",
+    "Detainer_Most_Serious_Pending_Criminal_Charge_Status",
+    "Detainer_Most_Serious_Pending_Crime_Class",
+    "Aggravated_Felon_Type", "Mandatory_Detention_Yes_No",
+    "Detainer_Prepared_Criminality", "Detainer_Threat_Level",
+    "Processing_Disposition", "Latest_Detainer_Yes_No",
+    "Detainer_Removal_Case_Yes_No", "Current_Yes_No",
+    "Apprehension_Site_Landmark", "EID_DTA_ID", "Detainer_ID",
+    "EID_Subject_ID", "EID_Civilian_ID", "EID_Person_ID", "EID_Case_ID",
+    "Alien_Number_Unique_Identifier", "Alien_File_Number", "Subject_Name",
+    "Apprehension_Program"
+  )),
+  Detainer_Prepare_Date                             = "date",
+  Detainer_Lift_Date                                = "date",
+  Previous_Detainer_Cancel_Prep_Date                = "date",
+  Order_to_Show_Cause_Served_Date                   = "date",
+  Arrest_Warrant_Served_Date                        = "date",
+  EID_DTA_Create_Date                               = "date",
+  Projected_Release_Date                            = "date",
+  Apprehension_Date                                 = "date",
+  Departed_Date                                     = "date",
+  Final_Order_Date                                  = "date",
+  Entry_Date                                        = "date",
+  Latest_Entry_Date                                 = "date",
+  Detainer_Most_Serious_Conviction_Conviction_Date  = "date",
+  Detainer_Most_Serious_Conviction_Charge_Date      = "date",
+  Detainer_Most_Serious_Charge_Date                 = "date",
+  Most_Serious_Charge_Conviction_Date               = "date",
+  Detainer_Most_Serious_Pending_Conviction_Date     = "date",
+  Detainer_Most_Serious_Pending_Charge_Date         = "date",
+  Detainer_Prepare_Fiscal_Year                      = "numeric",
+  Projected_Release_Year                            = "numeric",
+  Birth_Year                                        = "numeric",
+  Detainer_Most_Serious_Conviction_Sentence_Days    = "numeric",
+  Detainer_Most_Serious_Conviction_Sentence_Months  = "numeric",
+  Detainer_Most_Serious_Conviction_Sentence_Years   = "numeric",
+  Detainer_Most_Serious_Charge_Sentence_Days        = "numeric",
+  Detainer_Most_Serious_Charge_Sentence_Months      = "numeric",
+  Detainer_Most_Serious_Charge_Sentence_Years       = "numeric",
+  Detainer_Most_Serious_Pending_Sentence_Days       = "numeric",
+  Detainer_Most_Serious_Pending_Sentence_Months     = "numeric",
+  Detainer_Most_Serious_Pending_Sentence_Years      = "numeric"
+)
 
 df1 <- list.files(
     path = "inputs/detainers/2025-ICFO-18038",
@@ -47,7 +130,10 @@ df1 <- list.files(
       excel_sheets(fp) |>
         set_names() |>
         map_dfr(
-          \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+          \(sh) process_sheet(
+            file_path = fp, sheet = sh, anchor_idx = 2,
+            col_type_overrides = col_type_overrides_2025_ICFO_18038_detainers
+          ),
           .id = "sheet_original"
         )
     },
@@ -58,77 +144,74 @@ df1 <- list.files(
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  convert_df_temporal_columns() |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
 
-col_types_march2026_detainers_all <- c(
-  "date",    # Detainer Prepare Date
-  "text",    # Facility State
-  "text",    # Facility AOR
-  "text",    # Port of Departure
-  "text",    # Departure Country
-  "date",    # Departed Date
-  "text",    # Case Status
-  "text",    # Detainer Criminality
-  "text",    # Detainer Facility
-  "text",    # Detainer Facility Code
-  "text",    # Facility City
-  "text",    # Detainer Threat Level
-  "text",    # Gender
-  "text",    # Citizenship Country
-  "text",    # Birth Country
-  "text",    # Birth Date
-  "numeric", # Birth Year
-  "text",    # Entry Status
-  "text",    # MSC Charge
-  "numeric", # MSC Sentence Days
-  "numeric", # MSC Sentence Months
-  "numeric", # MSC Sentence Years
-  "text",    # MSC Charge Code
-  "date",    # MSC Charge Date
-  "date",    # MSC Conviction Date
-  "text",    # Aggravated Felon Yes No
-  "text",    # Processing Disposition
-  "text",    # Case Category
-  "text",    # TOA Case Category
-  "text",    # TOA Current Program
-  "text",    # Apprehension Method
-  "text",    # Final Order Yes No
-  "date",    # Final Order Date
-  "date",    # Apprehension Date
-  "date",    # Entry Date
-  "text",    # Prior Felony Yes No
-  "text",    # Multiple Prior MISD Yes No
-  "text",    # Violent Misdemeanor Yes No
-  "text",    # Illegal Entry Yes No
-  "text",    # Illegal Reentry Yes No
-  "text",    # Immigration Fraud Yes No
-  "text",    # Significant Risk Yes No
-  "text",    # Other Removal Reason Yes No
-  "text",    # Other Removal Reason
-  "text",    # Criminal Street Gang Yes No
-  "text",    # Aggravated Felony Yes No
-  "text",    # Deportation Ordered Yes No
-  "text",    # Order to Show Cause Served Yes No
-  "date",    # Order to Show Cause Served Date
-  "text",    # Biometric Match Yes No
-  "text",    # Statements Made Yes No
-  "text",    # Unlawful Attempt Yes No
-  "text",    # Unlawful Entry Yes No
-  "text",    # Visa Yes No
-  "text",    # Federal Register Notice Yes No
-  "text",    # Resume Custody Yes No
-  "text",    # Detainer Lift Reason
-  "text",    # Detainer Lift Reason Code
-  "text",    # Active Investigation Yes No
-  "date",    # Arrest Warrant Served Date
-  "text",    # Detainer Type
-  "text",    # Notify Release Request Yes No
-  "text",    # TOD Current Duty Site
-  "text",    # EID DTA ID
-  "text"     # Anonymized Identifier
+col_type_overrides_march2026_detainers <- c(
+  Detainer_Prepare_Date             = "date",
+  Facility_State                    = "text",
+  Facility_AOR                      = "text",
+  Port_of_Departure                 = "text",
+  Departure_Country                 = "text",
+  Departed_Date                     = "date",
+  Case_Status                       = "text",
+  Detainer_Criminality              = "text",
+  Detainer_Facility                 = "text",
+  Detainer_Facility_Code            = "text",
+  Facility_City                     = "text",
+  Detainer_Threat_Level             = "text",
+  Gender                            = "text",
+  Citizenship_Country               = "text",
+  Birth_Country                     = "text",
+  Birth_Year                        = "numeric",
+  Entry_Status                      = "text",
+  MSC_Charge                        = "text",
+  MSC_Sentence_Days                 = "numeric",
+  MSC_Sentence_Months               = "numeric",
+  MSC_Sentence_Years                = "numeric",
+  MSC_Charge_Code                   = "text",
+  MSC_Charge_Date                   = "date",
+  MSC_Conviction_Date               = "date",
+  Aggravated_Felon_Yes_No           = "text",
+  Processing_Disposition            = "text",
+  Case_Category                     = "text",
+  TOA_Case_Category                 = "text",
+  TOA_Current_Program               = "text",
+  Apprehension_Method               = "text",
+  Final_Order_Yes_No                = "text",
+  Final_Order_Date                  = "date",
+  Apprehension_Date                 = "date",
+  Entry_Date                        = "date",
+  Prior_Felony_Yes_No               = "text",
+  Multiple_Prior_MISD_Yes_No        = "text",
+  Violent_Misdemeanor_Yes_No        = "text",
+  Illegal_Entry_Yes_No              = "text",
+  Illegal_Reentry_Yes_No            = "text",
+  Immigration_Fraud_Yes_No          = "text",
+  Significant_Risk_Yes_No           = "text",
+  Other_Removal_Reason_Yes_No       = "text",
+  Other_Removal_Reason              = "text",
+  Criminal_Street_Gang_Yes_No       = "text",
+  Aggravated_Felony_Yes_No          = "text",
+  Deportation_Ordered_Yes_No        = "text",
+  Order_to_Show_Cause_Served_Yes_No = "text",
+  Order_to_Show_Cause_Served_Date   = "date",
+  Biometric_Match_Yes_No            = "text",
+  Statements_Made_Yes_No            = "text",
+  Unlawful_Attempt_Yes_No           = "text",
+  Unlawful_Entry_Yes_No             = "text",
+  Visa_Yes_No                       = "text",
+  Federal_Register_Notice_Yes_No    = "text",
+  Resume_Custody_Yes_No             = "text",
+  Detainer_Lift_Reason              = "text",
+  Detainer_Lift_Reason_Code         = "text",
+  Active_Investigation_Yes_No       = "text",
+  Arrest_Warrant_Served_Date        = "date",
+  Detainer_Type                     = "text",
+  Notify_Release_Request_Yes_No     = "text",
+  TOD_Current_Duty_Site             = "text",
+  EID_DTA_ID                        = "text",
+  Anonymized_Identifier             = "text"
 )
-col_types_march2026_detainers_fy2324 <- col_types_march2026_detainers_all[-16]
 
 df2 <- list.files(
     path = "inputs/detainers/March 2026 Release",
@@ -138,23 +221,20 @@ df2 <- list.files(
   ) |>
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
-    \(fp) {
-      n_cols <- ncol(read_excel(fp, n_max = 0, skip = 6))
-      ct <- if (n_cols == length(col_types_march2026_detainers_all)) {
-        col_types_march2026_detainers_all
-      } else {
-        col_types_march2026_detainers_fy2324
-      }
-      excel_sheets(fp) |> set_names() |> map_dfr(
-        \(sh) read_excel(fp, sheet = sh, col_types = ct, skip = 6),
-        .id = "sheet_original"
-      )
-    },
+    \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
+      \(sh) process_sheet(
+        file_path = fp,
+        sheet = sh,
+        anchor_idx = 2,
+        guess_max = 10000,
+        col_type_overrides = col_type_overrides_march2026_detainers
+      ),
+      .id = "sheet_original"
+    ),
     .id = "file_original"
   ) |>
-  rename_with(\(nms) nms |> str_replace_all("\\s+", "_") |> make_clean_names(case = "none")) |>
   mutate(
-    row_original = as.integer(row_number() + 6 + 1),
+    row_original = as.integer(row_number()),
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>

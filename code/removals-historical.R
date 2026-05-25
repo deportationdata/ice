@@ -2,8 +2,8 @@
 # | df  | folder           | window                   | role           | reason                                |
 # |-----|------------------|--------------------------|----------------|---------------------------------------|
 # | df4 | 14-03290         | < 2013-09-29             | use            | only source with pre-2013 coverage    |
-# | df1 | 2023_ICFO_42034  | 2013-09-29 .. 2023-09-23 | use            | mid-window coverage                   |
-# | df2 | March 2026 Release | >= 2023-09-24          | use            | most recent release                   |
+# | df1 | 2023_ICFO_42034  | 2013-09-29 .. 2022-09-30 | use            | mid-window; lacks state/county/AOR/criminality cols |
+# | df2 | March 2026 Release | >= 2022-10-01          | use            | richer cols + ~6% more rows than df1 in overlap     |
 # | df3 | uwchr            | (whole)                  | loaded, unused | not used downstream                   |
 
 # --- Packages ---
@@ -33,6 +33,38 @@ source("code/functions/save_historical_outputs.R")
 
 # --- Build dataframes directly from folders (no intermediate parquet save) ---
 # ROOT: ice/
+col_type_overrides_2023_ICFO_42034_removals <- c(
+  Departure_Date              = "date",
+  Port_of_Departure           = "text",
+  Departure_Country           = "text",
+  Case_Status                 = "text",
+  Case_Category               = "text",
+  Final_Order_Yes_No          = "text",
+  Final_Order_Date            = "date",
+  Case_ID                     = "text",
+  Gender                      = "text",
+  Birth_Country               = "text",
+  Citizenship_Country         = "text",
+  Birth_Date                  = "text",
+  Birth_Year                  = "numeric",
+  Alien_File_Number           = "text",
+  Entry_Status                = "text",
+  Entry_Date                  = "date",
+  MSC_Charge                  = "text",
+  MSC_Charge_Date             = "date",
+  MSC_Charge_Code             = "text",
+  MSC_Conviction_Date         = "date",
+  MSC_Criminal_Charge_Status  = "text",
+  Case_Threat_Level           = "text",
+  Processing_Disposition_Code = "text",
+  Processing_Disposition      = "text",
+  Current_Program             = "text",
+  Apprehension_Date           = "date",
+  Charge_Section_Code         = "text",
+  Charge_Code                 = "text",
+  Anonymized_Identifer        = "text"
+)
+
 df1 <- list.files(
     path = "inputs/removals/2023_ICFO_42034",
     pattern = "\\.xlsx$",
@@ -42,15 +74,59 @@ df1 <- list.files(
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
-      \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+      \(sh) process_sheet(
+        file_path = fp, sheet = sh, anchor_idx = 2,
+        col_type_overrides = col_type_overrides_2023_ICFO_42034_removals
+      ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
-  convert_df_temporal_columns() |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+
+col_type_overrides_march2026_removals <- c(
+  Departed_Date                     = "date",
+  Port_of_Departure                 = "text",
+  Departure_Country                 = "text",
+  Case_AOR                          = "text",
+  State                             = "text",
+  County                            = "text",
+  Case_Status                       = "text",
+  Gender                            = "text",
+  Birth_Country                     = "text",
+  Citizenship_Country               = "text",
+  Birth_Date                        = "text",
+  Birth_Year                        = "numeric",
+  Entry_Date                        = "date",
+  Entry_Status                      = "text",
+  Known_Terrorist_Yes_No            = "text",
+  Suspected_Gang_Yes_No             = "text",
+  MSC_Charge                        = "text",
+  MSC_Charge_Date                   = "date",
+  MSC_Criminal_Charge_Status        = "text",
+  MSC_Charge_Code                   = "text",
+  MSC_Conviction_Date               = "date",
+  Case_Criminality                  = "text",
+  Case_Threat_Level                 = "text",
+  Aggravated_Felon_Yes_No           = "text",
+  Processing_Disposition            = "text",
+  Case_Category                     = "text",
+  Final_Program                     = "text",
+  Final_Program_Code                = "text",
+  Arresting_Agency                  = "text",
+  TOA_Case_Category                 = "text",
+  Latest_Apprehension_Final_Program = "text",
+  Latest_Arresting_Agency           = "text",
+  Latest_Apprehension_Date          = "date",
+  Final_Order_Yes_No                = "text",
+  Final_Order_Date                  = "date",
+  Final_Charge_Code                 = "text",
+  Final_Charge_Section              = "text",
+  Prior_Deport_Yes_No               = "text",
+  Anonymized_Identifier             = "text"
+)
 
 df2 <- list.files(
     path = "inputs/removals/March 2026 Release",
@@ -61,15 +137,34 @@ df2 <- list.files(
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
-      \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+      \(sh) process_sheet(
+        file_path = fp, sheet = sh, anchor_idx = 2,
+        col_type_overrides = col_type_overrides_march2026_removals
+      ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
-  convert_df_temporal_columns() |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+
+col_type_overrides_uwchr_removals <- c(
+  Area_of_Responsibility      = "text",
+  Departed_Date               = "date",
+  Case_Close_Date             = "date",
+  Apprehension_Method_Code    = "text",
+  Processing_Disposition_Code = "text",
+  Citizenship_Country         = "text",
+  Gender                      = "text",
+  Removal_Threat_Level        = "text",
+  Final_Charge_Section        = "text",
+  Alien_File_Number           = "text",
+  Arrest_Date                 = "date",
+  Processing_Disposition      = "text",
+  Removal_Date                = "date",
+  Case_Closed_Date            = "date"
+)
 
 df3 <- list.files(
     path = "inputs/removals/uwchr",
@@ -80,17 +175,64 @@ df3 <- list.files(
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
-      \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+      \(sh) process_sheet(
+        file_path = fp, sheet = sh, anchor_idx = 2,
+        col_type_overrides = col_type_overrides_uwchr_removals
+      ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
-  convert_df_temporal_columns() |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
 
 # --- df4 needs separate processing: read sheet 2 only from each file ---
+# Sheet 2 is the "Details" sheet across the 11 files (other sheets are Notes/Legend/Appendix).
+# Schema varies slightly: 36 cols in FY03-FY12, 37 in FY13 (one extra column). Union covers both.
+col_type_overrides_14_03290_removals <- c(
+  ERO_LESA_Statistical_Tracking_Unit           = "text",
+  Departed_Date                                = "date",
+  Port_Of_Departure                            = "text",
+  Departed_To_Country                          = "text",
+  Case_Status                                  = "text",
+  Gender                                       = "text",
+  Country_of_Birth                             = "text",
+  Country_of_Citizenship                       = "text",
+  Age_at_Removal                               = "numeric",
+  Year_of_Birth                                = "numeric",
+  LPR_Yes_No                                   = "text",
+  Entry_Date                                   = "date",
+  Entry_Status                                 = "text",
+  Most_Serious_Criminal_Conviction             = "text",
+  Most_Serious_Criminal_Conviction_Charge_Date = "date",
+  Most_Serious_Criminal_Conviction_Status      = "text",
+  Most_Serious_Criminal_Conviction_Code        = "text",
+  Most_Serious_Criminal_Conviction_Date        = "date",
+  Rc_Threat_Level                              = "text",
+  Aggravated_Felon                             = "text",
+  Processing_Disposition_Code                  = "text",
+  Case_Category                                = "text",
+  Removal_Program                              = "text",
+  Removal_Program_Code                         = "text",
+  Case_Category_Time_of_Arrest                 = "text",
+  Latest_Arrest_Program_Code                   = "text",
+  Latest_Arrest_Program                        = "text",
+  Latest_Arrest_Apprehension_Date              = "date",
+  Final_Order_Yes_No                           = "text",
+  Final_Order_Date                             = "date",
+  Prior_Removal_Reinstate                      = "text",
+  Prior_Removal_Reinstate_Date                 = "date",
+  Final_Charge_Section                         = "text",
+  Final_Charge_Code                            = "text",
+  Prior_Removal                                = "text",
+  Most_Recent_Prior_Depart_Date                = "date",
+  Alien_File_Number                            = "text",
+  ADMDPT                                       = "text",
+  ADMINISTRATIVE_DEPORTATION_I_851_I_851A      = "text",
+  Unique_ID                                    = "text"
+)
+
 df4 <- list.files(
     path = "inputs/removals/14-03290",
     pattern = "\\.xlsx$",
@@ -101,7 +243,10 @@ df4 <- list.files(
   map_dfr(
     \(fp) {
       sh <- excel_sheets(fp)[2]
-      process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000) |>
+      process_sheet(
+        file_path = fp, sheet = sh, anchor_idx = 2,
+        col_type_overrides = col_type_overrides_14_03290_removals
+      ) |>
         mutate(sheet_original = sh)
     },
     .id = "file_original"
@@ -110,9 +255,8 @@ df4 <- list.files(
     row_original = as.integer(row_number()),
     .by = c("file_original", "sheet_original")
   ) |>
-  convert_df_temporal_columns() |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
 
 # # --- Weekly counts for source-coverage check ---
 # df1_weekly_counts <- get_weekly_counts(df1, "Departure_Date")
@@ -134,9 +278,9 @@ df4 <- list.files(
 df4_trimmed <- df4 |>
   filter(Departed_Date < as.Date("2013-09-29"))
 df1_trimmed <- df1 |>
-  filter(Departure_Date >= as.Date("2013-09-29") & Departure_Date < as.Date("2023-09-24"))
+  filter(Departure_Date >= as.Date("2013-09-29") & Departure_Date < as.Date("2022-10-01"))
 df2_trimmed <- df2 |>
-  filter(Departed_Date >= as.Date("2023-09-24"))
+  filter(Departed_Date >= as.Date("2022-10-01"))
 
 # Drop the untrimmed originals and df3 (not used downstream)
 rm(df1, df2, df3, df4)

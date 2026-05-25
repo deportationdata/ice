@@ -27,67 +27,66 @@ library(haven)
 
 # --- Source Functions ---
 source("code/functions/process_folder_data_v2.R")
-source("code/functions/convert_temporal_columns.R")
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 source("code/functions/safe_bind_rows.R")
 source("code/functions/save_historical_outputs.R")
 source("code/functions/coalesce_rename.R")
 
-col_types_march2026_detentions <- c(
-  "date",    # Stay Book In Date Time
-  "date",    # Book In Date Time
-  "text",    # Detention Facility
-  "date",    # Book Out Date Time
-  "date",    # Stay Book Out Date Time
-  "text",    # Detention Release Reason
-  "date",    # Stay Book Out Date
-  "text",    # Stay Release Reason
-  "text",    # Religion
-  "text",    # Gender
-  "text",    # Marital Status
-  "text",    # Ethnicity
-  "text",    # Birth Country
-  "text",    # Citizenship Country
-  "text",    # Entry Status
-  "text",    # Known Terrorist Yes No
-  "text",    # Suspected Gang Yes No
-  "text",    # MSC Charge
-  "numeric", # MSC Sentence Days
-  "numeric", # MSC Sentence Months
-  "numeric", # MSC Sentence Years
-  "text",    # MSC Charge Code
-  "text",    # Aggravated Felon Yes No
-  "text",    # Offense INA 236C Yes No
-  "text",    # Case INA 236C Yes No
-  "date",    # Bond Posted Date
-  "numeric", # Bond Posted Amount
-  "text",    # Case Status
-  "text",    # Case Category
-  "text",    # Final Order Yes No
-  "date",    # Final Order Date
-  "text",    # Case Threat Level
-  "text",    # Detainee Classification
-  "text",    # Final Charge
-  "date",    # Departed Date
-  "text",    # Departure Country
-  "numeric", # Initial Bond Set Amount
-  "date",    # Initial Bond Set Date
-  "text",    # Detention Facility Code
-  "text",    # Birth Date
-  "numeric", # Birth Year
-  "text",    # Book In Criminality
-  "text",    # Race
-  "date",    # Entry Date
-  "text",    # Apprehension Final Program
-  "date",    # MSC Charge Date
-  "date",    # MSC Conviction Date
-  "text",    # MSC Criminal Charge Status
-  "text",    # MSC Criminal Charge Status Code
-  "text",    # MSC Crime Class
-  "text",    # Book In Site
-  "text",    # Book In AOR
-  "text"     # Anonymized Identifier
+col_type_overrides_march2026_detentions <- c(
+  Stay_Book_In_Date_Time          = "date",
+  Book_In_Date_Time               = "date",
+  Detention_Facility              = "text",
+  Book_Out_Date_Time              = "date",
+  Stay_Book_Out_Date_Time         = "date",
+  Detention_Release_Reason        = "text",
+  Stay_Book_Out_Date              = "date",
+  Stay_Release_Reason             = "text",
+  Religion                        = "text",
+  Gender                          = "text",
+  Marital_Status                  = "text",
+  Ethnicity                       = "text",
+  Birth_Country                   = "text",
+  Citizenship_Country             = "text",
+  Entry_Status                    = "text",
+  Known_Terrorist_Yes_No          = "text",
+  Suspected_Gang_Yes_No           = "text",
+  MSC_Charge                      = "text",
+  MSC_Sentence_Days               = "numeric",
+  MSC_Sentence_Months             = "numeric",
+  MSC_Sentence_Years              = "numeric",
+  MSC_Charge_Code                 = "text",
+  Aggravated_Felon_Yes_No         = "text",
+  Offense_INA_236C_Yes_No         = "text",
+  Case_INA_236C_Yes_No            = "text",
+  Bond_Posted_Date                = "date",
+  Bond_Posted_Amount              = "numeric",
+  Case_Status                     = "text",
+  Case_Category                   = "text",
+  Final_Order_Yes_No              = "text",
+  Final_Order_Date                = "date",
+  Case_Threat_Level               = "text",
+  Detainee_Classification         = "text",
+  Final_Charge                    = "text",
+  Departed_Date                   = "date",
+  Departure_Country               = "text",
+  Initial_Bond_Set_Amount         = "numeric",
+  Initial_Bond_Set_Date           = "date",
+  Detention_Facility_Code         = "text",
+  Birth_Date                      = "text",
+  Birth_Year                      = "numeric",
+  Book_In_Criminality             = "text",
+  Race                            = "text",
+  Entry_Date                      = "date",
+  Apprehension_Final_Program      = "text",
+  MSC_Charge_Date                 = "date",
+  MSC_Conviction_Date             = "date",
+  MSC_Criminal_Charge_Status      = "text",
+  MSC_Criminal_Charge_Status_Code = "text",
+  MSC_Crime_Class                 = "text",
+  Book_In_Site                    = "text",
+  Book_In_AOR                     = "text",
+  Anonymized_Identifier           = "text"
 )
 
 df4 <- list.files(
@@ -99,19 +98,59 @@ df4 <- list.files(
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
-      \(sh) read_excel(fp, sheet = sh, col_types = col_types_march2026_detentions, skip = 6),
+      \(sh) process_sheet(
+        file_path = fp,
+        sheet = sh,
+        anchor_idx = 2,
+        guess_max = 10000,
+        col_type_overrides = col_type_overrides_march2026_detentions
+      ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
-  rename_with(\(nms) nms |> str_replace_all("\\s+", "_") |> make_clean_names(case = "none")) |>
   mutate(
-    row_original = as.integer(row_number() + 6 + 1),
+    row_original = as.integer(row_number()),
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+
+col_type_overrides_uwchr_detentions <- c(
+  Stay_Book_In_Date_Time                                = "date",
+  Detention_Book_In_Date_And_Time                       = "date",
+  Detention_Book_Out_Date_Time                          = "date",
+  Stay_Book_Out_Date_Time                               = "date",
+  Birth_Country_PER                                     = "text",
+  Birth_Country_ERO                                     = "text",
+  Citizenship_Country                                   = "text",
+  Race                                                  = "text",
+  Ethnic                                                = "text",
+  Gender                                                = "text",
+  Birth_Date                                            = "text",
+  Birth_Year                                            = "numeric",
+  Entry_Date                                            = "date",
+  Entry_Status                                          = "text",
+  Most_Serious_Conviction_MSC_Criminal_Charge_Category  = "text",
+  MSC_Charge                                            = "text",
+  MSC_Charge_Code                                       = "text",
+  MSC_Conviction_Date                                   = "date",
+  MSC_Sentence_Days                                     = "numeric",
+  MSC_Sentence_Months                                   = "numeric",
+  MSC_Sentence_Years                                    = "numeric",
+  MSC_Crime_Class                                       = "text",
+  Case_Threat_Level                                     = "text",
+  Apprehension_Threat_Level                             = "text",
+  Final_Program                                         = "text",
+  Detention_Facility_Code                               = "text",
+  Detention_Facility                                    = "text",
+  Area_of_Responsibility                                = "text",
+  Docket_Control_Office                                 = "text",
+  Detention_Release_Reason                              = "text",
+  Stay_Release_Reason                                   = "text",
+  Alien_File_Number                                     = "text",
+  Anonymized_Identifier                                 = "text"
+)
 
 df5 <- list.files(
     path = "inputs/detentions/uwchr",
@@ -122,15 +161,37 @@ df5 <- list.files(
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
-      \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+      \(sh) process_sheet(
+        file_path = fp, sheet = sh, anchor_idx = 2,
+        col_type_overrides = col_type_overrides_uwchr_detentions
+      ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
-  convert_df_temporal_columns() |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+
+col_type_overrides_emily_rif_detentions <- c(
+  Citizenship_Country               = "text",
+  Citizenship_Country_Code          = "text",
+  Gender                            = "text",
+  Gender_Code                       = "text",
+  History_Intake_DCO                = "text",
+  History_Detention_Facility        = "text",
+  History_Detention_Facility_Code   = "text",
+  Initial_Intake_Date               = "date",
+  History_Intake_Date               = "date",
+  History_Book_out_Date             = "date",
+  History_Release_Reason            = "text",
+  ERO_Apprehension_Date             = "date",
+  ERO_Apprehension_Landmark         = "text",
+  Initial_Intake_Detention_Facility = "text",
+  Order_of_Detentions               = "text",
+  Unique_Person_ID                  = "text",
+  Unique_Detention_Stay_ID          = "text"
+)
 
 df6 <- list.files(
     path = "inputs/detentions/From-Emily-Excel-X-RIF",
@@ -141,15 +202,17 @@ df6 <- list.files(
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
-      \(sh) process_sheet(file_path = fp, sheet = sh, anchor_idx = 2, guess_max = 10000, force_col_type = "text"),
+      \(sh) process_sheet(
+        file_path = fp, sheet = sh, anchor_idx = 2,
+        col_type_overrides = col_type_overrides_emily_rif_detentions
+      ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
-  convert_df_temporal_columns() |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(ends_with("_Date"), as.Date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
 
 df7_path <- "inputs/detentions/From-Emily-FOIA-10-2554-527/foia_10_2554_527_NoIDS.csv"
 df7 <- read_csv(df7_path) |>
@@ -303,15 +366,15 @@ detentions_df |>
   as_tibble() |>
   col_vals_not_null(
     unique_identifier,
-    actions = action_levels(warn_at = 0.30, stop_at = 0.50)
+    actions = action_levels(warn_at = 0.70, stop_at = 0.85)
   ) |>
   col_vals_not_null(
     stint_ID,
-    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+    actions = action_levels(warn_at = 0.70, stop_at = 0.85)
   ) |>
   col_vals_not_null(
     stay_ID,
-    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+    actions = action_levels(warn_at = 0.70, stop_at = 0.85)
   ) |>
   col_vals_between(
     any_of("birth_year"),

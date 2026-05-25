@@ -32,8 +32,10 @@ find_first_non_na_row <- function(file_path, sheet, anchor_idx, guess_max = 1000
   first_non_na_row
 }
 
-process_sheet <- function(file_path, sheet, anchor_idx, guess_max = 10000,
-                          col_type_overrides = NULL, force_col_type = NULL) {
+all_text <- function(cols) setNames(rep("text", length(cols)), cols)
+
+process_sheet <- function(file_path, sheet, anchor_idx, col_type_overrides,
+                          guess_max = 10000) {
   first_non_na_row <- find_first_non_na_row(
     file_path = file_path,
     sheet = sheet,
@@ -59,17 +61,15 @@ process_sheet <- function(file_path, sheet, anchor_idx, guess_max = 10000,
     str_replace_all("\\s+", "_") |>
     make_clean_names(case = "none")
 
-  col_types <- if (!is.null(force_col_type)) {
-    rep(force_col_type, length(cleaned_names))
-  } else if (is.null(col_type_overrides)) {
-    NULL
-  } else {
-    unname(ifelse(
-      cleaned_names %in% names(col_type_overrides),
-      col_type_overrides[cleaned_names],
-      "guess"
+  missing <- setdiff(cleaned_names, names(col_type_overrides))
+  if (length(missing) > 0) {
+    stop(sprintf(
+      "process_sheet: %s :: %s has columns not covered by col_type_overrides: %s",
+      basename(file_path), sheet, paste(missing, collapse = ", ")
     ))
   }
+
+  col_types <- unname(col_type_overrides[cleaned_names])
 
   data_df <- read_excel(
     path = file_path,
@@ -82,8 +82,8 @@ process_sheet <- function(file_path, sheet, anchor_idx, guess_max = 10000,
 
   n_keep <- min(ncol(data_df), length(cleaned_names))
 
-  data_df <- data_df |>
-  select(all_of(seq_len(n_keep))) |>
-  set_names(cleaned_names[seq_len(n_keep)])
+  data_df |>
+    select(all_of(seq_len(n_keep))) |>
+    set_names(cleaned_names[seq_len(n_keep)])
 }
 
