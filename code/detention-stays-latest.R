@@ -416,6 +416,10 @@ detention_stays_df |>
 # ---- Pointblank Validation ----
 
 detention_stays_df |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   # -- Primary key: stay_ID should be unique and non-null --
   col_vals_not_null(
     stay_ID,

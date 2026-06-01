@@ -3,6 +3,8 @@ library(stringr)
 
 REDACT_PATTERN <- regex("\\(b\\)|\\(B\\)|b\\([0-9]\\)|B\\([0-9]\\)", ignore_case = TRUE)
 
+is_redacted <- function(x) coalesce(str_detect(x, REDACT_PATTERN), FALSE)
+
 is_not_blank_or_redacted <- function(x, min_nonredacted = 20) {
   if (is.character(x)) {
     vals <- str_squish(x)
@@ -22,7 +24,7 @@ is_not_blank_or_redacted <- function(x, min_nonredacted = 20) {
   }
 }
 
-redact_to_na <- function(df) {
+make_redactions_na <- function(df) {
   df |>
     mutate(across(
       where(is.character),

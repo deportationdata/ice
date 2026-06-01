@@ -1,8 +1,8 @@
 # Source-file selection
 # | df  | folder  | window                   | role | reason                             |
 # |-----|---------|--------------------------|------|------------------------------------|
-# | df1 | March 2026 Release | (whole)       | use  | recent release                     |
-# | df2 | uwchr   | (whole)                  | use  | historical coverage                |
+# | df1 | March 2026 Release | >= 2022-10-01 | use  | richer cols (case status, criminality, etc.)|
+# | df2 | uwchr   | < 2022-10-01             | use  | only source for pre-2022-10-01     |
 
 # --- Packages ---
 library(readxl)
@@ -20,7 +20,7 @@ library(pointblank)
 library(haven)
 
 # --- Source Functions ---
-source("code/functions/process_folder_data_v2.R")
+source("code/functions/process_folder_data.R")
 source("code/functions/is_not_blank_or_redacted.R")
 source("code/functions/if_has.R")
 source("code/functions/coalesce_rename.R")
@@ -80,7 +80,8 @@ df1 <- list.files(
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
+  filter(as.Date(Event_Date) >= as.Date("2022-10-01"))
 
 col_type_overrides_uwchr_encounters <- c(
   Area_of_Responsibility = "text",
@@ -121,7 +122,12 @@ df2 <- list.files(
     row_original = as.integer(row_number()),
     .by = c("file_original", "sheet_original")
   ) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
+  filter(as.Date(Event_Date) < as.Date("2022-10-01")) |>
+  rename(
+    Responsible_AOR = Area_of_Responsibility,
+    Event_Landmark  = Landmark
+  )
 
 # # --- Weekly counts for source-coverage check ---
 # df1_weekly_counts <- get_weekly_counts(df1, "Event_Date")
@@ -141,67 +147,56 @@ df2 <- list.files(
 source("code/functions/safe_bind_rows.R")
 
 encounters_df <- df1 |>
-  safe_bind_rows(
-    df2 |> rename(
-      Responsible_AOR = Area_of_Responsibility,
-      Event_Landmark  = Landmark
-    )
-  ) |>
+  safe_bind_rows(df2) |>
   janitor::clean_names(allow_dupes = FALSE) |>
   coalesce_rename("unique_identifier", "anonymized_identifier") |>
   mutate(event_date = as.Date(event_date)) |>
-  redact_to_na() |>
+  make_redactions_na() |>
   mutate(across(any_of("birth_year"), as.integer))
 
-# Free per-source dfs now that they're merged
 rm(df1, df2)
 gc()
 
-# FLAG Duplicates
+# ---- Construct Duplicate Episode Indicators ----
 setDT(encounters_df)
-setorder(encounters_df, unique_identifier, event_date)
 
 encounters_df[,
-  `:=`(
-    hours_since_last = as.numeric(
-      event_date - shift(event_date, type = "lag"),
-      units = "hours"
-    ),
-    hours_until_next = as.numeric(
-      shift(event_date, type = "lead") - event_date,
-      units = "hours"
-    )
-  ),
-  by = unique_identifier
+  unique_identifier_nona := fifelse(
+    is.na(unique_identifier),
+    paste0("noid_", .I),
+    unique_identifier
+  )
 ]
 
-encounters_df <-
-  encounters_df |>
-  as_tibble() |>
-  mutate(
-    within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
-    within_24hrs_next  = !is.na(hours_until_next) & hours_until_next <= 24,
+setorder(
+  encounters_df,
+  unique_identifier_nona,
+  event_date,
+  file_original,
+  sheet_original,
+  row_original
+)
 
-    duplicate_likely = case_when(
-      !is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next,
-      TRUE ~ FALSE
-    ),
-
-    # NEW: which rows to drop (drop the later row in a <=24hr pair)
-    drop_row = case_when(
-      is.na(unique_identifier) ~ FALSE,
-      within_24hrs_prior ~ TRUE,   # later-than-previous within 24h => drop
-      TRUE ~ FALSE
+encounters_df[,
+  duplicate_episode_id := {
+    gap <- as.numeric(
+      event_date - shift(event_date, type = "lag"),
+      units = "hours"
     )
-  ) |>
-  select(
-    -within_24hrs_prior,
-    -within_24hrs_next,
-    -hours_since_last,
-    -hours_until_next
-  )
+    cumsum(is.na(gap) | gap > 24)
+  },
+  by = unique_identifier_nona
+]
+
+encounters_df[, unique_identifier_nona := NULL]
+
+encounters_df <- as_tibble(encounters_df)
 
 encounters_df |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   if_has("event_date", \(d) col_vals_not_null(d, event_date,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
   if_has("event_date", \(d) col_vals_between(d, event_date,
@@ -216,9 +211,6 @@ encounters_df |>
   if_has("final_order_yes_no", \(d) col_vals_in_set(d, final_order_yes_no,
     c("YES", "NO", NA),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001))) |>
-  if_has(c("duplicate_likely", "unique_identifier"), \(d) col_vals_not_null(d, duplicate_likely,
-    preconditions = \(x) dplyr::filter(x, !is.na(unique_identifier)),
-    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
   invisible()
 
 save_historical_outputs(encounters_df, "encounters-historical")

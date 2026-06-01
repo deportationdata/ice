@@ -16,21 +16,72 @@ library(purrr)
 library(janitor)
 library(tibble)
 library(stringr)
-library(stringdist)
 library(arrow)
-library(ggplot2)
 library(data.table)
 library(tidylog)
 library(pointblank)
 library(haven)
 
 # --- Source Functions ---
-source("code/functions/process_folder_data_v2.R")
+source("code/functions/process_folder_data.R")
 source("code/functions/is_not_blank_or_redacted.R")
 source("code/functions/if_has.R")
 source("code/functions/save_historical_outputs.R")
-# source("code/functions/inspect_columns.R")
-# source("code/functions/summarize_weekly_counts.R")
+
+case_status_values <- c(
+  "ACTIVE",
+  "0-Withdrawal Permitted - I-275 Issued",
+  "3-Voluntary Departure Confirmed",
+  "5-Title 50 Expulsion",
+  "6-Deported/Removed - Deportability",
+  "7-Died",
+  "8-Excluded/Deported/Removed",
+  "8-Excluded/Removed - Inadmissibility",
+  "9-VR Witnessed",
+  "10-USC Prosecution Case Closed",
+  "A-Proceedings Terminated",
+  "B-Relief Granted",
+  "E-Charging Document Canceled by ICE",
+  "L-Legalization - Permanent Residence Granted",
+  "Z-SAW - Permanent Residence Granted",
+  NA
+)
+
+case_category_values <- c(
+  "[10] Visa Waiver Deportation / Removal",
+  "[11] Administrative Deportation / Removal",
+  "[12] Judicial Deportation / Removal",
+  "[13] Section 250 Removal",
+  "[14] Crewmen, Stowaways, S-Visa Holders, 235(c) Cases",
+  "[15] Terrorist Court Case (Title 5)",
+  "[16] Reinstated Final Order",
+  "[17] USC Prosecution Case",
+  "[1A] Voluntary Departure - Un-Expired and Un-Extended Departure Period",
+  "[1B] Voluntary Departure - Extended Departure Period",
+  "[1C] Expired Voluntary Departure Period - Referred to Investigation",
+  "[2A] Deportable - Under Adjudication by IJ",
+  "[2B] Deportable - Under Adjudication by BIA",
+  "[3] Deportable - Administratively Final Order",
+  "[5A] Referred for Investigation - No Show for Hearing - No Final Order",
+  "[5B] Removable - ICE Fugitive",
+  "[5C] Relief Granted - Withholding of Deportation / Removal",
+  "[5D] Final Order of Deportation / Removal - Deferred Action Granted",
+  "[5E] Relief Granted - Extended Voluntary Departure",
+  "[5F] Unable to Obtain Travel Document",
+  "[8A] Excludable / Inadmissible - Hearing Not Commenced",
+  "[8B] Excludable / Inadmissible - Under Adjudication by IJ",
+  "[8C] Excludable / Inadmissible - Administrative Final Order Issued",
+  "[8D] Excludable / Inadmissible - Under Adjudication by BIA",
+  "[8E] Inadmissible - ICE Fugitive",
+  "[8F] Expedited Removal",
+  "[8G] Expedited Removal - Credible Fear Referral",
+  "[8H] Expedited Removal - Status Claim Referral",
+  "[8I] Inadmissible - ICE Fugitive - Expedited Removal",
+  "[8K] Expedited Removal Terminated due to Credible Fear Finding / NTA Issued",
+  "[9] VR Under Safeguards",
+  "[H] Historical Category For Migration Only",
+  NA
+)
 
 # --- Build dataframes directly from folders (no intermediate parquet save) ---
 # ROOT: ice/
@@ -48,7 +99,7 @@ source("code/functions/save_historical_outputs.R")
 #   mutate(source_file = "2022-ICFO-22955") |>
 #   select(where(is_not_blank_or_redacted))
 
-col_type_overrides_2023_ICFO_42034_arrests <- c(
+col_types_42034 <- c(
   Apprehension_Date = "date",
   Apprehension_Method = "text",
   Arrest_Created_By = "text",
@@ -60,7 +111,7 @@ col_type_overrides_2023_ICFO_42034_arrests <- c(
   Anonymized_Identifier = "text"
 )
 
-df2 <- list.files(
+df_42034 <- list.files(
   path = "inputs/arrests/2023_ICFO_42034",
   pattern = "\\.xlsx$",
   recursive = TRUE,
@@ -77,7 +128,7 @@ df2 <- list.files(
               file_path = fp,
               sheet = sh,
               anchor_idx = 2,
-              col_type_overrides = col_type_overrides_2023_ICFO_42034_arrests
+              col_type_overrides = col_types_42034
             )
           },
           .id = "sheet_original"
@@ -93,7 +144,24 @@ df2 <- list.files(
     where(~ inherits(.x, "POSIXt")),
     check_dttm_and_convert_to_date
   )) |>
-  select(where(is_not_blank_or_redacted))
+  select(where(is_not_blank_or_redacted)) |>
+  filter(Apprehension_Date < as.Date("2022-10-01")) |>
+  rename(
+    Unique_Identifier = Anonymized_Identifier,
+    Apprehension_Date_Time = Apprehension_Date
+  ) |>
+  mutate(
+    Apprehension_Date_Time = as.POSIXct(Apprehension_Date_Time, tz = "UTC")
+  ) |>
+  janitor::clean_names(allow_dupes = FALSE) |>
+  mutate(
+    arrest_created_by = coalesce(
+      arrest_created_by,
+      arrest_create_by,
+      arrested_created_by
+    ),
+    .keep = "unused"
+  )
 
 # df3 <- list.files(
 #     path = "inputs/arrests/120125",
@@ -123,7 +191,7 @@ df2 <- list.files(
 #   mutate(source_file = "uwchr") |>
 #   select(where(is_not_blank_or_redacted))
 
-col_type_overrides_march2026_arrests <- c(
+col_types_mar2026 <- c(
   Apprehension_Date = "date",
   Apprehension_Type = "text",
   State = "text",
@@ -151,7 +219,7 @@ col_type_overrides_march2026_arrests <- c(
   Anonymized_Identifier = "text"
 )
 
-df5 <- list.files(
+df_mar2026 <- list.files(
   path = "inputs/arrests/March 2026 Release",
   pattern = "\\.xlsx$",
   recursive = TRUE,
@@ -169,7 +237,7 @@ df5 <- list.files(
               sheet = sh,
               anchor_idx = 2,
               guess_max = 10000,
-              col_type_overrides = col_type_overrides_march2026_arrests
+              col_type_overrides = col_types_mar2026
             )
           },
           .id = "sheet_original"
@@ -186,110 +254,79 @@ df5 <- list.files(
   mutate(across(
     where(~ inherits(.x, "POSIXt")),
     check_dttm_and_convert_to_date
-  ))
-
-# # --- Weekly counts for source-coverage check ---
-# df1_weekly_counts <- get_weekly_counts(df1, "Apprehension_Date_And_Time")
-# df2_weekly_counts <- get_weekly_counts(df2, "Apprehension_Date")
-# df3_weekly_counts <- get_weekly_counts(df3, "Apprehension_Date")
-# df4_weekly_counts <- get_weekly_counts(df4, "Arrest_Date")
-# df5_weekly_counts <- get_weekly_counts(df5, "Apprehension_Date")
-
-# all_weekly_counts <- bind_rows(df1_weekly_counts, df2_weekly_counts, df3_weekly_counts, df4_weekly_counts, df5_weekly_counts)
-
-# ggplot(all_weekly_counts, aes(week_start, n, color = source_file))+
-#   geom_line(alpha = 0.5)+
-#   theme_minimal()
-
-# boundaries <- all_weekly_counts |>
-#   group_by(source_file) |>
-#   summarise(start = min(week_start), end = max(week_start))
-
-df2_trimmed <-
-  df2 |>
-  filter(Apprehension_Date < as.Date("2022-10-01")) |>
-  rename(
-    Unique_Identifier = Anonymized_Identifier,
-    Apprehension_Date_Time = Apprehension_Date
-  ) |>
-  mutate(
-    Apprehension_Date_Time = as.POSIXct(Apprehension_Date_Time, tz = "UTC")
-  ) |>
-  janitor::clean_names(allow_dupes = FALSE)
-
-df5_trimmed <-
-  df5 |>
+  )) |>
   filter(as.Date(apprehension_date) >= as.Date("2022-10-01")) |>
-  rename(apprehension_date_time = apprehension_date) |>
+  rename(
+    unique_identifier = anonymized_identifier,
+    apprehension_date_time = apprehension_date,
+    apprehension_state = state,
+    apprehension_aor = toa_current_duty_aor,
+    final_program = apprehension_final_program
+  ) |>
   mutate(
     apprehension_date_time = as.POSIXct(apprehension_date_time, tz = "UTC")
   )
 
-rm(df2, df5)
-gc()
-
 source("code/functions/safe_bind_rows.R")
 
 arrests_df <-
-  df2_trimmed |>
-  safe_bind_rows(df5_trimmed) |>
-  redact_to_na() |>
-  mutate(across(any_of("birth_year"), as.integer)) |>
-  rename(
-    apprehension_state = any_of("state"),
-    apprehension_aor = any_of("toa_current_duty_aor"),
-    final_program = any_of("apprehension_final_program")
-  )
+  df_42034 |>
+  safe_bind_rows(df_mar2026) |>
+  make_redactions_na() |>
+  mutate(birth_year = as.integer(birth_year))
 
-rm(df2_trimmed, df5_trimmed)
+rm(df_42034, df_mar2026)
 gc()
 
-# ---- Construct Duplicates Indicator ----
-# two (or more) arrests within 24 hours of each other
+# ---- Construct Duplicate Episode Indicators ----
+# data.table here: episode detection runs ~10x faster than dplyr group_by + lag at this row count.
 setDT(arrests_df)
-setorder(arrests_df, unique_identifier, apprehension_date_time)
+
+arrests_df[,
+  unique_identifier_nona := fifelse(
+    is.na(unique_identifier),
+    paste0("noid_", .I),
+    unique_identifier
+  )
+]
+
+setorder(
+  arrests_df,
+  unique_identifier_nona,
+  apprehension_date_time,
+  file_original,
+  sheet_original,
+  row_original
+)
+
+arrests_df[,
+  duplicate_episode_id := {
+    gap <- as.numeric(
+      apprehension_date_time - shift(apprehension_date_time, type = "lag"),
+      units = "hours"
+    )
+    cumsum(is.na(gap) | gap > 24)
+  },
+  by = unique_identifier_nona
+]
 
 arrests_df[,
   `:=`(
-    hours_since_last = as.numeric(
-      apprehension_date_time - shift(apprehension_date_time, type = "lag"),
-      units = "hours"
-    ),
-    hours_until_next = as.numeric(
-      shift(apprehension_date_time, type = "lead") - apprehension_date_time,
-      units = "hours"
-    )
+    duplicate_episode_first = seq_len(.N) == 1L,
+    duplicate_likely = .N > 1L
   ),
-  by = unique_identifier
+  by = .(unique_identifier_nona, duplicate_episode_id)
 ]
 
-arrests_df <-
-  arrests_df |>
-  as_tibble() |>
-  mutate(
-    within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
-    within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
+arrests_df[, unique_identifier_nona := NULL]
 
-    duplicate_likely = case_when(
-      !is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next,
-      TRUE ~ FALSE
-    ),
-
-    # NEW: which rows to drop (drop the later row in a <=24hr pair)
-    drop_row = case_when(
-      is.na(unique_identifier) ~ FALSE,
-      within_24hrs_prior ~ TRUE, # later-than-previous within 24h => drop
-      TRUE ~ FALSE
-    )
-  ) |>
-  select(
-    -within_24hrs_prior,
-    -within_24hrs_next,
-    -hours_since_last,
-    -hours_until_next
-  )
+arrests_df <- as_tibble(arrests_df)
 
 arrests_df |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   if_has("unique_identifier", \(d) {
     col_vals_not_null(
       d,
@@ -297,17 +334,17 @@ arrests_df |>
       actions = action_levels(warn_at = 0.30, stop_at = 0.50)
     )
   }) |>
-  if_has("apprehension_date", \(d) {
+  if_has("apprehension_date_time", \(d) {
     col_vals_not_null(
       d,
-      apprehension_date,
+      apprehension_date_time,
       actions = action_levels(warn_at = 0.001, stop_at = 0.01)
     )
   }) |>
-  if_has("apprehension_date", \(d) {
+  if_has("apprehension_date_time", \(d) {
     col_vals_between(
       d,
-      apprehension_date,
+      apprehension_date_time,
       as.Date("2011-10-01"),
       Sys.Date(),
       na_pass = TRUE,
@@ -377,24 +414,7 @@ arrests_df |>
     col_vals_in_set(
       d,
       case_status,
-      c(
-        "ACTIVE",
-        "0-Withdrawal Permitted - I-275 Issued",
-        "3-Voluntary Departure Confirmed",
-        "5-Title 50 Expulsion",
-        "6-Deported/Removed - Deportability",
-        "7-Died",
-        "8-Excluded/Deported/Removed",
-        "8-Excluded/Removed - Inadmissibility",
-        "9-VR Witnessed",
-        "10-USC Prosecution Case Closed",
-        "A-Proceedings Terminated",
-        "B-Relief Granted",
-        "E-Charging Document Canceled by ICE",
-        "L-Legalization - Permanent Residence Granted",
-        "Z-SAW - Permanent Residence Granted",
-        NA
-      ),
+      case_status_values,
       actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
     )
   }) |>
@@ -402,41 +422,7 @@ arrests_df |>
     col_vals_in_set(
       d,
       case_category,
-      c(
-        "[10] Visa Waiver Deportation / Removal",
-        "[11] Administrative Deportation / Removal",
-        "[12] Judicial Deportation / Removal",
-        "[13] Section 250 Removal",
-        "[14] Crewmen, Stowaways, S-Visa Holders, 235(c) Cases",
-        "[15] Terrorist Court Case (Title 5)",
-        "[16] Reinstated Final Order",
-        "[17] USC Prosecution Case",
-        "[1A] Voluntary Departure - Un-Expired and Un-Extended Departure Period",
-        "[1B] Voluntary Departure - Extended Departure Period",
-        "[1C] Expired Voluntary Departure Period - Referred to Investigation",
-        "[2A] Deportable - Under Adjudication by IJ",
-        "[2B] Deportable - Under Adjudication by BIA",
-        "[3] Deportable - Administratively Final Order",
-        "[5A] Referred for Investigation - No Show for Hearing - No Final Order",
-        "[5B] Removable - ICE Fugitive",
-        "[5C] Relief Granted - Withholding of Deportation / Removal",
-        "[5D] Final Order of Deportation / Removal - Deferred Action Granted",
-        "[5E] Relief Granted - Extended Voluntary Departure",
-        "[5F] Unable to Obtain Travel Document",
-        "[8A] Excludable / Inadmissible - Hearing Not Commenced",
-        "[8B] Excludable / Inadmissible - Under Adjudication by IJ",
-        "[8C] Excludable / Inadmissible - Administrative Final Order Issued",
-        "[8D] Excludable / Inadmissible - Under Adjudication by BIA",
-        "[8E] Inadmissible - ICE Fugitive",
-        "[8F] Expedited Removal",
-        "[8G] Expedited Removal - Credible Fear Referral",
-        "[8H] Expedited Removal - Status Claim Referral",
-        "[8I] Inadmissible - ICE Fugitive - Expedited Removal",
-        "[8K] Expedited Removal Terminated due to Credible Fear Finding / NTA Issued",
-        "[9] VR Under Safeguards",
-        "[H] Historical Category For Migration Only",
-        NA
-      ),
+      case_category_values,
       actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
     )
   }) |>

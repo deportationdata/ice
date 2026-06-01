@@ -23,7 +23,6 @@ library(haven)
 
 # --- Source Functions ---
 source("code/functions/process_folder_data.R")
-source("code/functions/process_folder_data_v2.R")
 source("code/functions/is_not_blank_or_redacted.R")
 source("code/functions/if_has.R")
 source("code/functions/coalesce_rename.R")
@@ -84,7 +83,8 @@ df1 <- list.files(
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
+  filter(Departure_Date >= as.Date("2013-09-29") & Departure_Date < as.Date("2022-10-01"))
 
 col_type_overrides_march2026_removals <- c(
   Departed_Date                     = "date",
@@ -147,7 +147,9 @@ df2 <- list.files(
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
+  filter(Departed_Date >= as.Date("2022-10-01")) |>
+  rename(Unique_Identifier = Anonymized_Identifier)
 
 col_type_overrides_uwchr_removals <- c(
   Area_of_Responsibility      = "text",
@@ -256,7 +258,8 @@ df4 <- list.files(
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
+  filter(Departed_Date < as.Date("2013-09-29"))
 
 # # --- Weekly counts for source-coverage check ---
 # df1_weekly_counts <- get_weekly_counts(df1, "Departure_Date")
@@ -274,27 +277,19 @@ df4 <- list.files(
 #   group_by(source_file) |>
 #   summarise(start = min(week_start), end = max(week_start))
 
-# trim datasets by date and merge (14-03290, 2024_ICFO_42034, 082025)
-df4_trimmed <- df4 |>
-  filter(Departed_Date < as.Date("2013-09-29"))
-df1_trimmed <- df1 |>
-  filter(Departure_Date >= as.Date("2013-09-29") & Departure_Date < as.Date("2022-10-01"))
-df2_trimmed <- df2 |>
-  filter(Departed_Date >= as.Date("2022-10-01"))
-
-# Drop the untrimmed originals and df3 (not used downstream)
-rm(df1, df2, df3, df4)
+# Drop df3 (not used downstream)
+rm(df3)
 gc()
 
 source("code/functions/safe_bind_rows.R")
 
-df12 <- df1_trimmed |>
+df12 <- df1 |>
   coalesce_rename("Departed_Date", "Departure_Date") |>
   coalesce_rename("Unique_Identifier", "Anonymized_Identifier") |>
   coalesce_rename("Unique_Identifier", "Anonymized_Identifer") |>
-  safe_bind_rows(df2_trimmed)
+  safe_bind_rows(df2)
 
-rm(df1_trimmed, df2_trimmed)
+rm(df1, df2)
 gc()
 
 removals_df <- df12 |>
@@ -303,7 +298,7 @@ removals_df <- df12 |>
   coalesce_rename("Latest_Arrest_Apprehension_Date", "Latest_Person_Apprehension_Date") |>
   coalesce_rename("Most_Recent_Prior_Depart_Date", "Latest_Person_Departed_Date") |>
   safe_bind_rows(
-    df4_trimmed |>
+    df4 |>
       coalesce_rename("Port_of_Departure",   "Port_Of_Departure") |>
       coalesce_rename("Departure_Country",   "Departed_To_Country") |>
       coalesce_rename("Birth_Country",       "Country_of_Birth") |>
@@ -314,57 +309,52 @@ removals_df <- df12 |>
   ) |>
   janitor::clean_names(allow_dupes = FALSE) |>
   mutate(departed_date = as.Date(departed_date)) |>
-  redact_to_na() |>
+  make_redactions_na() |>
   mutate(across(any_of("birth_year"), as.integer))
 
-rm(df12, df4_trimmed)
+rm(df12, df4)
 gc()
 
-# FLAG Duplicates
+# ---- Construct Duplicate Episode Indicators ----
 setDT(removals_df)
-setorder(removals_df, unique_identifier, departed_date)
 
 removals_df[,
-  `:=`(
-    hours_since_last = as.numeric(
-      departed_date - shift(departed_date, type = "lag"),
-      units = "hours"
-    ),
-    hours_until_next = as.numeric(
-      shift(departed_date, type = "lead") - departed_date,
-      units = "hours"
-    )
-  ),
-  by = unique_identifier
+  unique_identifier_nona := fifelse(
+    is.na(unique_identifier),
+    paste0("noid_", .I),
+    unique_identifier
+  )
 ]
 
-removals_df <-
-  removals_df |>
-  as_tibble() |>
-  mutate(
-    within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
-    within_24hrs_next  = !is.na(hours_until_next) & hours_until_next <= 24,
+setorder(
+  removals_df,
+  unique_identifier_nona,
+  departed_date,
+  file_original,
+  sheet_original,
+  row_original
+)
 
-    duplicate_likely = case_when(
-      !is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next,
-      TRUE ~ FALSE
-    ),
-
-    # NEW: which rows to drop (drop the later row in a <=24hr pair)
-    drop_row = case_when(
-      is.na(unique_identifier) ~ FALSE,
-      within_24hrs_prior ~ TRUE,   # later-than-previous within 24h => drop
-      TRUE ~ FALSE
+removals_df[,
+  duplicate_episode_id := {
+    gap <- as.numeric(
+      departed_date - shift(departed_date, type = "lag"),
+      units = "hours"
     )
-  ) |>
-  select(
-    -within_24hrs_prior,
-    -within_24hrs_next,
-    -hours_since_last,
-    -hours_until_next
-  )
+    cumsum(is.na(gap) | gap > 24)
+  },
+  by = unique_identifier_nona
+]
+
+removals_df[, unique_identifier_nona := NULL]
+
+removals_df <- as_tibble(removals_df)
 
 removals_df |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   if_has("unique_identifier", \(d) col_vals_not_null(d, unique_identifier,
     actions = action_levels(warn_at = 0.50, stop_at = 0.75))) |>
   if_has("departed_date", \(d) col_vals_not_null(d, departed_date,
@@ -378,9 +368,6 @@ removals_df |>
   if_has("gender", \(d) col_vals_in_set(d, gender,
     c("Male", "Female", "Unknown", NA),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001))) |>
-  if_has(c("duplicate_likely", "unique_identifier"), \(d) col_vals_not_null(d, duplicate_likely,
-    preconditions = \(x) dplyr::filter(x, !is.na(unique_identifier)),
-    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
   invisible()
 
 save_historical_outputs(removals_df, "removals-historical")

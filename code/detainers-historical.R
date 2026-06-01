@@ -22,7 +22,7 @@ library(pointblank)
 library(haven)
 
 # --- Source Functions ---
-source("code/functions/process_folder_data_v2.R")
+source("code/functions/process_folder_data.R")
 source("code/functions/is_not_blank_or_redacted.R")
 source("code/functions/if_has.R")
 source("code/functions/coalesce_rename.R")
@@ -144,7 +144,8 @@ df1 <- list.files(
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
+  filter(Detainer_Prepare_Date >= as.Date("2017-06-18") & Detainer_Prepare_Date < as.Date("2025-03-16"))
 
 col_type_overrides_march2026_detainers <- c(
   Detainer_Prepare_Date             = "date",
@@ -238,7 +239,8 @@ df2 <- list.files(
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
+  filter(Detainer_Prepare_Date >= as.Date("2025-03-16"))
 
 # --- For npr, there are .csv and .txt files so the folder parsers won't work ---
 npr_csv_files <- list.files(
@@ -334,7 +336,8 @@ df3 <- batch_to_date(npr_merge, date_cols) |>
       str_split("_") |>
       lapply(\(parts) paste(str_to_title(str_to_lower(parts)), collapse = "_")) |>
       unlist()
-  })
+  }) |>
+  filter(Prepare_Date < as.Date("2017-06-18"))
 rm(npr_merge, date_cols)
 gc()
 
@@ -354,22 +357,10 @@ gc()
 #   group_by(source_file) |>
 #   summarise(start = min(week_start), end = max(week_start))
 
-# trim datasets by date and merge (npr, 2025-ICFO-18038, 120125)
-df3_trimmed <- df3 |>
-  filter(Prepare_Date < as.Date("2017-06-18"))
-df1_trimmed <- df1 |>
-  filter(Detainer_Prepare_Date >= as.Date("2017-06-18") & Detainer_Prepare_Date < as.Date("2025-03-16"))
-df2_trimmed <- df2 |>
-  filter(Detainer_Prepare_Date >= as.Date("2025-03-16"))
-
-# Drop the untrimmed originals
-rm(df1, df2, df3)
-gc()
-
 source("code/functions/safe_bind_rows.R")
 
 # Step 2. Rename the columns that are probably mergeable (i.e., similar names for the same field)
-df12 <- df1_trimmed |>
+df12 <- df1 |>
   rename(
     Multiple_Prior_MISD_Yes_No = Multiple_Prior_Misd_Yes_No,
     Final_Program = Program,
@@ -385,7 +376,9 @@ df12 <- df1_trimmed |>
     Detention_Facility_Code = Detainer_Detention_Facility_Code
   ) |>
   safe_bind_rows(
-    df2_trimmed |> rename(any_of(c(
+    df2 |> rename(
+      Unique_Identifier = Anonymized_Identifier
+    ) |> rename(any_of(c(
       Detainer_Threat_Level = "Detainer_Prep_Threat_Level",
       Most_Serious_Conviction_Charge_Code = "MSC_Charge_Code",
       Most_Serious_Conviction_Charge = "Most_Serious_Conviction_MSC_Charge",
@@ -397,13 +390,13 @@ df12 <- df1_trimmed |>
     )))
   )
 
-rm(df1_trimmed, df2_trimmed)
+rm(df1, df2)
 gc()
 
 detainers_df <- df12 |>
   rename(Prepare_Date = Detainer_Prepare_Date) |>
   safe_bind_rows(
-    df3_trimmed |> rename(
+    df3 |> rename(
       Detainer_Lift_Reason_Code2 = Detainer_Lift_Reason_2_Code,
       Order_to_Show_Cause_Served_Yes_No = Osc_Served_Yes_No,
       Order_to_Show_Cause_Served_Date = Osc_Served_Date,
@@ -413,7 +406,7 @@ detainers_df <- df12 |>
   select(-Detainer_Detention_Facility) |>
   janitor::clean_names(allow_dupes = FALSE) |>
   mutate(prepare_date = as.Date(prepare_date)) |>
-  redact_to_na() |>
+  make_redactions_na() |>
   mutate(across(any_of("birth_year"), as.integer))
 
 detainers_df <- detainers_df |>
@@ -424,54 +417,49 @@ detainers_df <- detainers_df |>
   coalesce_rename("arrest_time_current_program",   "toa_current_program") |>
   coalesce_rename("federal_interest_yes_no",       "federal_register_notice_yes_no")
 
-rm(df12, df3_trimmed)
+rm(df12, df3)
 gc()
 
-# FLAG Duplicates
+# ---- Construct Duplicate Episode Indicators ----
 setDT(detainers_df)
-setorder(detainers_df, unique_identifier, prepare_date)
 
 detainers_df[,
-  `:=`(
-    hours_since_last = as.numeric(
-      prepare_date - shift(prepare_date, type = "lag"),
-      units = "hours"
-    ),
-    hours_until_next = as.numeric(
-      shift(prepare_date, type = "lead") - prepare_date,
-      units = "hours"
-    )
-  ),
-  by = unique_identifier
+  unique_identifier_nona := fifelse(
+    is.na(unique_identifier),
+    paste0("noid_", .I),
+    unique_identifier
+  )
 ]
 
-detainers_df <-
-  detainers_df |>
-  as_tibble() |>
-  mutate(
-    within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
-    within_24hrs_next  = !is.na(hours_until_next) & hours_until_next <= 24,
+setorder(
+  detainers_df,
+  unique_identifier_nona,
+  prepare_date,
+  file_original,
+  sheet_original,
+  row_original
+)
 
-    duplicate_likely = case_when(
-      !is.na(unique_identifier) ~ within_24hrs_prior | within_24hrs_next,
-      TRUE ~ FALSE
-    ),
-
-    # NEW: which rows to drop (drop the later row in a <=24hr pair)
-    drop_row = case_when(
-      is.na(unique_identifier) ~ FALSE,
-      within_24hrs_prior ~ TRUE,   # later-than-previous within 24h => drop
-      TRUE ~ FALSE
+detainers_df[,
+  duplicate_episode_id := {
+    gap <- as.numeric(
+      prepare_date - shift(prepare_date, type = "lag"),
+      units = "hours"
     )
-  ) |>
-  select(
-    -within_24hrs_prior,
-    -within_24hrs_next,
-    -hours_since_last,
-    -hours_until_next
-  )
+    cumsum(is.na(gap) | gap > 24)
+  },
+  by = unique_identifier_nona
+]
+
+detainers_df[, unique_identifier_nona := NULL]
+
+detainers_df <- as_tibble(detainers_df)
 
 detainers_df |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   if_has("unique_identifier", \(d) col_vals_not_null(d, unique_identifier,
     actions = action_levels(warn_at = 0.85, stop_at = 0.95))) |>
   if_has("prepare_date", \(d) col_vals_not_null(d, prepare_date,
@@ -488,9 +476,6 @@ detainers_df |>
   if_has("final_order_yes_no", \(d) col_vals_in_set(d, final_order_yes_no,
     c("YES", "NO", NA),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001))) |>
-  if_has(c("duplicate_likely", "unique_identifier"), \(d) col_vals_not_null(d, duplicate_likely,
-    preconditions = \(x) dplyr::filter(x, !is.na(unique_identifier)),
-    actions = action_levels(warn_at = 0.001, stop_at = 0.01))) |>
   invisible()
 
 save_historical_outputs(detainers_df, "detainers-historical")

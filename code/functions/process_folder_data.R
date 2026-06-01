@@ -1,5 +1,3 @@
-
-
 library(readxl)
 library(dplyr)
 library(purrr)
@@ -10,7 +8,12 @@ library(stringr)
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 
-find_first_non_na_row <- function(file_path, sheet, anchor_idx, guess_max = 10000) {
+find_first_non_na_row <- function(
+  file_path,
+  sheet,
+  anchor_idx,
+  guess_max = 10000
+) {
   raw_df <- read_excel(
     path = file_path,
     sheet = sheet,
@@ -34,8 +37,13 @@ find_first_non_na_row <- function(file_path, sheet, anchor_idx, guess_max = 1000
 
 all_text <- function(cols) setNames(rep("text", length(cols)), cols)
 
-process_sheet <- function(file_path, sheet, anchor_idx, col_type_overrides,
-                          guess_max = 10000) {
+process_sheet <- function(
+  file_path,
+  sheet,
+  anchor_idx,
+  col_type_overrides,
+  guess_max = 10000
+) {
   first_non_na_row <- find_first_non_na_row(
     file_path = file_path,
     sheet = sheet,
@@ -54,7 +62,8 @@ process_sheet <- function(file_path, sheet, anchor_idx, col_type_overrides,
     col_names = FALSE
   )
 
-  cleaned_names <- header_df |>
+  cleaned_names <-
+    header_df |>
     slice(1) |>
     unlist(use.names = FALSE) |>
     as.character() |>
@@ -65,7 +74,9 @@ process_sheet <- function(file_path, sheet, anchor_idx, col_type_overrides,
   if (length(missing) > 0) {
     stop(sprintf(
       "process_sheet: %s :: %s has columns not covered by col_type_overrides: %s",
-      basename(file_path), sheet, paste(missing, collapse = ", ")
+      basename(file_path),
+      sheet,
+      paste(missing, collapse = ", ")
     ))
   }
 
@@ -86,4 +97,3 @@ process_sheet <- function(file_path, sheet, anchor_idx, col_type_overrides,
     select(all_of(seq_len(n_keep))) |>
     set_names(cleaned_names[seq_len(n_keep)])
 }
-

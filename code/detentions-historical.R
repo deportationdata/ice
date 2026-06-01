@@ -5,11 +5,14 @@
 # | df5 | uwchr                       | 2014-10-12 .. 2023-12-30 | use     | mid-window coverage                   |
 # | df4 | March 2026 Release          | >= 2023-12-31            | use     | most recent release                   |
 # | df7 | From-Emily-FOIA-10-2554-527 | (whole)                  | use     | merged with df6 to fill gaps          |
-# | df1 | 2019-ICFO-21307             | (whole)                  | exclude | not used downstream                   |
-# | df2 | 2023_ICFO_42034             | (whole)                  | exclude | superseded by March 2026 Release      |
-# | df3 | 2024-ICFO-41855             | (whole)                  | exclude | superseded by March 2026 Release      |
+#
+# At each release boundary, merge_boundary_crossers identifies stints
+# that appear in BOTH adjacent releases (the same physical stint with
+# anonymized IDs that differ across releases). Matched pairs collapse
+# into one row; unmatched boundary-crossers from the newer release are
+# rescued (they would otherwise be silently dropped by a hard book-in
+# trim).
 
-# --- Packages ---
 library(readxl)
 library(readr)
 library(dplyr)
@@ -25,68 +28,23 @@ library(tidylog)
 library(pointblank)
 library(haven)
 
-# --- Source Functions ---
-source("code/functions/process_folder_data_v2.R")
+source("code/functions/process_folder_data.R")
+source("code/functions/convert_temporal_columns.R")
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 source("code/functions/safe_bind_rows.R")
 source("code/functions/save_historical_outputs.R")
 source("code/functions/coalesce_rename.R")
+source("code/functions/merge_boundary_crossers.R")
 
-col_type_overrides_march2026_detentions <- c(
-  Stay_Book_In_Date_Time          = "date",
-  Book_In_Date_Time               = "date",
-  Detention_Facility              = "text",
-  Book_Out_Date_Time              = "date",
-  Stay_Book_Out_Date_Time         = "date",
-  Detention_Release_Reason        = "text",
-  Stay_Book_Out_Date              = "date",
-  Stay_Release_Reason             = "text",
-  Religion                        = "text",
-  Gender                          = "text",
-  Marital_Status                  = "text",
-  Ethnicity                       = "text",
-  Birth_Country                   = "text",
-  Citizenship_Country             = "text",
-  Entry_Status                    = "text",
-  Known_Terrorist_Yes_No          = "text",
-  Suspected_Gang_Yes_No           = "text",
-  MSC_Charge                      = "text",
-  MSC_Sentence_Days               = "numeric",
-  MSC_Sentence_Months             = "numeric",
-  MSC_Sentence_Years              = "numeric",
-  MSC_Charge_Code                 = "text",
-  Aggravated_Felon_Yes_No         = "text",
-  Offense_INA_236C_Yes_No         = "text",
-  Case_INA_236C_Yes_No            = "text",
-  Bond_Posted_Date                = "date",
-  Bond_Posted_Amount              = "numeric",
-  Case_Status                     = "text",
-  Case_Category                   = "text",
-  Final_Order_Yes_No              = "text",
-  Final_Order_Date                = "date",
-  Case_Threat_Level               = "text",
-  Detainee_Classification         = "text",
-  Final_Charge                    = "text",
-  Departed_Date                   = "date",
-  Departure_Country               = "text",
-  Initial_Bond_Set_Amount         = "numeric",
-  Initial_Bond_Set_Date           = "date",
-  Detention_Facility_Code         = "text",
-  Birth_Date                      = "text",
-  Birth_Year                      = "numeric",
-  Book_In_Criminality             = "text",
-  Race                            = "text",
-  Entry_Date                      = "date",
-  Apprehension_Final_Program      = "text",
-  MSC_Charge_Date                 = "date",
-  MSC_Conviction_Date             = "date",
-  MSC_Criminal_Charge_Status      = "text",
-  MSC_Criminal_Charge_Status_Code = "text",
-  MSC_Crime_Class                 = "text",
-  Book_In_Site                    = "text",
-  Book_In_AOR                     = "text",
-  Anonymized_Identifier           = "text"
+col_types_march2026_detentions <- c(
+  "date", "date", "text", "date", "date", "text", "date", "text",
+  "text", "text", "text", "text", "text", "text", "text", "text",
+  "text", "text", "numeric", "numeric", "numeric", "text", "text",
+  "text", "text", "date", "numeric", "text", "text", "text", "date",
+  "text", "text", "text", "date", "text", "numeric", "date", "text",
+  "text", "numeric", "text", "text", "date", "text", "date", "date",
+  "text", "text", "text", "text", "text", "text"
 )
 
 df4 <- list.files(
@@ -98,59 +56,19 @@ df4 <- list.files(
   set_names(\(p) file.path(basename(dirname(p)), basename(p))) |>
   map_dfr(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
-      \(sh) process_sheet(
-        file_path = fp,
-        sheet = sh,
-        anchor_idx = 2,
-        guess_max = 10000,
-        col_type_overrides = col_type_overrides_march2026_detentions
-      ),
+      \(sh) read_excel(fp, sheet = sh, col_types = col_types_march2026_detentions, skip = 6),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
+  rename_with(\(nms) nms |> str_replace_all("\\s+", "_") |> make_clean_names(case = "none")) |>
   mutate(
-    row_original = as.integer(row_number()),
+    row_original = as.integer(row_number() + 6 + 1),
     .by = c("file_original", "sheet_original")
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
-
-col_type_overrides_uwchr_detentions <- c(
-  Stay_Book_In_Date_Time                                = "date",
-  Detention_Book_In_Date_And_Time                       = "date",
-  Detention_Book_Out_Date_Time                          = "date",
-  Stay_Book_Out_Date_Time                               = "date",
-  Birth_Country_PER                                     = "text",
-  Birth_Country_ERO                                     = "text",
-  Citizenship_Country                                   = "text",
-  Race                                                  = "text",
-  Ethnic                                                = "text",
-  Gender                                                = "text",
-  Birth_Date                                            = "text",
-  Birth_Year                                            = "numeric",
-  Entry_Date                                            = "date",
-  Entry_Status                                          = "text",
-  Most_Serious_Conviction_MSC_Criminal_Charge_Category  = "text",
-  MSC_Charge                                            = "text",
-  MSC_Charge_Code                                       = "text",
-  MSC_Conviction_Date                                   = "date",
-  MSC_Sentence_Days                                     = "numeric",
-  MSC_Sentence_Months                                   = "numeric",
-  MSC_Sentence_Years                                    = "numeric",
-  MSC_Crime_Class                                       = "text",
-  Case_Threat_Level                                     = "text",
-  Apprehension_Threat_Level                             = "text",
-  Final_Program                                         = "text",
-  Detention_Facility_Code                               = "text",
-  Detention_Facility                                    = "text",
-  Area_of_Responsibility                                = "text",
-  Docket_Control_Office                                 = "text",
-  Detention_Release_Reason                              = "text",
-  Stay_Release_Reason                                   = "text",
-  Alien_File_Number                                     = "text",
-  Anonymized_Identifier                                 = "text"
-)
+  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date)) |>
+  mutate(across(ends_with("_Date"), as.Date))
 
 df5 <- list.files(
     path = "inputs/detentions/uwchr",
@@ -163,35 +81,35 @@ df5 <- list.files(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
       \(sh) process_sheet(
         file_path = fp, sheet = sh, anchor_idx = 2,
-        col_type_overrides = col_type_overrides_uwchr_detentions
+        col_type_overrides = all_text(c(
+          "Stay_Book_In_Date_Time", "Detention_Book_In_Date_And_Time",
+          "Detention_Book_Out_Date_Time", "Stay_Book_Out_Date_Time",
+          "Birth_Country_PER", "Birth_Country_ERO", "Citizenship_Country", "Race",
+          "Ethnic", "Gender", "Birth_Date", "Birth_Year", "Entry_Date", "Entry_Status",
+          "Most_Serious_Conviction_MSC_Criminal_Charge_Category",
+          "MSC_Charge", "MSC_Charge_Code", "MSC_Conviction_Date",
+          "MSC_Sentence_Days", "MSC_Sentence_Months", "MSC_Sentence_Years",
+          "MSC_Crime_Class", "Case_Threat_Level", "Apprehension_Threat_Level",
+          "Final_Program", "Detention_Facility_Code", "Detention_Facility",
+          "Area_of_Responsibility", "Docket_Control_Office", "Detention_Release_Reason",
+          "Stay_Release_Reason", "Alien_File_Number", "Anonymized_Identifier",
+          "Citizenship_Country_Code", "Gender_Code",
+          "History_Intake_DCO", "History_Detention_Facility",
+          "History_Detention_Facility_Code", "Initial_Intake_Date",
+          "History_Intake_Date", "History_Book_out_Date", "History_Release_Reason",
+          "ERO_Apprehension_Date", "ERO_Apprehension_Landmark",
+          "Initial_Intake_Detention_Facility", "Order_of_Detentions",
+          "Unique_Person_ID", "Unique_Detention_Stay_ID"
+        ))
       ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
+  convert_df_temporal_columns() |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
-
-col_type_overrides_emily_rif_detentions <- c(
-  Citizenship_Country               = "text",
-  Citizenship_Country_Code          = "text",
-  Gender                            = "text",
-  Gender_Code                       = "text",
-  History_Intake_DCO                = "text",
-  History_Detention_Facility        = "text",
-  History_Detention_Facility_Code   = "text",
-  Initial_Intake_Date               = "date",
-  History_Intake_Date               = "date",
-  History_Book_out_Date             = "date",
-  History_Release_Reason            = "text",
-  ERO_Apprehension_Date             = "date",
-  ERO_Apprehension_Landmark         = "text",
-  Initial_Intake_Detention_Facility = "text",
-  Order_of_Detentions               = "text",
-  Unique_Person_ID                  = "text",
-  Unique_Detention_Stay_ID          = "text"
-)
+  mutate(across(ends_with("_Date"), as.Date))
 
 df6 <- list.files(
     path = "inputs/detentions/From-Emily-Excel-X-RIF",
@@ -204,15 +122,35 @@ df6 <- list.files(
     \(fp) excel_sheets(fp) |> set_names() |> map_dfr(
       \(sh) process_sheet(
         file_path = fp, sheet = sh, anchor_idx = 2,
-        col_type_overrides = col_type_overrides_emily_rif_detentions
+        col_type_overrides = all_text(c(
+          "Stay_Book_In_Date_Time", "Detention_Book_In_Date_And_Time",
+          "Detention_Book_Out_Date_Time", "Stay_Book_Out_Date_Time",
+          "Birth_Country_PER", "Birth_Country_ERO", "Citizenship_Country", "Race",
+          "Ethnic", "Gender", "Birth_Date", "Birth_Year", "Entry_Date", "Entry_Status",
+          "Most_Serious_Conviction_MSC_Criminal_Charge_Category",
+          "MSC_Charge", "MSC_Charge_Code", "MSC_Conviction_Date",
+          "MSC_Sentence_Days", "MSC_Sentence_Months", "MSC_Sentence_Years",
+          "MSC_Crime_Class", "Case_Threat_Level", "Apprehension_Threat_Level",
+          "Final_Program", "Detention_Facility_Code", "Detention_Facility",
+          "Area_of_Responsibility", "Docket_Control_Office", "Detention_Release_Reason",
+          "Stay_Release_Reason", "Alien_File_Number", "Anonymized_Identifier",
+          "Citizenship_Country_Code", "Gender_Code",
+          "History_Intake_DCO", "History_Detention_Facility",
+          "History_Detention_Facility_Code", "Initial_Intake_Date",
+          "History_Intake_Date", "History_Book_out_Date", "History_Release_Reason",
+          "ERO_Apprehension_Date", "ERO_Apprehension_Landmark",
+          "Initial_Intake_Detention_Facility", "Order_of_Detentions",
+          "Unique_Person_ID", "Unique_Detention_Stay_ID"
+        ))
       ),
       .id = "sheet_original"
     ),
     .id = "file_original"
   ) |>
   mutate(row_original = as.integer(row_number()), .by = c("file_original", "sheet_original")) |>
+  convert_df_temporal_columns() |>
   select(where(is_not_blank_or_redacted)) |>
-  mutate(across(where(~ inherits(.x, "POSIXt")), check_dttm_and_convert_to_date))
+  mutate(across(ends_with("_Date"), as.Date))
 
 df7_path <- "inputs/detentions/From-Emily-FOIA-10-2554-527/foia_10_2554_527_NoIDS.csv"
 df7 <- read_csv(df7_path) |>
@@ -225,14 +163,11 @@ df7 <- read_csv(df7_path) |>
   ) |>
   mutate(across(ends_with("_Date"), ~ as.Date(mdy_hm(.x))))
 
-df6_trimmed <- df6 |>
-  filter(History_Intake_Date > as.Date("2010-05-23") + 7 & History_Intake_Date < as.Date("2014-10-12"))
-df5_trimmed <- df5 |>
-  filter(Detention_Book_In_Date_And_Time >= as.Date("2014-10-12") & Detention_Book_In_Date_And_Time < as.Date("2023-12-31"))
-df4_trimmed <- df4 |>
-  filter(Book_In_Date_Time >= as.Date("2023-12-31"))
+# --- Harmonize column names so older + newer share matching keys ---
 
-df67 <- df6_trimmed |>
+df67 <- df6 |>
+  filter(History_Intake_Date > as.Date("2010-05-23") + 7) |>
+  rename(any_of(c(Unique_Identifier = "Anonymized_Identifier"))) |>
   rename(
     Detention_Facility = History_Detention_Facility,
     Detention_Facility_Code = History_Detention_Facility_Code,
@@ -245,37 +180,96 @@ df67 <- df6_trimmed |>
     Facility_Held_In_Seq = Order_of_Detentions,
     Book_In_DCO = History_Intake_DCO
   ) |>
+  mutate(Stay_Book_In_Date = as.Date(Initial_Intake_Date)) |>
   safe_bind_rows(
     df7 |> rename(
       Detention_Book_In_Date = Book_In_Date,
       Detention_Book_Out_Date = Book_Out_Date,
       Book_In_DCO = Book_In_Dco
     )
-  )
+  ) |>
+  rename(Detention_Release_Reason = Release_Reason)
 
-df45 <- df4_trimmed |>
+df5_renamed <- df5 |>
+  coalesce_rename("Ethnicity", "Ethnic") |>
+  coalesce_rename("Most_Serious_Conviction_Charge_Code", "MSC_Charge_Code") |>
+  coalesce_rename("Unique_Identifier", "Anonymized_Identifier") |>
+  mutate(
+    Detention_Book_In_Date = as.Date(Detention_Book_In_Date_And_Time),
+    Detention_Book_Out_Date = as.Date(Detention_Book_Out_Date_Time),
+    Stay_Book_In_Date = as.Date(Stay_Book_In_Date_Time),
+    Birth_Country = coalesce(Birth_Country_ERO, Birth_Country_PER)
+  ) |>
+  select(-Birth_Country_ERO, -Birth_Country_PER) |>
+  rename(Book_In_DCO = Docket_Control_Office)
+
+df4_renamed <- df4 |>
+  rename(any_of(c(Unique_Identifier = "Anonymized_Identifier"))) |>
   coalesce_rename("Detention_Book_In_Date_And_Time", "Book_In_Date_Time") |>
+  coalesce_rename("Detention_Book_Out_Date_Time", "Book_Out_Date_Time") |>
   coalesce_rename("Most_Serious_Conviction_Charge_Code", "Most_Serious_Conviction_MSC_Charge_Code") |>
   coalesce_rename("Most_Serious_Conviction_Charge_Code", "MSC_Charge_Code") |>
-  safe_bind_rows(
-    df5_trimmed |>
-      coalesce_rename("Ethnicity", "Ethnic") |>
-      coalesce_rename("Most_Serious_Conviction_Charge_Code", "MSC_Charge_Code") |>
-      coalesce_rename("Unique_Identifier", "Anonymized_Identifier")
-  ) |>
-  mutate(Detention_Book_In_Date = as.Date(Detention_Book_In_Date_And_Time),
-         Detention_Book_Out_Date = as.Date(Detention_Book_Out_Date_Time),
-         Birth_Country = coalesce(Birth_Country_ERO, Birth_Country_PER)) |>
-  select(-Birth_Country_ERO, -Birth_Country_PER)
+  mutate(
+    Detention_Book_In_Date = as.Date(Detention_Book_In_Date_And_Time),
+    Detention_Book_Out_Date = as.Date(Detention_Book_Out_Date_Time),
+    Stay_Book_In_Date = as.Date(Stay_Book_In_Date_Time)
+  )
 
-rm(df4, df5, df6, df7, df4_trimmed, df5_trimmed, df6_trimmed)
-gc()
+rm(df4, df5, df6, df7); gc()
 
-detentions_df <- df67 |>
-  rename(Detention_Release_Reason = Release_Reason) |>
-  safe_bind_rows(
-    df45 |> rename(Book_In_DCO = Docket_Control_Office)
-  ) |>
+# --- Merge boundary 1: df67 (older) <-> df5 (newer) at 2014-10-12 ---
+
+merge1 <- merge_boundary_crossers(
+  older = df67,
+  newer = df5_renamed,
+  boundary = as.Date("2014-10-12"),
+  drift_days = 7L,
+  # Stay_Book_In_Date — the date of initial intake for the stay — sharply
+  # disambiguates two people booked into the same facility on the same day
+  # with the same gender/citizenship.
+  extra_match_cols = c("Stay_Book_In_Date"),
+  # When n_o == n_n > 1 at the exact strict key, treat the group as the same
+  # set of stints (anonymization differs between releases so individual
+  # pairing is impossible) — drop older's rows without per-row field
+  # coalesce. Safe: identical strict key guarantees same (bi, bo, fac,
+  # gender, citizenship, stay_bi).
+  block_merge_equal_n = TRUE,
+  label = "df67<->df5 @ 2014-10-12"
+)
+
+df67_kept <- merge1$older
+df5_after <- merge1$newer
+
+rm(df67, df5_renamed, merge1); gc()
+
+# --- Merge boundary 2: df5_after (older) <-> df4 (newer) at 2023-12-31 ---
+
+# df5_after may contain rows with bi >= 2023-12-31 too (uwchr file FY2024 etc.)
+# The helper drops older rows with bi >= boundary, consistent with the
+# original "df5_trimmed < 2023-12-31" cutoff.
+
+merge2 <- merge_boundary_crossers(
+  older = df5_after,
+  newer = df4_renamed,
+  boundary = as.Date("2023-12-31"),
+  drift_days = 7L,
+  # df5 and df4 both carry Birth_Year and Stay_Book_In_Date — both add
+  # disambiguation on top of (bi, bo, fac, gender, citizen).
+  extra_match_cols = c("Birth_Year", "Stay_Book_In_Date"),
+  block_merge_equal_n = TRUE,
+  label = "df5<->df4 @ 2023-12-31"
+)
+
+df5_kept <- merge2$older
+df4_kept <- merge2$newer
+
+rm(df5_after, df4_renamed, merge2); gc()
+
+# --- Combine into final dataset ---
+
+detentions_df <- df67_kept |>
+  safe_bind_rows(df5_kept) |>
+  safe_bind_rows(df4_kept) |>
   janitor::clean_names(allow_dupes = FALSE) |>
   rename(
     most_serious_conviction_charge = msc_charge,
@@ -287,21 +281,16 @@ detentions_df <- df67 |>
     most_serious_conviction_crime_class = msc_crime_class
   ) |>
   select(where(is_not_blank_or_redacted)) |>
-  redact_to_na() |>
+  make_redactions_na() |>
   mutate(across(any_of("birth_year"), as.integer)) |>
   mutate(stay_ID = str_c(unique_identifier, "_", stay_book_in_date_time)) |>
   mutate(
     stint_ID = str_c(
-      unique_identifier,
-      "_",
-      detention_book_in_date,
-      "_",
-      detention_facility_code
+      unique_identifier, "_", detention_book_in_date, "_", detention_facility_code
     )
   )
 
-rm(df45, df67)
-gc()
+rm(df67_kept, df5_kept, df4_kept); gc()
 
 detentions_df <- as.data.table(detentions_df)
 
@@ -364,6 +353,10 @@ detentions_df[,
 
 detentions_df |>
   as_tibble() |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   col_vals_not_null(
     unique_identifier,
     actions = action_levels(warn_at = 0.70, stop_at = 0.85)

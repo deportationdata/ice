@@ -154,6 +154,7 @@ detainers_df <-
     birth_year = as.integer(birth_year)
   ) |>
   mutate(
+    # TODO: wrong
     duplicate_likely = if_else(!is.na(anonymized_identifier), n() > 1, NA),
     .by = c("detainer_prepare_date", "anonymized_identifier")
   ) |>
@@ -193,6 +194,10 @@ detainers_df |>
 # ---- Pointblank Validation ----
 
 detainers_df |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   # -- Primary key / identifier checks --
   col_vals_not_null(
     anonymized_identifier,

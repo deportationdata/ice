@@ -142,6 +142,10 @@ removals_df |>
 # ---- Pointblank Validation ----
 
 removals_df |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   # -- Primary key / identifier checks --
   col_vals_not_null(
     anonymized_identifier,
