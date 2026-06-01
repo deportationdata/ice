@@ -5,17 +5,23 @@ library(pointblank)
 
 # ---- Functions ----
 source("code/functions/save_historical_outputs.R")
+source("code/functions/is_not_blank_or_redacted.R")
 
 # ---- Read in source data ----
 detention_stays <- arrow::read_parquet("data/detention-stays-latest.parquet")
 arrests <- arrow::read_parquet("data/arrests-latest.parquet")
 removals <- arrow::read_parquet("data/removals-historical.parquet")
 
-
 # ---- Check: source data ----
 detention_stays |>
   col_exists(
-    c(stay_ID, unique_identifier, stay_book_in_date_time, stay_book_out_date_time, final_program)
+    c(
+      stay_ID,
+      unique_identifier,
+      stay_book_in_date_time,
+      stay_book_out_date_time,
+      final_program
+    )
   ) |>
   rows_distinct(
     stay_ID,
@@ -76,15 +82,12 @@ detention_arrest_join <-
             apprehension_date_time,
             lag(apprehension_date_time),
             units = "hours"
-          ) > 24,
+          ) >
+            24,
         episode_id = cumsum(new_episode),
         .by = "unique_identifier"
       ) |>
       filter(row_number() == 1, .by = c("unique_identifier", "episode_id")) |>
-      filter(
-        row_number() == 1,
-        .by = c("unique_identifier", "episode_id", "apprehension_date_time")
-      ) |>
       select(-new_episode, -episode_id) |>
       select(
         unique_identifier,
@@ -249,6 +252,10 @@ stopifnot(nrow(detentions_with_arrests) == n_stays_pre)
 
 # ---- Final pointblank validation ----
 detentions_with_arrests |>
+  col_vals_expr(
+    expr = expr(!if_any(where(is.character), is_redacted)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
   rows_distinct(
     stay_ID,
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
@@ -283,18 +290,18 @@ detentions_with_arrests |>
   col_vals_expr(
     expr(
       has_arrest == 0L |
-        (
+        (as.numeric(difftime(
+          stay_book_in_date_time,
+          apprehension_date_time_arrest,
+          units = "hours"
+        )) >=
+          -120 &
           as.numeric(difftime(
             stay_book_in_date_time,
             apprehension_date_time_arrest,
             units = "hours"
-          )) >= -120 &
-            as.numeric(difftime(
-              stay_book_in_date_time,
-              apprehension_date_time_arrest,
-              units = "hours"
-            )) <= 240
-        )
+          )) <=
+            240)
     ),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
@@ -306,18 +313,18 @@ detentions_with_arrests |>
     expr(
       has_removal == 0L |
         is.na(stay_book_out_date_time) |
-        (
+        (as.numeric(difftime(
+          departed_date_removal,
+          stay_book_out_date_time,
+          units = "days"
+        )) >=
+          -5 &
           as.numeric(difftime(
             departed_date_removal,
             stay_book_out_date_time,
             units = "days"
-          )) >= -5 &
-            as.numeric(difftime(
-              departed_date_removal,
-              stay_book_out_date_time,
-              units = "days"
-            )) <= 10
-        )
+          )) <=
+            10)
     ),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
