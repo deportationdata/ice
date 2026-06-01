@@ -52,3 +52,5 @@ code/archive/**
 
 **/.DS_Store
 
+# Intermediate / regenerable caches (rebuild via the relevant build script)
+data/cache/
