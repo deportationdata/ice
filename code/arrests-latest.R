@@ -7,10 +7,7 @@ library(pointblank)
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 
-# ---- Read in to temporary file ----
-# url <- "https://ucla.box.com/shared/static/tvdx5ulcg4hj3ul91qhggs3yxcdjdcib.xlsx"
-# f <- tempfile(fileext = ".xlsx")
-# download.file(url, f, mode = "wb")
+# ---- Read in files ----
 
 col_types <- c(
   "date", # Apprehension Date
@@ -77,7 +74,6 @@ arrests_df |>
   ) |>
   invisible()
 
-
 arrests_df <-
   arrests_df |>
   # clean names
@@ -126,48 +122,64 @@ arrests_df |>
   invisible()
 
 
-# ---- Construct Duplicates Indicator ----
-# two (or more) arrests within 24 hours of each other
-
+# ---- Construct Duplicate Episode Indicators ----
 library(data.table)
 setDT(arrests_df)
-setorder(arrests_df, apprehension_date_time)
+
+arrests_df[,
+  anonymized_identifier_nona := fifelse(
+    is.na(anonymized_identifier),
+    paste0("noid_", .I),
+    anonymized_identifier
+  )
+]
+
+setorder(
+  arrests_df,
+  anonymized_identifier_nona,
+  apprehension_date_time,
+  file_original,
+  sheet_original,
+  row_original
+)
+
+arrests_df[,
+  duplicate_episode_identifier := {
+    gap <- as.numeric(
+      apprehension_date_time - shift(apprehension_date_time, type = "lag"),
+      units = "hours"
+    )
+    cumsum(is.na(gap) | gap > 24)
+  },
+  by = anonymized_identifier_nona
+]
 
 arrests_df[,
   `:=`(
-    hours_since_last = as.numeric(
-      apprehension_date_time - shift(apprehension_date_time, type = "lag"),
-      units = "hours"
-    ),
-    hours_until_next = as.numeric(
-      shift(apprehension_date_time, type = "lead") - apprehension_date_time,
-      units = "hours"
+    duplicate_episode_first = seq_len(.N) == 1L,
+    duplicate_likely = fifelse(
+      is.na(anonymized_identifier),
+      as.logical(NA),
+      .N > 1L
     )
   ),
-  by = anonymized_identifier
+  by = .(anonymized_identifier_nona, duplicate_episode_identifier)
 ]
+
+arrests_df[, anonymized_identifier_nona := NULL]
 
 arrests_df <-
   arrests_df |>
   as_tibble() |>
-  mutate(
-    within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
-    within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
-    duplicate_likely = case_when(
-      !is.na(anonymized_identifier) ~ within_24hrs_prior | within_24hrs_next
-    ),
-  ) |>
-  select(
-    -within_24hrs_prior,
-    -within_24hrs_next,
-    -hours_since_last,
-    -hours_until_next
-  ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Check: duplicates ----
 arrests_df |>
-  col_exists(duplicate_likely) |>
+  col_exists(c(
+    duplicate_likely,
+    duplicate_episode_identifier,
+    duplicate_episode_first
+  )) |>
   col_vals_in_set(
     duplicate_likely,
     c(TRUE, FALSE, NA),
@@ -311,15 +323,12 @@ arrests_df |>
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
-  # -- duplicate_likely should not be null for rows with anonymized_identifier --
-  col_vals_not_null(
-    duplicate_likely,
-    preconditions = \(x) dplyr::filter(x, !is.na(anonymized_identifier)),
+  # -- duplicate_likely should not be null when anonymized_identifier is present --
+  col_vals_expr(
+    expr(is.na(anonymized_identifier) | !is.na(duplicate_likely)),
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   invisible()
-
-
 
 # ---- Rename to match Oct 2025 release ----
 arrests_df <-
@@ -333,7 +342,6 @@ arrests_df <-
 
 
 # ---- Save Outputs ----
-
 arrow::write_parquet(
   arrests_df,
   "data/arrests-latest.parquet",

@@ -6,14 +6,14 @@ library(pointblank)
 
 # ---- Input data ---
 facilities_df <- arrow::read_parquet(
-  "https://media.githubusercontent.com/media/deportationdata/ice-detention-facilities/main/data/facilities-latest.parquet"
+  "https://github.com/deportationdata/ice-detention-facilities/raw/refs/heads/main/data/facilities-latest.parquet"
 ) |>
   select(-field_office) |>
   distinct(detention_facility_code, .keep_all = TRUE)
 
 # ---- Set random seed ----
 # some sort operations involve random sampling to break ties
-# this affects ~= 2 rows
+# this affects ~2 rows
 set.seed(42)
 
 # ---- Functions ----
@@ -269,9 +269,7 @@ detentions_df |>
   ) |>
   invisible()
 
-
 # ---- Create stay-level dataset ----
-
 detentions_df[, first_stay := .I == .I[1], by = stay_ID]
 detentions_df[, last_stay := .I == .I[.N], by = stay_ID]
 detentions_df[,
@@ -414,7 +412,6 @@ detention_stays_df |>
 
 
 # ---- Pointblank Validation ----
-
 detention_stays_df |>
   # -- Primary key: stay_ID should be unique and non-null --
   col_vals_not_null(
@@ -637,7 +634,6 @@ detention_stays_df |>
   ) |>
   invisible()
 
-
 # ---- Rename to match Oct 2025 release ----
 detention_stays_df <-
   detention_stays_df |>
@@ -647,7 +643,6 @@ detention_stays_df <-
     most_serious_conviction_code = msc_charge_code,
     unique_identifier = anonymized_identifier
   )
-
 
 # ---- Merge in facility info (city, state, county) for first/longest/last ----
 n_before_facility_join <- nrow(detention_stays_df)
@@ -676,14 +671,11 @@ detention_stays_df <-
   )
 stopifnot(nrow(detention_stays_df) == n_before_facility_join)
 
-
 # ---- Sort by stay book-in date ----
 detention_stays_df <- detention_stays_df |>
   arrange(stay_book_in_date_time)
 
-
 # ---- Save Outputs ----
-
 arrow::write_parquet(
   detention_stays_df,
   "data/detention-stays-latest.parquet",
