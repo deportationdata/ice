@@ -74,6 +74,27 @@ arrests_df |>
   ) |>
   invisible()
 
+us_abb <- c(
+  state.abb,
+  "DC",
+  "PR",
+  "GU",
+  "VI",
+  "MP",
+  "AS",
+  "FM"
+)
+us_name_upper <- str_to_upper(c(
+  state.name,
+  "District of Columbia",
+  "Puerto Rico",
+  "Guam",
+  "Virgin Islands",
+  "Northern Mariana Islands",
+  "American Samoa",
+  "Federated States of Micronesia"
+))
+
 arrests_df <-
   arrests_df |>
   # clean names
@@ -97,8 +118,42 @@ arrests_df <-
     apprehension_date_time = apprehension_date,
     apprehension_date = as.Date(apprehension_date_time),
     # convert birth year to integer
-    birth_year = as.integer(birth_year)
+    birth_year = as.integer(birth_year),
+    # construct filled-in state
+    apprehension_state_imputed = coalesce(
+      state,
+      # first try extracting state abbr from landmark
+      str_extract(
+        toa_current_duty_site |> str_to_upper(),
+        str_c("\\b(", str_c(us_abb, collapse = "|"), ")\\b")
+      ) |>
+        (\(x) us_name_upper[match(x, us_abb)])(),
+      # if not that, try extracting state name from landmark
+      str_extract(
+        toa_current_duty_site |> str_to_upper(),
+        str_c("\\b(", str_c(us_name_upper, collapse = "|"), ")\\b")
+      )
+    )
   )
+
+# ---- Check: state imputation ----
+arrests_df |>
+  col_vals_expr(
+    expr(is.na(state) | state == apprehension_state_imputed),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
+  specially(
+    fn = ~ sum(!is.na(.$apprehension_state_imputed)) > sum(!is.na(.$state)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
+  specially(
+    fn = ~ setequal(
+      na.omit(unique(.$apprehension_state_imputed)),
+      na.omit(unique(.$state))
+    ),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
+  invisible()
 
 # ---- Check: clean ----
 arrests_df |>
@@ -127,10 +182,13 @@ library(data.table)
 setDT(arrests_df)
 
 arrests_df[,
-  anonymized_identifier_nona := fifelse(
-    is.na(anonymized_identifier),
-    paste0("noid_", .I),
-    anonymized_identifier
+  `:=`(
+    anonymized_identifier_nona = fifelse(
+      is.na(anonymized_identifier),
+      paste0("noid_", .I),
+      anonymized_identifier
+    ),
+    is_reprocessed = apprehension_method == "ERO Reprocessed Arrest"
   )
 ]
 
@@ -138,9 +196,11 @@ setorder(
   arrests_df,
   anonymized_identifier_nona,
   apprehension_date_time,
+  is_reprocessed,
   file_original,
   sheet_original,
-  row_original
+  row_original,
+  na.last = TRUE
 )
 
 arrests_df[,
@@ -166,7 +226,7 @@ arrests_df[,
   by = .(anonymized_identifier_nona, duplicate_episode_identifier)
 ]
 
-arrests_df[, anonymized_identifier_nona := NULL]
+arrests_df[, c("anonymized_identifier_nona", "is_reprocessed") := NULL]
 
 arrests_df <-
   arrests_df |>
@@ -186,7 +246,6 @@ arrests_df |>
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   invisible()
-
 
 # ---- Pointblank Validation ----
 
@@ -339,7 +398,6 @@ arrests_df <-
     final_program = apprehension_final_program,
     unique_identifier = anonymized_identifier
   )
-
 
 # ---- Save Outputs ----
 arrow::write_parquet(

@@ -410,7 +410,6 @@ detention_stays_df |>
   ) |>
   invisible()
 
-
 # ---- Pointblank Validation ----
 detention_stays_df |>
   # -- Primary key: stay_ID should be unique and non-null --
