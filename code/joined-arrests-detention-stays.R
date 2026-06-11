@@ -63,7 +63,8 @@ arrests_deduped <-
   select(
     -duplicate_episode_identifier,
     -duplicate_episode_first,
-    -duplicate_likely
+    -duplicate_likely,
+    -apprehension_state
   ) |>
   mutate(arrest_ID = row_number()) |>
   rename_with(~ str_c(.x, "_arrest"), -c(arrest_ID, unique_identifier))
@@ -86,7 +87,7 @@ stay_arrest_pairs <-
       units = "hours"
     ))
   ) |>
-  # keep arrests 5 days before to 10 days after the stay_book_in_date_time
+  # keep arrests 10 days before to 5 days after the stay_book_in_date_time
   filter(time_diff <= 24 * 10, time_diff >= 24 * -5) |>
   # then keep the closest arrest per stay and the closest stay per arrest
   slice_min(
@@ -162,11 +163,15 @@ arrests_with_detentions <-
     ~ if_else(has_detention_stay, .x, get(str_c(cur_column(), "_arrest")))
   )) |>
   select(-all_of(str_c(shared_vars, "_arrest")), -arrest_ID) |>
-  rename_with(~ str_remove(.x, "_arrest$")) |>
+  rename_with(
+    ~ str_remove(.x, "_arrest$"),
+    -c(file_original_arrest, sheet_original_arrest, row_original_arrest)
+  ) |>
   rename_with(
     ~ str_c("detention_facility_", .x),
     matches("^(city|state|county)_(first|longest|last)$")
-  )
+  ) |>
+  rename(apprehension_state_filled_in = apprehension_state_imputed)
 
 # ---- Final pointblank validation ----
 arrests_with_detentions |>
