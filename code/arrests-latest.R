@@ -120,7 +120,7 @@ arrests_df <-
     # convert birth year to integer
     birth_year = as.integer(birth_year),
     # construct filled-in state
-    apprehension_state_processed = coalesce(
+    apprehension_state_filled_in = coalesce(
       state,
       # first try extracting state abbr from landmark
       str_extract(
@@ -141,16 +141,16 @@ arrests_df <-
 # ---- Check: state imputation ----
 arrests_df |>
   col_vals_expr(
-    expr(is.na(state) | state == apprehension_state_processed),
+    expr(is.na(state) | state == apprehension_state_filled_in),
     actions = action_levels(warn_at = 1L, stop_at = 1L)
   ) |>
   specially(
-    fn = ~ sum(!is.na(.$apprehension_state_processed)) > sum(!is.na(.$state)),
+    fn = ~ sum(!is.na(.$apprehension_state_filled_in)) > sum(!is.na(.$state)),
     actions = action_levels(warn_at = 1L, stop_at = 1L)
   ) |>
   specially(
     fn = ~ setequal(
-      na.omit(unique(.$apprehension_state_processed)),
+      na.omit(unique(.$apprehension_state_filled_in)),
       na.omit(unique(.$state))
     ),
     actions = action_levels(warn_at = 1L, stop_at = 1L)
@@ -395,12 +395,15 @@ arrests_df |>
 arrests_df <-
   arrests_df |>
   rename(
-    apprehension_state_raw = state,
+    apprehension_state_original = state,
     apprehension_aor = toa_current_duty_aor,
     final_program = apprehension_final_program,
     unique_identifier = anonymized_identifier
+  ) |>
+  relocate(
+    apprehension_state_filled_in,
+    .before = apprehension_state_original
   )
-# TODO: reorder our state comes from firs t
 
 # ---- Save Outputs ----
 arrow::write_parquet(

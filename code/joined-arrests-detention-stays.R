@@ -64,7 +64,7 @@ arrests_deduped <-
     -duplicate_episode_identifier,
     -duplicate_episode_first,
     -duplicate_likely,
-    -apprehension_state
+    -apprehension_state_original
   ) |>
   mutate(arrest_ID = row_number()) |>
   rename_with(~ str_c(.x, "_arrest"), -c(arrest_ID, unique_identifier))
@@ -170,8 +170,7 @@ arrests_with_detentions <-
   rename_with(
     ~ str_c("detention_facility_", .x),
     matches("^(city|state|county)_(first|longest|last)$")
-  ) |>
-  rename(apprehension_state_filled_in = apprehension_state_imputed)
+  )
 
 # ---- Final pointblank validation ----
 arrests_with_detentions |>
@@ -235,7 +234,8 @@ if (match_rate_detention < 0.20 || match_rate_detention > 0.95) {
 arrests_with_detentions <-
   arrests_with_detentions |>
   arrange(apprehension_date_time) |>
-  relocate(has_detention_stay, .after = apprehension_state_imputed)
+  relocate(unique_identifier, .before = first_col()) |>
+  relocate(has_detention_stay, .before = 1)
 
 save_outputs(
   arrests_with_detentions,
