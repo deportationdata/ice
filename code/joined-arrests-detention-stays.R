@@ -56,29 +56,21 @@ arrests |>
   ) |>
   invisible()
 
-# ---- Build per-stay arrest candidate ----
-arrests_first_per_episode <-
+# ---- Deduplicate arrests: one per episode ----
+arrests_deduped <-
   arrests |>
-  filter(!is.na(unique_identifier), duplicate_episode_first) |>
-  select(
-    -final_program,
-    -case_status,
-    -case_category,
-    -departure_country,
-    -final_order_yes_no,
-    -birth_year,
-    -citizenship_country,
-    -gender,
-    -departed_date,
-    -final_order_date
-  ) |>
-  rename_with(~ str_c(.x, "_arrest"), -unique_identifier)
+  filter(duplicate_episode_first) |>
+  mutate(arrest_ID = row_number()) |>
+  rename_with(~ str_c(.x, "_arrest"), -c(arrest_ID, unique_identifier))
 
-detention_arrest_join <-
+# ---- Match stays to arrests ----
+stay_arrest_pairs <-
   detention_stays |>
   select(stay_ID, unique_identifier, stay_book_in_date_time) |>
-  left_join(
-    arrests_first_per_episode,
+  inner_join(
+    arrests_deduped |>
+      filter(!is.na(unique_identifier)) |>
+      select(arrest_ID, unique_identifier, apprehension_date_time_arrest),
     by = "unique_identifier",
     relationship = "many-to-many"
   ) |>
@@ -91,19 +83,29 @@ detention_arrest_join <-
   ) |>
   # keep arrests 5 days before to 10 days after the stay_book_in_date_time
   filter(time_diff <= 24 * 10, time_diff >= 24 * -5) |>
-  # then keep the closest one when there are multiple candidates per stay
+  # then keep the closest arrest per stay and the closest stay per arrest
   slice_min(
     order_by = abs(time_diff),
     n = 1,
     with_ties = FALSE,
     by = stay_ID
   ) |>
-  select(-time_diff, -stay_book_in_date_time, -unique_identifier)
+  slice_min(
+    order_by = abs(time_diff),
+    n = 1,
+    with_ties = FALSE,
+    by = arrest_ID
+  ) |>
+  select(stay_ID, arrest_ID)
 
-# ---- Check: arrest candidate ----
-detention_arrest_join |>
+# ---- Check: stay-arrest pairs ----
+stay_arrest_pairs |>
   rows_distinct(
     stay_ID,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  rows_distinct(
+    arrest_ID,
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_not_null(
@@ -111,96 +113,116 @@ detention_arrest_join |>
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   col_vals_not_null(
-    apprehension_date_time_arrest,
+    arrest_ID,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   invisible()
 
-# ---- Merge arrests onto stays ----
-n_stays_pre <- nrow(detention_stays)
+# ---- Merge stays onto arrests ----
+n_arrests_pre <- nrow(arrests_deduped)
 
-detentions_with_arrests <-
-  detention_stays |>
-  select(-departed_date, -departure_country) |>
+arrests_with_detentions <-
+  arrests_deduped |>
   left_join(
-    detention_arrest_join |> mutate(has_arrest = TRUE),
-    by = "stay_ID",
+    detention_stays |>
+      select(-unique_identifier) |>
+      inner_join(stay_arrest_pairs, by = "stay_ID"),
+    by = "arrest_ID",
     relationship = "one-to-one"
   ) |>
-  mutate(
-    has_arrest = if_else(is.na(has_arrest), FALSE, has_arrest)
-  )
+  mutate(has_detention_stay = !is.na(stay_ID))
 
-stopifnot(nrow(detentions_with_arrests) == n_stays_pre)
+stopifnot(nrow(arrests_with_detentions) == n_arrests_pre)
+
+# ---- Fill shared variables from stays if detained, from arrests otherwise ----
+shared_vars <- c(
+  "final_program",
+  "case_status",
+  "case_category",
+  "departure_country",
+  "final_order_yes_no",
+  "birth_year",
+  "citizenship_country",
+  "gender",
+  "departed_date",
+  "final_order_date",
+  "case_threat_level"
+)
+
+arrests_with_detentions <-
+  arrests_with_detentions |>
+  mutate(departed_date_arrest = as_date(departed_date_arrest)) |>
+  mutate(across(
+    all_of(shared_vars),
+    ~ if_else(has_detention_stay, .x, get(str_c(cur_column(), "_arrest")))
+  )) |>
+  select(-all_of(str_c(shared_vars, "_arrest")), -arrest_ID) |>
+  rename_with(~ str_remove(.x, "_arrest$"))
 
 # ---- Final pointblank validation ----
-detentions_with_arrests |>
+arrests_with_detentions |>
   col_vals_expr(
     expr = expr(!if_any(where(is.character), is_redacted)),
     actions = action_levels(warn_at = 1L, stop_at = 1L)
   ) |>
   rows_distinct(
     stay_ID,
+    preconditions = ~ . %>% filter(!is.na(stay_ID)),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_not_null(
-    stay_ID,
+    apprehension_date_time,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   col_vals_in_set(
-    has_arrest,
+    has_detention_stay,
     c(FALSE, TRUE),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_expr(
-    expr(has_arrest == FALSE | !is.na(apprehension_date_time_arrest)),
+    expr(has_detention_stay == FALSE | !is.na(stay_ID)),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_expr(
-    expr(has_arrest == FALSE | !is.na(file_original_arrest)),
+    expr(has_detention_stay == FALSE | !is.na(stay_book_in_date_time)),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_expr(
     expr(
-      has_arrest == FALSE |
+      has_detention_stay == FALSE |
         (as.numeric(difftime(
           stay_book_in_date_time,
-          apprehension_date_time_arrest,
+          apprehension_date_time,
           units = "hours"
         )) >=
           -120 &
           as.numeric(difftime(
             stay_book_in_date_time,
-            apprehension_date_time_arrest,
+            apprehension_date_time,
             units = "hours"
           )) <=
             240)
     ),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
-  col_vals_lte(
-    has_arrest,
-    TRUE,
-    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
-  ) |>
   invisible()
 
 # ---- Reasonableness checks ----
-match_rate_arrest <- mean(detentions_with_arrests$has_arrest == TRUE)
+match_rate_detention <- mean(arrests_with_detentions$has_detention_stay)
 message(sprintf(
-  "Arrest match rate: %.1f%%",
-  100 * match_rate_arrest
+  "Detention stay match rate: %.1f%%",
+  100 * match_rate_detention
 ))
-if (match_rate_arrest < 0.30 || match_rate_arrest > 0.99) {
-  warning("Arrest match rate outside expected band (30%-99%); inspect.")
+if (match_rate_detention < 0.20 || match_rate_detention > 0.95) {
+  warning("Detention match rate outside expected band (20%-95%); inspect.")
 }
 
 # ---- Sort and save ----
-detentions_with_arrests <-
-  detentions_with_arrests |>
-  arrange(stay_book_in_date_time)
+arrests_with_detentions <-
+  arrests_with_detentions |>
+  arrange(apprehension_date_time)
 
 save_outputs(
-  detentions_with_arrests,
+  arrests_with_detentions,
   "joined-arrests-detention-stays"
 )

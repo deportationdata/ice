@@ -216,20 +216,48 @@ setorder(
   msc_charge
 )
 
+detentions_df[
+  !is.na(anonymized_identifier),
+  `:=`(
+    initial_bond_set_amount_lowest_seen = if (all(is.na(initial_bond_set_amount))) {
+      initial_bond_set_amount[NA_integer_]
+    } else {
+      min(initial_bond_set_amount, na.rm = TRUE)
+    },
+    initial_bond_set_date_earliest_seen = if (all(is.na(initial_bond_set_date))) {
+      initial_bond_set_date[NA_integer_]
+    } else {
+      min(initial_bond_set_date, na.rm = TRUE)
+    },
+    bond_posted_amount_lowest_seen = if (all(is.na(bond_posted_amount))) {
+      bond_posted_amount[NA_integer_]
+    } else {
+      min(bond_posted_amount, na.rm = TRUE)
+    },
+    bond_posted_date_earliest_seen = if (all(is.na(bond_posted_date))) {
+      bond_posted_date[NA_integer_]
+    } else {
+      min(bond_posted_date, na.rm = TRUE)
+    }
+  ),
+  by = stint_ID
+]
+
 detentions_df[, row_idx := .I]
 
 stage1 <- copy(detentions_df[!is.na(anonymized_identifier)])
-stage1[,
-  initial_bond_set_amount := min(initial_bond_set_amount, na.rm = TRUE),
-  by = stint_ID
-]
-stage1[
-  is.infinite(initial_bond_set_amount),
-  initial_bond_set_amount := NA_real_
-]
 stage1_dedup_cols <- setdiff(
   names(stage1),
-  c("file_original", "sheet_original", "row_original", "row_idx")
+  c(
+    "file_original",
+    "sheet_original",
+    "row_original",
+    "row_idx",
+    "initial_bond_set_amount",
+    "initial_bond_set_date",
+    "bond_posted_amount",
+    "bond_posted_date"
+  )
 )
 stage1_unique <- unique(stage1, by = stage1_dedup_cols)
 stage1_kept <- stage1_unique$row_idx
@@ -253,6 +281,7 @@ detentions_df[,
 ]
 
 detentions_df[, row_idx := NULL]
+detentions_df[, stint_date := as.Date(book_in_date_time)]
 rm(stage1, stage1_unique, stage2_unique, stage1_kept, stage2_kept)
 
 n_before_facility_join <- nrow(detentions_df)
@@ -273,6 +302,10 @@ detentions_df |>
       likely_duplicate_bond,
       likely_duplicate_sameday,
       keep_row,
+      initial_bond_set_amount_lowest_seen,
+      initial_bond_set_date_earliest_seen,
+      bond_posted_amount_lowest_seen,
+      bond_posted_date_earliest_seen,
       book_out_date_time,
       city,
       state,
@@ -479,6 +512,50 @@ detentions_df |>
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_gte(
+    initial_bond_set_amount_lowest_seen,
+    0,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_gte(
+    bond_posted_amount_lowest_seen,
+    0,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(initial_bond_set_amount_lowest_seen) |
+        is.na(initial_bond_set_amount) |
+        initial_bond_set_amount_lowest_seen <= initial_bond_set_amount
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(initial_bond_set_date_earliest_seen) |
+        is.na(initial_bond_set_date) |
+        initial_bond_set_date_earliest_seen <= initial_bond_set_date
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(bond_posted_amount_lowest_seen) |
+        is.na(bond_posted_amount) |
+        bond_posted_amount_lowest_seen <= bond_posted_amount
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(bond_posted_date_earliest_seen) |
+        is.na(bond_posted_date) |
+        bond_posted_date_earliest_seen <= bond_posted_date
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_gte(
     bond_posted_amount,
     0,
     na_pass = TRUE,
@@ -526,6 +603,11 @@ detentions_df |>
     keep_row,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
+  rows_distinct(
+    vars(anonymized_identifier, detention_facility_code, stint_date, stay_ID),
+    preconditions = \(x) dplyr::filter(x, keep_row == TRUE, !is.na(anonymized_identifier)),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
   invisible()
 
 
@@ -543,6 +625,8 @@ detentions_df <-
 # ---- Sort by book-in date ----
 detentions_df <- detentions_df |>
   arrange(book_in_date_time)
+
+detentions_df$stint_date <- NULL
 
 
 # ---- Save Outputs ----
