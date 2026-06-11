@@ -234,8 +234,26 @@ if (match_rate_detention < 0.20 || match_rate_detention > 0.95) {
 arrests_with_detentions <-
   arrests_with_detentions |>
   arrange(apprehension_date_time) |>
-  relocate(unique_identifier, .before = first_col()) |>
-  relocate(has_detention_stay, .before = 1)
+  relocate(unique_identifier, .before = 1) |>
+  relocate(has_detention_stay, .before = stay_ID) |>
+  relocate(
+    detention_facility_city_first,
+    detention_facility_state_first,
+    detention_facility_county_first,
+    .after = detention_facility_code_first
+  ) |>
+  relocate(
+    detention_facility_city_longest,
+    detention_facility_state_longest,
+    detention_facility_county_longest,
+    .after = detention_facility_code_longest
+  ) |>
+  relocate(
+    detention_facility_city_last,
+    detention_facility_state_last,
+    detention_facility_county_last,
+    .after = detention_facility_code_last
+  )
 
 save_outputs(
   arrests_with_detentions,
