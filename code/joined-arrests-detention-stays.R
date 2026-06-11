@@ -60,6 +60,11 @@ arrests |>
 arrests_deduped <-
   arrests |>
   filter(duplicate_episode_first) |>
+  select(
+    -duplicate_episode_identifier,
+    -duplicate_episode_first,
+    -duplicate_likely
+  ) |>
   mutate(arrest_ID = row_number()) |>
   rename_with(~ str_c(.x, "_arrest"), -c(arrest_ID, unique_identifier))
 
@@ -157,7 +162,11 @@ arrests_with_detentions <-
     ~ if_else(has_detention_stay, .x, get(str_c(cur_column(), "_arrest")))
   )) |>
   select(-all_of(str_c(shared_vars, "_arrest")), -arrest_ID) |>
-  rename_with(~ str_remove(.x, "_arrest$"))
+  rename_with(~ str_remove(.x, "_arrest$")) |>
+  rename_with(
+    ~ str_c("detention_facility_", .x),
+    matches("^(city|state|county)_(first|longest|last)$")
+  )
 
 # ---- Final pointblank validation ----
 arrests_with_detentions |>
