@@ -234,7 +234,8 @@ if (match_rate_detention < 0.20 || match_rate_detention > 0.95) {
 # ---- Sort and save ----
 arrests_with_detentions <-
   arrests_with_detentions |>
-  arrange(apprehension_date_time)
+  arrange(apprehension_date_time) |>
+  relocate(has_detention_stay, .after = apprehension_state_imputed)
 
 save_outputs(
   arrests_with_detentions,
