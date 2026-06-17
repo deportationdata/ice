@@ -136,8 +136,6 @@ arrests_df <-
     )
   )
 
-# TODO: check DC
-
 # ---- Check: state imputation ----
 arrests_df |>
   col_vals_expr(
@@ -177,7 +175,6 @@ arrests_df |>
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   invisible()
-
 
 # ---- Construct Duplicate Episode Indicators ----
 library(data.table)
@@ -233,14 +230,15 @@ arrests_df[, c("anonymized_identifier_nona", "is_reprocessed") := NULL]
 arrests_df <-
   arrests_df |>
   as_tibble() |>
-  relocate(file_original, sheet_original, row_original, .after = last_col())
+  mutate(duplicate_drop_row = duplicate_likely & !duplicate_episode_first)
 
 # ---- Check: duplicates ----
 arrests_df |>
   col_exists(c(
     duplicate_likely,
     duplicate_episode_identifier,
-    duplicate_episode_first
+    duplicate_episode_first,
+    duplicate_drop_row
   )) |>
   col_vals_in_set(
     duplicate_likely,
@@ -403,7 +401,8 @@ arrests_df <-
   relocate(
     apprehension_state_filled_in,
     .before = apprehension_state_original
-  )
+  ) |>
+  relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
 arrow::write_parquet(
