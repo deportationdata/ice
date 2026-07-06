@@ -117,9 +117,7 @@ detentions_df |>
   ) |>
   invisible()
 
-
 # ---- Initial cleaning of stint-level data ----
-
 detentions_df <-
   detentions_df |>
   # clean names
@@ -183,8 +181,7 @@ detentions_df |>
   invisible()
 
 
-# ---- Create flag for multiple stints within stay based on bond amount ----
-
+# ---- Create duplicate flags ----
 setorder(
   detentions_df,
   anonymized_identifier,
@@ -217,25 +214,86 @@ setorder(
   msc_charge
 )
 
-detentions_df[,
-  likely_duplicate := {
-    if (all(is.na(anonymized_identifier))) {
-      rep(NA, .N)
-    } else if (all(is.na(initial_bond_set_amount))) {
-      seq_len(.N) != .N # tag all but the last row as TRUE
+detentions_df[
+  !is.na(anonymized_identifier),
+  `:=`(
+    initial_bond_set_amount_lowest_seen = if (
+      all(is.na(initial_bond_set_amount))
+    ) {
+      initial_bond_set_amount[NA_integer_]
     } else {
-      !seq_len(.N) %in%
-        tail(
-          which(
-            initial_bond_set_amount ==
-              min(initial_bond_set_amount, na.rm = TRUE)
-          ),
-          1
-        )
+      min(initial_bond_set_amount, na.rm = TRUE)
+    },
+    initial_bond_set_date_earliest_seen = if (
+      all(is.na(initial_bond_set_date))
+    ) {
+      initial_bond_set_date[NA_integer_]
+    } else {
+      min(initial_bond_set_date, na.rm = TRUE)
+    },
+    bond_posted_amount_lowest_seen = if (all(is.na(bond_posted_amount))) {
+      bond_posted_amount[NA_integer_]
+    } else {
+      min(bond_posted_amount, na.rm = TRUE)
+    },
+    bond_posted_date_earliest_seen = if (all(is.na(bond_posted_date))) {
+      bond_posted_date[NA_integer_]
+    } else {
+      min(bond_posted_date, na.rm = TRUE)
     }
-  },
+  ),
   by = stint_ID
 ]
+
+detentions_df[, row_idx := .I]
+
+stage1 <- copy(detentions_df[!is.na(anonymized_identifier)])
+stage1_dedup_cols <- setdiff(
+  names(stage1),
+  c(
+    "file_original",
+    "sheet_original",
+    "row_original",
+    "row_idx",
+    "initial_bond_set_amount",
+    "initial_bond_set_date",
+    "bond_posted_amount",
+    "bond_posted_date"
+  )
+)
+stage1_unique <- unique(stage1, by = stage1_dedup_cols)
+stage1_kept <- stage1_unique$row_idx
+
+stage1_unique[, stint_date := as.Date(book_in_date_time)]
+stage2_unique <- stage1_unique[,
+  .SD[.N],
+  by = .(anonymized_identifier, detention_facility_code, stint_date, stay_ID)
+]
+stage2_kept <- stage2_unique$row_idx
+
+detentions_df[,
+  `:=`(
+    duplicate_likely_bond = !is.na(anonymized_identifier) &
+      !row_idx %in% stage1_kept,
+    duplicate_likely_sameday = !is.na(anonymized_identifier) &
+      row_idx %in% stage1_kept &
+      !row_idx %in% stage2_kept,
+    duplicate_drop_row = !is.na(anonymized_identifier) &
+      !row_idx %in% stage2_kept
+  )
+]
+
+detentions_df[,
+  duplicate_likely := fifelse(
+    is.na(anonymized_identifier),
+    NA,
+    duplicate_likely_bond | duplicate_likely_sameday
+  )
+]
+
+detentions_df[, row_idx := NULL]
+detentions_df[, stint_date := as.Date(book_in_date_time)]
+rm(stage1, stage1_unique, stage2_unique, stage1_kept, stage2_kept)
 
 n_before_facility_join <- nrow(detentions_df)
 detentions_df <-
@@ -248,14 +306,42 @@ detentions_df <-
   )
 stopifnot(nrow(detentions_df) == n_before_facility_join)
 
-# ---- Check: duplicate flag + facility join ----
+# ---- Check: duplicate flags + facility join ----
 detentions_df |>
   col_exists(
-    c(likely_duplicate, book_out_date_time, city, state, county)
+    c(
+      duplicate_likely_bond,
+      duplicate_likely_sameday,
+      duplicate_likely,
+      duplicate_drop_row,
+      initial_bond_set_amount_lowest_seen,
+      initial_bond_set_date_earliest_seen,
+      bond_posted_amount_lowest_seen,
+      bond_posted_date_earliest_seen,
+      book_out_date_time,
+      city,
+      state,
+      county
+    )
   ) |>
   col_vals_in_set(
-    likely_duplicate,
+    duplicate_likely_bond,
+    c(TRUE, FALSE),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    duplicate_likely_sameday,
+    c(TRUE, FALSE),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    duplicate_likely,
     c(TRUE, FALSE, NA),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    duplicate_drop_row,
+    c(TRUE, FALSE),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_not_null(
@@ -443,6 +529,50 @@ detentions_df |>
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_gte(
+    initial_bond_set_amount_lowest_seen,
+    0,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_gte(
+    bond_posted_amount_lowest_seen,
+    0,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(initial_bond_set_amount_lowest_seen) |
+        is.na(initial_bond_set_amount) |
+        initial_bond_set_amount_lowest_seen <= initial_bond_set_amount
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(initial_bond_set_date_earliest_seen) |
+        is.na(initial_bond_set_date) |
+        initial_bond_set_date_earliest_seen <= initial_bond_set_date
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(bond_posted_amount_lowest_seen) |
+        is.na(bond_posted_amount) |
+        bond_posted_amount_lowest_seen <= bond_posted_amount
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(bond_posted_date_earliest_seen) |
+        is.na(bond_posted_date) |
+        bond_posted_date_earliest_seen <= bond_posted_date
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_gte(
     bond_posted_amount,
     0,
     na_pass = TRUE,
@@ -486,11 +616,25 @@ detentions_df |>
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
-  # -- likely_duplicate should not be null for rows with unique_identifier --
-  col_vals_not_null(
-    likely_duplicate,
-    preconditions = \(x) dplyr::filter(x, !is.na(anonymized_identifier)),
+  # -- duplicate_likely should not be null when anonymized_identifier is present --
+  col_vals_expr(
+    expr(is.na(anonymized_identifier) | !is.na(duplicate_likely)),
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  col_vals_not_null(
+    duplicate_drop_row,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  rows_distinct(
+    vars(anonymized_identifier, detention_facility_code, stint_date, stay_ID),
+    preconditions = \(x) {
+      dplyr::filter(
+        x,
+        duplicate_drop_row == FALSE,
+        !is.na(anonymized_identifier)
+      )
+    },
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   invisible()
 
@@ -509,6 +653,8 @@ detentions_df <-
 # ---- Sort by book-in date ----
 detentions_df <- detentions_df |>
   arrange(book_in_date_time)
+
+detentions_df$stint_date <- NULL
 
 
 # ---- Save Outputs ----

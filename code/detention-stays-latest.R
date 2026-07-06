@@ -6,259 +6,47 @@ library(pointblank)
 
 # ---- Input data ---
 facilities_df <- arrow::read_parquet(
-  "https://media.githubusercontent.com/media/deportationdata/ice-detention-facilities/main/data/facilities-latest.parquet"
+  "https://github.com/deportationdata/ice-detention-facilities/raw/refs/heads/main/data/facilities-latest.parquet"
 ) |>
   select(-field_office) |>
   distinct(detention_facility_code, .keep_all = TRUE)
 
-# ---- Set random seed ----
-# some sort operations involve random sampling to break ties
-# this affects ~= 2 rows
-set.seed(42)
+# ---- Read in deduplicated stint-level data ----
+detentions_df <-
+  arrow::read_parquet("data/detention-stints-latest.parquet") |>
+  filter(duplicate_drop_row == FALSE, !is.na(unique_identifier)) |>
+  select(
+    -starts_with("duplicate_"),
+    -any_of(c(
+      "city",
+      "state",
+      "county",
+      "initial_bond_set_amount",
+      "initial_bond_set_date",
+      "bond_posted_amount",
+      "bond_posted_date"
+    ))
+  ) |>
+  as.data.table()
 
-# ---- Functions ----
-source("code/functions/check_dttm_and_convert_to_date.R")
-source("code/functions/is_not_blank_or_redacted.R")
-
-col_types <- c(
-  "date", # Stay Book In Date Time
-  "date", # Book In Date Time
-  "text", # Detention Facility
-  "date", # Book Out Date Time
-  "date", # Stay Book Out Date Time
-  "text", # Detention Release Reason
-  "date", # Stay Book Out Date
-  "text", # Stay Release Reason
-  "text", # Religion
-  "text", # Gender
-  "text", # Marital Status
-  "text", # Ethnicity
-  "text", # Birth Country
-  "text", # Citizenship Country
-  "text", # Entry Status
-  "text", # Known Terrorist Yes No
-  "text", # Suspected Gang Yes No
-  "text", # MSC Charge
-  "numeric", # MSC Sentence Days
-  "numeric", # MSC Sentence Months
-  "numeric", # MSC Sentence Years
-  "text", # MSC Charge Code
-  "text", # Aggravated Felon Yes No
-  "text", # Offense INA 236C Yes No
-  "text", # Case INA 236C Yes No
-  "date", # Bond Posted Date
-  "numeric", # Bond Posted Amount
-  "text", # Case Status
-  "text", # Case Category
-  "text", # Final Order Yes No
-  "date", # Final Order Date
-  "text", # Case Threat Level
-  "text", # Detainee Classification
-  "text", # Final Charge
-  "date", # Departed Date
-  "text", # Departure Country
-  "numeric", # Initial Bond Set Amount
-  "date", # Initial Bond Set Date
-  "text", # Detention Facility Code
-  "text", # Birth Date
-  "numeric", # Birth Year
-  "text", # Book In Criminality
-  "text", # Race
-  "date", # Entry Date
-  "text", # Apprehension Final Program
-  "date", # MSC Charge Date
-  "date", # MSC Conviction Date
-  "text", # MSC Criminal Charge Status
-  "text", # MSC Criminal Charge Status Code
-  "text", # MSC Crime Class
-  "text", # Book In Site
-  "text", # Book In AOR
-  "text" # Anonymized Identifier
+setorder(
+  detentions_df,
+  unique_identifier,
+  book_in_date_time,
+  book_out_date_time
 )
 
-# ---- Read in data ----
-
-detentions_df <-
-  list.files(
-    Sys.getenv("ICE_RAW_DATA_DIR"),
-    pattern = "^[^~].*Detentions",
-    full.names = TRUE
-  ) |>
-  set_names(basename) |>
-  map_dfr(
-    function(f) {
-      readxl::excel_sheets(f) |>
-        set_names() |>
-        map_dfr(
-          function(s) {
-            readxl::read_excel(
-              path = f,
-              sheet = s,
-              col_types = col_types,
-              skip = 6
-            )
-          },
-          .id = "sheet_original"
-        )
-    },
-    .id = "file_original"
-  )
-
-# ---- Check: read ----
-detentions_df |>
-  col_exists(
-    c(
-      `Stay Book In Date Time`,
-      `Book In Date Time`,
-      `Detention Facility Code`,
-      `Anonymized Identifier`,
-      `Gender`,
-      `Case Status`
-    )
-  ) |>
-  col_vals_not_null(
-    `Stay Book In Date Time`,
-    actions = action_levels(warn_at = 0.01, stop_at = 0.05)
-  ) |>
-  invisible()
-
-
-# ---- Initial cleaning of stint-level data ----
-
-detentions_df <-
-  detentions_df |>
-  # clean names
-  janitor::clean_names(allow_dupes = FALSE) |>
-  # add row number from original file
-  mutate(
-    row_original = as.integer(row_number() + 6 + 1),
-    .by = "sheet_original"
-  ) |>
-  # add identifier for each ICE stay, encompassing multiple detentions or stints
-  mutate(stay_ID = str_c(anonymized_identifier, "_", stay_book_in_date_time)) |>
-  # remove columns that are fully blank (all NA) or fully redacted
-  select(where(is_not_blank_or_redacted)) |>
-  # convert dttm to date if there is no time information in the column
-  mutate(
-    across(where(~ inherits(., "POSIXt")), check_dttm_and_convert_to_date)
-  ) |>
-  # replace redacted values with NA
-  mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
-  mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
-  mutate(
-    birth_year = as.integer(birth_year)
-  ) |>
-  relocate(file_original, sheet_original, row_original, .after = last_col()) |>
-  filter(!is.na(anonymized_identifier)) |>
-  mutate(
-    stint_ID = str_c(
-      anonymized_identifier,
-      "_",
-      book_in_date_time,
-      "_",
-      detention_facility_code
-    )
-  )
-
-detentions_df <- as.data.table(detentions_df)
-
-# ---- Check: clean ----
+# ---- Check: loaded stints ----
 detentions_df |>
   col_exists(
     c(
       stay_ID,
       stint_ID,
-      anonymized_identifier,
+      unique_identifier,
       detention_facility_code,
-      book_in_date_time,
-      birth_year,
-      file_original,
-      sheet_original,
-      row_original
+      book_in_date_time
     )
   ) |>
-  col_vals_not_null(
-    stay_ID,
-    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
-  ) |>
-  col_vals_not_null(
-    stint_ID,
-    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
-  ) |>
-  col_vals_not_null(
-    anonymized_identifier,
-    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
-  ) |>
-  invisible()
-
-
-# ---- Resolve multiple stints within stay based on bond amount ----
-
-setorder(
-  detentions_df,
-  anonymized_identifier,
-  book_in_date_time,
-  detention_facility_code,
-  detention_release_reason,
-  stay_book_out_date,
-  stay_release_reason,
-  religion,
-  gender,
-  marital_status,
-  birth_year,
-  ethnicity,
-  entry_status,
-  aggravated_felon_yes_no,
-  bond_posted_date,
-  bond_posted_amount,
-  case_status,
-  case_category,
-  final_order_yes_no,
-  final_order_date,
-  case_threat_level,
-  book_in_criminality,
-  final_charge,
-  departed_date,
-  departure_country,
-  citizenship_country,
-  apprehension_final_program,
-  msc_charge_code,
-  msc_charge
-)
-
-# Stage 1: keep min bond per stint, then drop bond column and remove exact dupes
-detentions_df[,
-  initial_bond_set_amount := min(initial_bond_set_amount, na.rm = TRUE),
-  by = stint_ID
-]
-detentions_df[
-  is.infinite(initial_bond_set_amount),
-  initial_bond_set_amount := NA_real_
-]
-dedup_cols <- setdiff(
-  names(detentions_df),
-  c("file_original", "sheet_original", "row_original")
-)
-detentions_df <- unique(detentions_df, by = dedup_cols)
-
-# Stage 2: collapse remaining duplicate stints and same-facility same-day
-# re-bookings, keeping the most recent row
-detentions_df[, stint_date := as.Date(book_in_date_time)]
-detentions_df <- detentions_df[,
-  .SD[.N],
-  by = .(anonymized_identifier, detention_facility_code, stint_date, stay_ID)
-]
-detentions_df[, stint_date := NULL]
-
-setorder(
-  detentions_df,
-  anonymized_identifier,
-  book_in_date_time,
-  book_out_date_time
-)
-
-# ---- Check: stint dedup ----
-detentions_df |>
   rows_distinct(
     stint_ID,
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
@@ -269,9 +57,7 @@ detentions_df |>
   ) |>
   invisible()
 
-
 # ---- Create stay-level dataset ----
-
 detentions_df[, first_stay := .I == .I[1], by = stay_ID]
 detentions_df[, last_stay := .I == .I[.N], by = stay_ID]
 detentions_df[,
@@ -330,7 +116,35 @@ detention_stay_level_vars_df <-
         detention_facility_codes_all = str_c(
           detention_facility_code,
           collapse = "; "
-        )
+        ),
+        initial_bond_set_amount_lowest_seen = if (
+          all(is.na(initial_bond_set_amount_lowest_seen))
+        ) {
+          initial_bond_set_amount_lowest_seen[NA_integer_]
+        } else {
+          min(initial_bond_set_amount_lowest_seen, na.rm = TRUE)
+        },
+        initial_bond_set_date_earliest_seen = if (
+          all(is.na(initial_bond_set_date_earliest_seen))
+        ) {
+          initial_bond_set_date_earliest_seen[NA_integer_]
+        } else {
+          min(initial_bond_set_date_earliest_seen, na.rm = TRUE)
+        },
+        bond_posted_amount_lowest_seen = if (
+          all(is.na(bond_posted_amount_lowest_seen))
+        ) {
+          bond_posted_amount_lowest_seen[NA_integer_]
+        } else {
+          min(bond_posted_amount_lowest_seen, na.rm = TRUE)
+        },
+        bond_posted_date_earliest_seen = if (
+          all(is.na(bond_posted_date_earliest_seen))
+        ) {
+          bond_posted_date_earliest_seen[NA_integer_]
+        } else {
+          min(bond_posted_date_earliest_seen, na.rm = TRUE)
+        }
       ),
       lapply(
         .SD,
@@ -348,19 +162,23 @@ detention_stay_level_vars_df <-
         "book_out_date_time",
         "detention_release_reason",
         "book_in_site",
-        "book_in_aor"
+        "book_in_aor",
+        "initial_bond_set_amount_lowest_seen",
+        "initial_bond_set_date_earliest_seen",
+        "bond_posted_amount_lowest_seen",
+        "bond_posted_date_earliest_seen"
       )
     )
   ]
 
 detention_individual_level_vars_df <-
-  detention_stay_level_vars_df[, .(n_stays = .N), by = anonymized_identifier]
+  detention_stay_level_vars_df[, .(n_stays = .N), by = unique_identifier]
 
 detention_stays_df <-
   detentions_df |>
   distinct(stay_ID) |>
   left_join(detention_stay_level_vars_df, by = "stay_ID") |>
-  left_join(detention_individual_level_vars_df, by = "anonymized_identifier") |>
+  left_join(detention_individual_level_vars_df, by = "unique_identifier") |>
   left_join(detention_facility_df_first, by = "stay_ID") |>
   left_join(detention_facility_df_longest, by = "stay_ID") |>
   left_join(detention_facility_df_last, by = "stay_ID") |>
@@ -380,7 +198,7 @@ detention_stays_df |>
   col_exists(
     c(
       stay_ID,
-      anonymized_identifier,
+      unique_identifier,
       n_stints,
       n_stays,
       detention_facility_code_first,
@@ -412,9 +230,7 @@ detention_stays_df |>
   ) |>
   invisible()
 
-
 # ---- Pointblank Validation ----
-
 detention_stays_df |>
   # -- Primary key: stay_ID should be unique and non-null --
   col_vals_not_null(
@@ -426,7 +242,7 @@ detention_stays_df |>
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_not_null(
-    anonymized_identifier,
+    unique_identifier,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   # -- n_stints and n_stays should be >= 1 --
@@ -556,7 +372,7 @@ detention_stays_df |>
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_in_set(
-    aggravated_felon_yes_no,
+    felon,
     c(
       "Both (drug and other agg felon convictions)",
       "Drugs",
@@ -573,13 +389,13 @@ detention_stays_df |>
   ) |>
   # -- Bond amounts should be non-negative --
   col_vals_gte(
-    initial_bond_set_amount,
+    initial_bond_set_amount_lowest_seen,
     0,
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_gte(
-    bond_posted_amount,
+    bond_posted_amount_lowest_seen,
     0,
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
@@ -637,18 +453,6 @@ detention_stays_df |>
   ) |>
   invisible()
 
-
-# ---- Rename to match Oct 2025 release ----
-detention_stays_df <-
-  detention_stays_df |>
-  rename(
-    felon = aggravated_felon_yes_no,
-    final_program = apprehension_final_program,
-    most_serious_conviction_code = msc_charge_code,
-    unique_identifier = anonymized_identifier
-  )
-
-
 # ---- Merge in facility info (city, state, county) for first/longest/last ----
 n_before_facility_join <- nrow(detention_stays_df)
 detention_stays_df <-
@@ -676,14 +480,11 @@ detention_stays_df <-
   )
 stopifnot(nrow(detention_stays_df) == n_before_facility_join)
 
-
 # ---- Sort by stay book-in date ----
 detention_stays_df <- detention_stays_df |>
   arrange(stay_book_in_date_time)
 
-
 # ---- Save Outputs ----
-
 arrow::write_parquet(
   detention_stays_df,
   "data/detention-stays-latest.parquet",

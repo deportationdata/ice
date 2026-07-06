@@ -7,10 +7,7 @@ library(pointblank)
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 
-# ---- Read in to temporary file ----
-# url <- "https://ucla.box.com/shared/static/tvdx5ulcg4hj3ul91qhggs3yxcdjdcib.xlsx"
-# f <- tempfile(fileext = ".xlsx")
-# download.file(url, f, mode = "wb")
+# ---- Read in files ----
 
 col_types <- c(
   "date", # Apprehension Date
@@ -77,6 +74,26 @@ arrests_df |>
   ) |>
   invisible()
 
+us_abb <- c(
+  state.abb,
+  "DC",
+  "PR",
+  "GU",
+  "VI",
+  "MP",
+  "AS",
+  "FM"
+)
+us_name_upper <- str_to_upper(c(
+  state.name,
+  "District of Columbia",
+  "Puerto Rico",
+  "Guam",
+  "Virgin Islands",
+  "Northern Mariana Islands",
+  "American Samoa",
+  "Federated States of Micronesia"
+))
 
 arrests_df <-
   arrests_df |>
@@ -101,8 +118,42 @@ arrests_df <-
     apprehension_date_time = apprehension_date,
     apprehension_date = as.Date(apprehension_date_time),
     # convert birth year to integer
-    birth_year = as.integer(birth_year)
+    birth_year = as.integer(birth_year),
+    # construct filled-in state
+    apprehension_state_filled_in = coalesce(
+      state,
+      # first try extracting state abbr from landmark
+      str_extract(
+        toa_current_duty_site |> str_to_upper(),
+        str_c("\\b(", str_c(us_abb, collapse = "|"), ")\\b")
+      ) |>
+        (\(x) us_name_upper[match(x, us_abb)])(),
+      # if not that, try extracting state name from landmark
+      str_extract(
+        toa_current_duty_site |> str_to_upper(),
+        str_c("\\b(", str_c(us_name_upper, collapse = "|"), ")\\b")
+      )
+    )
   )
+
+# ---- Check: state imputation ----
+arrests_df |>
+  col_vals_expr(
+    expr(is.na(state) | state == apprehension_state_filled_in),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
+  specially(
+    fn = ~ sum(!is.na(.$apprehension_state_filled_in)) > sum(!is.na(.$state)),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
+  specially(
+    fn = ~ setequal(
+      na.omit(unique(.$apprehension_state_filled_in)),
+      na.omit(unique(.$state))
+    ),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
+  invisible()
 
 # ---- Check: clean ----
 arrests_df |>
@@ -125,56 +176,76 @@ arrests_df |>
   ) |>
   invisible()
 
-
-# ---- Construct Duplicates Indicator ----
-# two (or more) arrests within 24 hours of each other
-
+# ---- Construct Duplicate Episode Indicators ----
 library(data.table)
 setDT(arrests_df)
-setorder(arrests_df, apprehension_date_time)
 
 arrests_df[,
   `:=`(
-    hours_since_last = as.numeric(
+    anonymized_identifier_nona = fifelse(
+      is.na(anonymized_identifier),
+      paste0("noid_", .I),
+      anonymized_identifier
+    ),
+    is_reprocessed = apprehension_method == "ERO Reprocessed Arrest"
+  )
+]
+
+setorder(
+  arrests_df,
+  anonymized_identifier_nona,
+  apprehension_date_time,
+  is_reprocessed,
+  file_original,
+  sheet_original,
+  row_original,
+  na.last = TRUE
+)
+
+arrests_df[,
+  duplicate_episode_identifier := {
+    gap <- as.numeric(
       apprehension_date_time - shift(apprehension_date_time, type = "lag"),
       units = "hours"
-    ),
-    hours_until_next = as.numeric(
-      shift(apprehension_date_time, type = "lead") - apprehension_date_time,
-      units = "hours"
+    )
+    cumsum(is.na(gap) | gap > 24)
+  },
+  by = anonymized_identifier_nona
+]
+
+arrests_df[,
+  `:=`(
+    duplicate_episode_first = seq_len(.N) == 1L,
+    duplicate_likely = fifelse(
+      is.na(anonymized_identifier),
+      as.logical(NA),
+      .N > 1L
     )
   ),
-  by = anonymized_identifier
+  by = .(anonymized_identifier_nona, duplicate_episode_identifier)
 ]
+
+arrests_df[, c("anonymized_identifier_nona", "is_reprocessed") := NULL]
 
 arrests_df <-
   arrests_df |>
   as_tibble() |>
-  mutate(
-    within_24hrs_prior = !is.na(hours_since_last) & hours_since_last <= 24,
-    within_24hrs_next = !is.na(hours_until_next) & hours_until_next <= 24,
-    duplicate_likely = case_when(
-      !is.na(anonymized_identifier) ~ within_24hrs_prior | within_24hrs_next
-    ),
-  ) |>
-  select(
-    -within_24hrs_prior,
-    -within_24hrs_next,
-    -hours_since_last,
-    -hours_until_next
-  ) |>
-  relocate(file_original, sheet_original, row_original, .after = last_col())
+  mutate(duplicate_drop_row = duplicate_likely & !duplicate_episode_first)
 
 # ---- Check: duplicates ----
 arrests_df |>
-  col_exists(duplicate_likely) |>
+  col_exists(c(
+    duplicate_likely,
+    duplicate_episode_identifier,
+    duplicate_episode_first,
+    duplicate_drop_row
+  )) |>
   col_vals_in_set(
     duplicate_likely,
     c(TRUE, FALSE, NA),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   invisible()
-
 
 # ---- Pointblank Validation ----
 
@@ -311,29 +382,29 @@ arrests_df |>
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
-  # -- duplicate_likely should not be null for rows with anonymized_identifier --
-  col_vals_not_null(
-    duplicate_likely,
-    preconditions = \(x) dplyr::filter(x, !is.na(anonymized_identifier)),
+  # -- duplicate_likely should not be null when anonymized_identifier is present --
+  col_vals_expr(
+    expr(is.na(anonymized_identifier) | !is.na(duplicate_likely)),
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   invisible()
-
-
 
 # ---- Rename to match Oct 2025 release ----
 arrests_df <-
   arrests_df |>
   rename(
-    apprehension_state = state,
+    apprehension_state_original = state,
     apprehension_aor = toa_current_duty_aor,
     final_program = apprehension_final_program,
     unique_identifier = anonymized_identifier
-  )
-
+  ) |>
+  relocate(
+    apprehension_state_filled_in,
+    .before = apprehension_state_original
+  ) |>
+  relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
-
 arrow::write_parquet(
   arrests_df,
   "data/arrests-latest.parquet",
