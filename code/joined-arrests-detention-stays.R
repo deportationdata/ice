@@ -255,7 +255,13 @@ arrests_with_detentions <-
     .after = detention_facility_code_last
   )
 
-save_outputs(
-  arrests_with_detentions,
-  "joined-arrests-detention-stays"
-)
+# save_outputs(
+#   arrests_with_detentions,
+#   "joined-arrests-detention-stays-latest"
+# )
+
+arrests_with_detentions |>
+  mutate(.chunk = ceiling(row_number() / 1e6)) |>
+  group_split(.chunk, .keep = FALSE) |>
+  set_names(~ str_c("Arrests w/ detentions (Sheet ", seq_along(.x), ")")) |>
+  writexl::write_xlsx("data/joined-arrests-detention-stays-latest.xlsx")
