@@ -1,0 +1,91 @@
+city,state,ref_name,ref_state,geo_level,note
+nashville,tennessee,Nashville-Davidson metropolitan government (balance),tennessee,place,consolidated government balance
+ventura,california,San Buenaventura (Ventura),california,place,census legal name differs
+louisville,kentucky,Louisville/Jefferson County metro government (balance),kentucky,place,consolidated government balance
+athens,georgia,Athens-Clarke County unified government (balance),georgia,place,consolidated government balance
+augusta,georgia,Augusta-Richmond County consolidated government (balance),georgia,place,consolidated government balance
+butte,montana,Butte-Silver Bow (balance),montana,place,consolidated government balance
+lexington,kentucky,Lexington-Fayette,kentucky,place,consolidated government
+new york city,new york,New York,new york,place,name variant
+nyc,new york,New York,new york,place,abbreviation
+manhattan,new york,New York,new york,place,NYC borough
+bronx,new york,New York,new york,place,NYC borough
+the bronx,new york,New York,new york,place,NYC borough
+brooklyn,new york,New York,new york,place,NYC borough
+queens,new york,New York,new york,place,NYC borough
+staten island,new york,New York,new york,place,NYC borough
+jamaica,new york,New York,new york,place,NYC neighborhood
+flushing,new york,New York,new york,place,NYC neighborhood
+elmhurst,new york,New York,new york,place,NYC neighborhood
+east elmhurst,new york,New York,new york,place,NYC neighborhood
+astoria,new york,New York,new york,place,NYC neighborhood
+maspeth,new york,New York,new york,place,NYC neighborhood
+college point,new york,New York,new york,place,NYC neighborhood
+long island city,new york,New York,new york,place,NYC neighborhood
+far rockaway,new york,New York,new york,place,NYC neighborhood
+rego park,new york,New York,new york,place,NYC neighborhood
+sunnyside,new york,New York,new york,place,NYC neighborhood
+bayside,new york,New York,new york,place,NYC neighborhood
+fresh meadows,new york,New York,new york,place,NYC neighborhood
+kew gardens,new york,New York,new york,place,NYC neighborhood
+queens village,new york,New York,new york,place,NYC neighborhood
+ozone park,new york,New York,new york,place,NYC neighborhood
+rockaway park,new york,New York,new york,place,NYC neighborhood
+van nuys,california,Los Angeles,california,place,LA neighborhood
+sylmar,california,Los Angeles,california,place,LA neighborhood
+reseda,california,Los Angeles,california,place,LA neighborhood
+canoga park,california,Los Angeles,california,place,LA neighborhood
+tarzana,california,Los Angeles,california,place,LA neighborhood
+sherman oaks,california,Los Angeles,california,place,LA neighborhood
+chatsworth,california,Los Angeles,california,place,LA neighborhood
+winnetka,california,Los Angeles,california,place,LA neighborhood
+pacoima,california,Los Angeles,california,place,LA neighborhood
+tujunga,california,Los Angeles,california,place,LA neighborhood
+studio city,california,Los Angeles,california,place,LA neighborhood
+porter ranch,california,Los Angeles,california,place,LA neighborhood
+harbor city,california,Los Angeles,california,place,LA neighborhood
+san pedro,california,Los Angeles,california,place,LA neighborhood
+north hollywood,california,Los Angeles,california,place,LA neighborhood
+hollywood,california,Los Angeles,california,place,LA neighborhood
+venice,california,Los Angeles,california,place,LA neighborhood
+boyle heights,california,Los Angeles,california,place,LA neighborhood
+echo park,california,Los Angeles,california,place,LA neighborhood
+arleta,california,Los Angeles,california,place,LA neighborhood
+canyon country,california,Santa Clarita,california,place,Santa Clarita neighborhood
+la jolla,california,San Diego,california,place,San Diego neighborhood
+roxbury,massachusetts,Boston,massachusetts,place,Boston neighborhood
+dorchester,massachusetts,Boston,massachusetts,place,Boston neighborhood
+dorchester center,massachusetts,Boston,massachusetts,place,Boston neighborhood
+jamaica plain,massachusetts,Boston,massachusetts,place,Boston neighborhood
+brighton,massachusetts,Boston,massachusetts,place,Boston neighborhood
+allston,massachusetts,Boston,massachusetts,place,Boston neighborhood
+hyde park,massachusetts,Boston,massachusetts,place,Boston neighborhood
+mattapan,massachusetts,Boston,massachusetts,place,Boston neighborhood
+roslindale,massachusetts,Boston,massachusetts,place,Boston neighborhood
+charlestown,massachusetts,Boston,massachusetts,place,Boston neighborhood
+east boston,massachusetts,Boston,massachusetts,place,Boston neighborhood
+okc,oklahoma,Oklahoma City,oklahoma,place,abbreviation
+slc,utah,Salt Lake City,utah,place,abbreviation
+wvc,utah,West Valley City,utah,place,abbreviation
+nsl,utah,North Salt Lake,utah,place,abbreviation
+nlv,nevada,North Las Vegas,nevada,place,abbreviation
+wpb,florida,West Palm Beach,florida,place,abbreviation
+pcb,florida,Panama City Beach,florida,place,abbreviation
+fwb,florida,Fort Walton Beach,florida,place,abbreviation
+mpls,minnesota,Minneapolis,minnesota,place,abbreviation
+abq,new mexico,Albuquerque,new mexico,place,abbreviation
+indianapolis,indiana,Indianapolis city (balance),indiana,place,consolidated government balance
+milford,connecticut,Milford city (balance),connecticut,place,consolidated government balance
+macon,georgia,Macon-Bibb County,georgia,place,consolidated government
+corona,new york,New York,new york,place,NYC neighborhood
+north chesterfield,virginia,Chesterfield,virginia,county,postal name for chesterfield county
+south boston,massachusetts,Boston,massachusetts,place,Boston neighborhood
+west roxbury,massachusetts,Boston,massachusetts,place,Boston neighborhood
+allston brighton,massachusetts,Boston,massachusetts,place,Boston neighborhood
+e boston,massachusetts,Boston,massachusetts,place,Boston neighborhood variant
+newton highlands,massachusetts,Newton,massachusetts,place,Newton neighborhood
+newtonville,massachusetts,Newton,massachusetts,place,Newton neighborhood
+vernon rockville,connecticut,Vernon,connecticut,cousub,Rockville village in Vernon town
+attelborough,massachusetts,Attleboro,massachusetts,place,misspelling
+promfret,connecticut,Pomfret,connecticut,cousub,misspelling
+north bilerica,massachusetts,Billerica,massachusetts,cousub,misspelled village in billerica town

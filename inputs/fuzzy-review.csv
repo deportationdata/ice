@@ -1,0 +1,408 @@
+key_city,key_state,n_rows,suggested,geoid,geo_level,city_dist
+del valle,texas,2614,Del Sol CDP,4819808,place,0.14603174603174607
+ellabell,georgia,360,Ellaville city,1326980,place,0.09801587301587306
+canon city,colorado,231,Cañon City city,0811810,place,0.08296296296296295
+new century,kansas,216,Newbury CDP,2050250,place,0.1393939393939394
+sumterville,florida,171,Seville CDP,1265200,place,0.10909090909090917
+new caney,texas,168,New Waverly city,4851396,place,0.11717171717171715
+otay mesa,california,148,Costa Mesa city,0616532,place,0.10370370370370369
+north prince george,virginia,116,North Springfield CDP,5157560,place,0.14917440660474723
+salters,south carolina,90,Salem town,4562980,place,0.14666666666666667
+west olive,michigan,83,West Bloomfield charter township,2612585480,cousub,0.12222222222222226
+porter,texas,76,Porter Heights CDP,4858850,place,0.11428571428571425
+sainte genevieve,missouri,76,Ste. Genevieve city,2964180,place,0.14690934065934064
+hagatna,guam,73,Hagåtña CDP,6634750,place,0.1333333333333333
+amite,louisiana,71,Amite City town,2201885,place,0.10000000000000002
+lords valley,pennsylvania,69,Rose Valley borough,4266192,place,0.1191919191919192
+clinton township,michigan,68,Clinton village,2616480,place,0.11250000000000003
+fort mcdowell,arizona,66,Fort Mohave CDP,0424895,place,0.13146853146853152
+panorama city,california,65,Panorama Heights CDP,0655506,place,0.09326923076923077
+north hills,california,64,North Highlands CDP,0651924,place,0.0848484848484849
+north billerica,massachusetts,63,North Reading town,2501748955,cousub,0.14282051282051286
+methuen,massachusetts,61,Methuen Town city,2540710,place,0.08333333333333333
+thornton,pennsylvania,59,Thornhurst township,4206976601,cousub,0.13
+bay saint louis,mississippi,52,Bay St. Louis city,2803980,place,0.1053846153846154
+hartsville,tennessee,51,Huntsville town,4736640,place,0.12000000000000002
+greenwood,west virginia,49,Greenview CDP,5433580,place,0.13333333333333341
+jackson heights,new york,49,Jackson town,3611538143,cousub,0.10666666666666667
+fort bragg,north carolina,43,Fort Bragg Military Reservation township,3709391148,cousub,0.135483870967742
+hot springs national pa,arkansas,43,Hot Springs city,0533400,place,0.10434782608695657
+warrington,pennsylvania,42,Washington city,4281328,place,0.10666666666666669
+san quentin,california,41,San Joaquin city,0667126,place,0.1340909090909091
+pryor,oklahoma,37,Pryor Creek city,4061000,place,0.10909090909090911
+wilmington,california,36,Winton CDP,0686076,place,0.10666666666666669
+lynchburg,tennessee,31,"Lynchburg, Moore County metropolitan government",4744382,place,0.12173913043478264
+south ozone park,new york,29,South Nyack village,3669441,place,0.12386363636363634
+haynesville,virginia,27,Dranesville CDP,5123392,place,0.12121212121212116
+port saint lucie,florida,25,Port St. Lucie city,1258715,place,0.09793956043956042
+raybrook,new york,25,Maybrook village,3646162,place,0.08333333333333338
+shelby township,michigan,24,Shelby village,2672840,place,0.12000000000000004
+dania,florida,23,Dania Beach city,1216335,place,0.10909090909090911
+san tan,arizona,23,San Tan Valley CDP,0464210,place,0.10000000000000002
+coal township,pennsylvania,22,Coal township,4209714536,cousub,0.13846153846153852
+"new york, n.y.",new york,22,New York city,3651000,place,0.08571428571428578
+east amherst,new york,21,East Moriches CDP,3622546,place,0.10948717948717948
+northridge,california,21,North Gate CDP,0651890,place,0.12000000000000004
+north dartmouth,massachusetts,20,North Falmouth CDP,2547730,place,0.10190476190476193
+horizon,texas,19,Horizon City city,4834832,place,0.08333333333333333
+pompano,florida,18,Pompano Beach city,1258050,place,0.09230769230769235
+encino,california,17,Encinitas city,0622678,place,0.12222222222222226
+woodhaven,new york,17,Woodsville CDP,3683063,place,0.1466666666666667
+ellenwood,georgia,16,Deenwood CDP,1322080,place,0.11574074074074082
+"bozeman, mt 59715",montana,15,Bozeman city,3008950,place,0.11764705882352945
+commerce township,michigan,15,Commerce charter township,2612517640,cousub,0.10588235294117647
+fort johnson,louisiana,14,Fort Jesup CDP,2226665,place,0.1433333333333334
+irvington,alabama,14,Livingston city,0143720,place,0.10370370370370369
+ridgewood,new york,14,Ridge CDP,3661665,place,0.08888888888888895
+granada hills,california,13,Granite Hills CDP,0630703,place,0.12230769230769234
+kailua kona,hawaii,13,Kailua CDP,1523000,place,0.09090909090909094
+maple,north carolina,13,Marble CDP,3741220,place,0.14222222222222222
+sa,california,13,Sage CDP,0664056,place,0.13333333333333336
+east folkston,georgia,12,East Echols CCD,1310191008,cousub,0.13146853146853152
+grand island,north carolina,12,Cedar Island township,3703190588,cousub,0.14444444444444443
+seaford,virginia,12,Sanford CDP,5170352,place,0.08571428571428572
+barstow,maryland,11,Barton town,2404625,place,0.10555555555555562
+branchville,indiana,11,Bruceville town,1808578,place,0.12606060606060607
+carmel hamlet,new york,11,Carmel CDP,3612518,place,0.10769230769230768
+glendale,new york,11,Glen town,3605729047,cousub,0.10000000000000002
+indianapolis,iowa,11,Indianola city,1938280,place,0.08333333333333333
+manson,north carolina,11,Madison town,3740560,place,0.12063492063492072
+moon township,pennsylvania,11,Moon township,4200350784,cousub,0.13846153846153852
+sault sainte marie,michigan,11,Sault Ste. Marie city,2671740,place,0.0925
+clarkston,michigan,10,Clark township,2609716060,cousub,0.08888888888888895
+hellam township,pennsylvania,10,Hellam township,4213333728,cousub,0.12000000000000004
+miramar lakes,florida,10,Miramar city,1245975,place,0.09230769230769235
+south saint paul,minnesota,10,South St. Paul city,2761492,place,0.0825549450549451
+stormville,new york,10,Stottville CDP,3671718,place,0.09333333333333335
+summit argo,illinois,10,Summit village,1773638,place,0.09090909090909094
+texas,texas,10,Texas City city,4872392,place,0.10000000000000002
+carson,nevada,9,Carson City,3209700,place,0.09090909090909094
+de valle,texas,9,Deanville CDP,4819492,place,0.13068783068783074
+hamilton township,ohio,9,Hamilton city,3933012,place,0.10588235294117647
+lutherville timonium,maryland,9,Lutherville CDP,2448875,place,0.09000000000000007
+new bloomfield,pennsylvania,9,New Milford borough,4253880,place,0.11532467532467534
+wall township,new jersey,9,Wall township,3402576460,cousub,0.13846153846153852
+west newton,massachusetts,9,West Newbury town,2500977150,cousub,0.12121212121212122
+central valley,new york,8,Central Square village,3613585,place,0.11428571428571425
+delray,florida,8,Delray Beach city,1217100,place,0.10000000000000002
+east saint louis,illinois,8,East St. Louis city,1722255,place,0.09793956043956042
+hamel,minnesota,8,Hamre township,2700726900,cousub,0.09333333333333335
+hayes,virginia,8,Haysi town,5136008,place,0.09333333333333335
+indianpolis,indiana,8,Indianapolis city (balance),1836003,place,0.11851851851851854
+jerell,texas,8,Jersey Village city,4837612,place,0.1333333333333333
+mcrae,georgia,8,McRae-Helena city,1349100,place,0.11666666666666663
+nesbit,mississippi,8,New Site CDP,2851680,place,0.14444444444444443
+readyville,tennessee,8,Graysville town,4730760,place,0.13333333333333336
+south richmond hill,new york,8,South Cairo CDP,3668737,place,0.13291866028708138
+van buren township,michigan,8,Van Buren charter township,2616381660,cousub,0.10000000000000002
+west hills,california,8,West Hollywood city,0684410,place,0.12571428571428572
+blacklick,ohio,7,Blacklick Estates CDP,3906670,place,0.09411764705882357
+brownstown township,michigan,7,Brownstown charter township,2616311220,cousub,0.09473684210526322
+cibilo,texas,7,Cibolo city,4814920,place,0.12444444444444444
+dike,texas,7,Dickens city,4820332,place,0.1142857142857144
+fort myer,virginia,7,Fort Lee CDP,5129152,place,0.11666666666666671
+haltom,texas,7,Haltom City city,4831928,place,0.09090909090909094
+huntingdon valley,pennsylvania,7,Huntingdon borough,4236368,place,0.08235294117647059
+oakwood,virginia,7,Rockwood CDP,5168470,place,0.130952380952381
+west palm,florida,7,West Palm Beach city,1276600,place,0.08000000000000002
+west point,texas,7,Weston city,4877740,place,0.08000000000000002
+annapolis junction,maryland,6,Annapolis Neck CDP,2401635,place,0.09523809523809527
+barhamsville,virginia,6,Barboursville CDP,5104392,place,0.1301282051282051
+bartow city,florida,6,Bartow city,1203675,place,0.09090909090909094
+canton township,michigan,6,Canton charter township,2616313120,cousub,0.12000000000000004
+central plaza,new york,6,Central Islip CDP,3613552,place,0.11230769230769229
+feasterville trevose,pennsylvania,6,Feasterville CDP,4225496,place,0.08000000000000002
+fort benning,georgia,6,Fort Gaines city,1330816,place,0.1462121212121212
+fort cavazos,texas,6,Fort Davis CDP,4826688,place,0.10666666666666667
+fort polk,louisiana,6,Fort Polk North CDP,2226746,place,0.08000000000000002
+glen mills,pennsylvania,6,Glen Campbell borough,4229512,place,0.11692307692307688
+green cove,florida,6,Green Cove Springs city,1227400,place,0.08888888888888895
+hedwig,texas,6,Hedwig Village city,4833068,place,0.11428571428571425
+herdon,virginia,6,Herndon town,5136648,place,0.09166666666666669
+indinapolis,indiana,6,Indianapolis city (balance),1836003,place,0.1367003367003367
+los,california,6,Los Osos CDP,0644182,place,0.14583333333333334
+march air reserve base,california,6,March ARB CDP,0645680,place,0.1181818181818182
+mesilla park,new mexico,6,Mesilla town,3548060,place,0.08333333333333333
+shelbyville,michigan,6,Shelby village,2672840,place,0.09090909090909094
+snydersville,pennsylvania,6,Swoyersville borough,4275832,place,0.09999999999999995
+tanner,alabama,6,Tanner Williams CCD,0109793105,cousub,0.12000000000000004
+toano,virginia,6,Totaro district,5102596103,cousub,0.14222222222222222
+vancourt,texas,6,Van city,4874912,place,0.14583333333333334
+wakefield,rhode island,6,Wakefield-Peace Dale CDP,4473132,place,0.10999999999999999
+woodlands,texas,6,The Woodlands CDP,4872656,place,0.10256410256410255
+andrews air force base,maryland,5,Andrews AFB CDP,2401450,place,0.10000000000000002
+boise city,texas,5,Mobile City city,4848858,place,0.13097643097643102
+bowmansville,new york,5,Brownville village,3610231,place,0.10500000000000008
+camby,indiana,5,Amboy town,1801360,place,0.13333333333333336
+cherry point,north carolina,5,Cherry Lane township,3700590640,cousub,0.12121212121212122
+collettsville,north carolina,5,Lilesville town,3738200,place,0.13589743589743591
+colmar,pennsylvania,5,Columbia borough,4215384,place,0.12638888888888888
+cortlandt manor,new york,5,Cortlandt town,3611918410,cousub,0.08000000000000002
+denver,texas,5,Devers city,4820140,place,0.08888888888888885
+fort mill,north carolina,5,Forest Hills village,3724170,place,0.10370370370370377
+freehold township,new jersey,5,Freehold borough,3425200,place,0.10588235294117647
+garnerville,new york,5,Gainesville village,3627969,place,0.09696969696969693
+hollis,new york,5,Holtsville CDP,3635254,place,0.13222222222222219
+linthicum heights,maryland,5,Linthicum CDP,2447125,place,0.09411764705882357
+n las vegas,nevada,5,North Las Vegas city,3251800,place,0.08000000000000003
+neptune township,new jersey,5,Neptune township,3402549890,cousub,0.11250000000000003
+new hudson,michigan,5,Hudson city,2639720,place,0.13333333333333336
+south florida,florida,5,South Miami city,1267550,place,0.13146853146853152
+south orange,new jersey,5,South Orange Village township,3401369274,cousub,0.08000000000000002
+st. amant,louisiana,5,St. James CDP,2267355,place,0.13333333333333341
+sudersville,maryland,5,Sudlersville town,2475650,place,0.0830808080808082
+valencia,california,5,Valinda CDP,0681638,place,0.13055555555555554
+warrendale,pennsylvania,5,Warren city,4281000,place,0.08000000000000002
+alavarado,texas,4,Alvarado city,4802260,place,0.09629629629629635
+alvarado,oklahoma,4,Alva city,4001800,place,0.10000000000000002
+alzeda,montana,4,Alzada CDP,3001300,place,0.12444444444444444
+austin texas,texas,4,Austin city,4805000,place,0.10000000000000002
+balrtimore,maryland,4,Baltimore city,2404000,place,0.08814814814814817
+bloomfield township,michigan,4,Bloomfield Hills city,2609180,place,0.09906015037593988
+brickeys,arkansas,4,Brinkley city,0508950,place,0.1166666666666667
+cinroe,texas,4,Conroe city,4816432,place,0.09999999999999995
+comstock,texas,4,Como town,4816252,place,0.1166666666666667
+convington,kentucky,4,Covington city,2117848,place,0.13037037037037041
+convington,louisiana,4,Convent CDP,2217180,place,0.10857142857142857
+danbury township,ohio,4,Danbury township,3912320058,cousub,0.11250000000000003
+eager,arizona,4,Eagar town,0420960,place,0.09333333333333335
+egg harbor township,new jersey,4,Egg Harbor township,3400120290,cousub,0.09473684210526322
+ellabel,georgia,4,Ellaville city,1326980,place,0.1285714285714286
+fairdale,kentucky,4,Fairdealing CCD,2115791192,cousub,0.09204545454545453
+folkston,south carolina,4,Foreston CDP,4526485,place,0.13333333333333336
+getzville,new york,4,Galeville CDP,3628035,place,0.13333333333333341
+indiana,indiana,4,Indian Village town,1836306,place,0.10000000000000002
+league,texas,4,League City city,4841980,place,0.09090909090909094
+lewis center,ohio,4,Lewis township,3901542910,cousub,0.11666666666666663
+luka,mississippi,4,Lula town,2842600,place,0.13333333333333336
+marne,michigan,4,Marengo township,2602551520,cousub,0.11333333333333337
+martinsville,west virginia,4,Harrisville town,5435428,place,0.14393939393939392
+mira loma,california,4,Mira Monte CDP,0648046,place,0.133015873015873
+monroeville,new jersey,4,Morganville CDP,3448030,place,0.12659932659932668
+mufreesboro,tennessee,4,Murfreesboro city,4751560,place,0.10707070707070718
+neawark,new jersey,4,Newark city,3451000,place,0.08253968253968252
+north baldwin,new york,4,North Babylon CDP,3651440,place,0.09230769230769235
+okakdale,louisiana,4,Oakdale city,2256540,place,0.08035714285714288
+pfluger,texas,4,Pflugerville city,4857176,place,0.08333333333333333
+philipsburg,west virginia,4,Philippi city,5463292,place,0.14090909090909096
+port canaveral,florida,4,Port Salerno CDP,1258727,place,0.11047619047619046
+spring mills,west virginia,4,Springfield CDP,5476084,place,0.12121212121212122
+springfield gardens,new york,4,Springfield town,3607770310,cousub,0.0842105263157895
+trenton,pennsylvania,4,Tremont borough,4277392,place,0.125
+tulalip,washington,4,Tulalip Reservation CCD,5306193506,cousub,0.12631578947368427
+turtlecreek township,ohio,4,Turtlecreek township,3916577868,cousub,0.09000000000000007
+va beach,virginia,4,Virginia Beach city,5182000,place,0.1285714285714287
+washington dc,maryland,4,Washington Grove town,2481675,place,0.09326923076923077
+alto,michigan,3,Dalton township,2612119660,cousub,0.11111111111111122
+baker,west virginia,3,Baxter CDP,5404900,place,0.14222222222222222
+barnesville,pennsylvania,3,Barkeyville borough,4204136,place,0.08484848484848481
+camden wyoming,delaware,3,Camden town,1010760,place,0.11428571428571425
+caraopolis,pennsylvania,3,Coraopolis borough,4216144,place,0.12666666666666665
+carson,virginia,3,Capron town,5112904,place,0.08888888888888885
+caï¿½on city,colorado,3,Cañon City city,0811810,place,0.09333333333333341
+central,new york,3,Central Islip CDP,3613552,place,0.09230769230769235
+central florida,florida,3,Central Volusia CCD,1212790494,cousub,0.0966666666666667
+cisco county,texas,3,Cisco city,4815004,place,0.11666666666666663
+del vallw,texas,3,Del Sol CDP,4819808,place,0.14603174603174607
+fairfield township,ohio,3,Fairfield city,3925970,place,0.10000000000000002
+finksburg,maryland,3,Pinesburg CDP,2461700,place,0.14814814814814825
+flint,texas,3,Clint town,4815544,place,0.13333333333333336
+florance,texas,3,Florence city,4826136,place,0.0928571428571429
+forest,massachusetts,3,Forestdale CDP,2524190,place,0.08000000000000002
+fort johnson south,louisiana,3,Fort Polk South CDP,2226757,place,0.13999999999999996
+fort sam houston,texas,3,Fort Hood CDP,4826736,place,0.12222222222222226
+freehold,new york,3,Freedom town,3600927441,cousub,0.11190476190476188
+gansevoort,new york,3,Gasport CDP,3628431,place,0.14476190476190476
+guynabo,puerto rico,3,Guaynabo zona urbana,7232522,place,0.09047619047619056
+harrison township,michigan,3,Harrison city,2636800,place,0.10588235294117647
+hobson,texas,3,Houston city,4835000,place,0.12063492063492072
+hyattsville,virginia,3,Wattsville CDP,5183568,place,0.09393939393939396
+independence township,michigan,3,Independence charter township,2612540400,cousub,0.08571428571428578
+kailua-kona,hawaii,3,Kailua CDP,1523000,place,0.09090909090909094
+kenna,west virginia,3,Kenova city,5443180,place,0.12444444444444444
+kline township,pennsylvania,3,Kline township,4210740096,cousub,0.1285714285714286
+landenberg,pennsylvania,3,Landisburg borough,4241272,place,0.12000000000000004
+larue,texas,3,LaRue-Poynor CCD,4821392150,cousub,0.11666666666666663
+macomb township,michigan,3,Macomb township,2609950480,cousub,0.12000000000000004
+manchester,massachusetts,3,Chester town,2501313485,cousub,0.09999999999999999
+marshall's creek,pennsylvania,3,Marshall township,4200347696,cousub,0.10000000000000002
+millersville,maryland,3,Mitchellville CDP,2452975,place,0.1326495726495727
+mount laurel township,new jersey,3,Mount Laurel township,3400549020,cousub,0.08571428571428578
+new jersey,new jersey,3,New Egypt CDP,3451360,place,0.1466666666666667
+new york,new jersey,3,Newark city,3451000,place,0.12638888888888888
+newburry park,california,3,Newberry Springs-Baker CCD,0607192102,cousub,0.12296037296037296
+north saint paul,minnesota,3,North St. Paul city,2747221,place,0.0825549450549451
+raccoon township,pennsylvania,3,Raccoon township,4200763224,cousub,0.11250000000000003
+ransome,west virginia,3,Ranson corporation,5466988,place,0.09047619047619053
+san isydro,california,3,San Ardo CDP,0664476,place,0.11357142857142863
+sarver,pennsylvania,3,Sayre borough,4268096,place,0.14222222222222222
+spanish,utah,3,Spanish Fork city,4971290,place,0.08333333333333333
+st. genevieve,missouri,3,Ste. Genevieve city,2964180,place,0.1318681318681319
+st. joseph,kansas,3,St. John city,2062275,place,0.08499999999999999
+stewart,florida,3,Stuart city,1268875,place,0.12063492063492072
+sumpterville,florida,3,Seville CDP,1265200,place,0.125
+takoma,maryland,3,Takoma Park city,2476650,place,0.09090909090909094
+termo,california,3,Terminous CDP,0678232,place,0.08888888888888895
+valley village,california,3,Valle Vista CDP,0681708,place,0.1077922077922078
+vero beach at large,florida,3,Vero Beach city,1274150,place,0.09473684210526322
+vestavia,alabama,3,Vestavia Hills city,0178552,place,0.08571428571428578
+warren township,new jersey,3,Warren township,3403576940,cousub,0.12000000000000004
+washington,michigan,3,Hinton township,2610738540,cousub,0.13333333333333336
+west chester township,ohio,3,West Chester township,3901783150,cousub,0.08571428571428578
+west henrietta,new york,3,West Seneca CDP,3680907,place,0.1077922077922078
+west lebanon,new hampshire,3,Westmoreland town,3300582660,cousub,0.1444444444444445
+west saint paul,minnesota,3,West St. Paul city,2769700,place,0.0887179487179487
+woodstock,maryland,3,Woodsboro town,2486750,place,0.13333333333333341
+yak,washington,3,Yakima city,5380010,place,0.1166666666666667
+70 arcadia,florida,2,Arcadia city,1201750,place,0.09999999999999999
+acra,new york,2,Ancram town,3602102099,cousub,0.10000000000000009
+agoura,california,2,Agoura Hills city,0600394,place,0.10000000000000002
+alamagordo,new mexico,2,Alamogordo city,3501780,place,0.09555555555555559
+amherst,massachusetts,2,Amherst Town city,2501370,place,0.08333333333333333
+anasco,puerto rico,2,Añasco zona urbana,7202680,place,0.09999999999999995
+ardin hills,minnesota,2,Arden Hills city,2702026,place,0.08909090909090911
+ashland,tennessee,2,Ashland City town,4702180,place,0.08333333333333333
+auora,illinois,2,Aurora city,1703012,place,0.09777777777777771
+bayville,new jersey,2,Branchville borough,3407300,place,0.14659090909090916
+beaver falls,west virginia,2,Beaver CDP,5405260,place,0.10000000000000002
+belden,mississippi,2,Eden village,2821420,place,0.11111111111111122
+belvieu,texas,2,Bellville city,4807432,place,0.11111111111111116
+bmingham,alabama,2,Birmingham city,0107000,place,0.0975000000000001
+boynton,florida,2,Boynton Beach city,1207875,place,0.09230769230769235
+brandenton,florida,2,Brandon CDP,1208150,place,0.08857142857142863
+brockton,alabama,2,New Brockton town,0153856,place,0.11111111111111122
+broome,texas,2,Brookshire city,4810636,place,0.13333333333333333
+bruce township,michigan,2,Bruce Crossing CDP,2611320,place,0.14428571428571432
+buford,wyoming,2,Bedford CDP,5606045,place,0.13571428571428581
+bycyrus,ohio,2,Bucyrus city,3910030,place,0.13571428571428581
+cadet,missouri,2,Camdenton city,2910810,place,0.11851851851851859
+callao,virginia,2,Callaghan CDP,5112136,place,0.12222222222222226
+cambria heights,new york,2,Cambria town,3606311803,cousub,0.10666666666666667
+carrizo,texas,2,Carrizo Hill CDP,4812982,place,0.08333333333333333
+chaparral,texas,2,El Chaparral CDP,4822920,place,0.08333333333333338
+charlotte,south carolina,2,Charleston city,4513330,place,0.0872222222222222
+charlotte county court,virginia,2,Charlotte Court House town,5114952,place,0.09271284271284268
+choteau,oklahoma,2,Chouteau town,4014300,place,0.09583333333333334
+cisero,illinois,2,Cicero town,1714351,place,0.08888888888888885
+cocoran,california,2,Corcoran city,0616224,place,0.09047619047619056
+colombus,indiana,2,Columbus city,1814734,place,0.10833333333333339
+colombus,minnesota,2,Columbus city,2712718,place,0.10833333333333339
+colombus,mississippi,2,Columbus city,2815380,place,0.10833333333333339
+colombus,ohio,2,Columbus city,3918000,place,0.10833333333333339
+conoy township,pennsylvania,2,Conoy township,4207115824,cousub,0.1285714285714286
+cortland manor,new york,2,Cortland city,3618388,place,0.08571428571428578
+dawson,alabama,2,Daviston town,0119816,place,0.14444444444444443
+daytona,florida,2,Daytona Beach city,1216525,place,0.09230769230769235
+deerfield,ohio,2,Deersville village,3921294,place,0.133015873015873
+defuniak,florida,2,DeFuniak Springs city,1216800,place,0.10000000000000002
+deleware,ohio,2,Delaware city,3921434,place,0.09166666666666669
+eagle river,alaska,2,Eagle city,0220380,place,0.10909090909090911
+east boothbay,maine,2,Eastbrook town,2300919770,cousub,0.13675213675213682
+east donegal township,pennsylvania,2,East Donegal township,4207121032,cousub,0.08571428571428578
+east elmhurt,new york,2,East Durham CDP,3621919,place,0.13080808080808082
+east fallowfield township,pennsylvania,2,East Allen township,4209520736,cousub,0.12000000000000004
+edingurg,texas,2,Edinburg city,4822660,place,0.0928571428571429
+edwardsville,missouri,2,Wardsville village,2977002,place,0.12222222222222213
+elk,oklahoma,2,Elk City city,4023500,place,0.14583333333333334
+ellabelle,georgia,2,Ellaville city,1326980,place,0.11746031746031751
+ellinger,texas,2,Ballinger city,4805456,place,0.11574074074074082
+essington,pennsylvania,2,Eddington CDP,4222280,place,0.13333333333333341
+farmers,texas,2,Farmersville city,4825488,place,0.08333333333333333
+fountain,florida,2,Fountainebleau CDP,1224562,place,0.08571428571428578
+fredicksburg,texas,2,Fredericksburg city,4827348,place,0.08690476190476189
+freehold borough,new jersey,2,Freehold borough,3425200,place,0.10000000000000002
+fresh meadow,new york,2,East Meadow CDP,3622502,place,0.14393939393939392
+furlong,pennsylvania,2,Fulton township,4207128168,cousub,0.12063492063492072
+gerrish township,michigan,2,Gerrish township,2614331960,cousub,0.11250000000000003
+glenmont,new york,2,Glen town,3605729047,cousub,0.10000000000000002
+gorgetown,texas,2,Georgetown city,4829336,place,0.09666666666666676
+grand blanc township,michigan,2,Grand Blanc city,2633280,place,0.09000000000000007
+greenbelt,washington,2,Green Bluff CDP,5328590,place,0.11717171717171715
+greenvale township,minnesota,2,Greenvale township,2703725802,cousub,0.10000000000000002
+hazleton,west virginia,2,Hambleton town,5434492,place,0.09259259259259266
+howell township,new jersey,2,Howell township,3402533300,cousub,0.12000000000000004
+idian springs,nevada,2,Indian Springs CDP,3235300,place,0.1368131868131869
+imimpperial,california,2,Imperial city,0636280,place,0.13939393939393935
+indianapoli,indiana,2,Indianapolis city (balance),1836003,place,0.11851851851851854
+inver grove,minnesota,2,Inver Grove Heights city,2731076,place,0.0842105263157895
+jamison,pennsylvania,2,Jamison City CDP,4237728,place,0.08333333333333333
+jerrell,texas,2,Jarrell city,4837396,place,0.08571428571428572
+joppa,maryland,2,Joppatowne CDP,2442875,place,0.10000000000000002
+kansas,kansas,2,Kansas City city,2036000,place,0.09090909090909094
+lake balboa,california,2,Lake California CDP,0639460,place,0.11636363636363642
+lakew00d,new jersey,2,Lakewood CDP,3438580,place,0.10000000000000002
+lanatana,florida,2,Lantana town,1239375,place,0.09583333333333334
+landenburg,pennsylvania,2,Landisburg borough,4241272,place,0.08000000000000002
+lehigh,florida,2,Lehigh Acres CDP,1239925,place,0.10000000000000002
+lemon township,ohio,2,Lemon township,3901742672,cousub,0.1285714285714286
+lexington,new jersey,2,Flemington borough,3423700,place,0.10370370370370369
+lexingtron,kentucky,2,Lexington-Fayette urban county,2146027,place,0.1141176470588235
+logan township,new jersey,2,Logan township,3401541160,cousub,0.1285714285714286
+lower allen township,pennsylvania,2,Lower Allen CDP,4244824,place,0.09000000000000007
+lytle,california,2,Lytle Creek CDP,0644644,place,0.10909090909090911
+melrose,illinois,2,Melrose Park village,1748242,place,0.08333333333333333
+meza,arizona,2,Mesa city,0446000,place,0.13333333333333336
+miaimi,florida,2,Miami city,1245000,place,0.0855555555555555
+mimamar,florida,2,Miramar city,1245975,place,0.12063492063492072
+mira mesa,california,2,Mira Monte CDP,0648046,place,0.10444444444444446
+mirmarrr,florida,2,Miramar city,1245975,place,0.13055555555555554
+mountain home,texas,2,Mountain City city,4849600,place,0.1230769230769231
+n charleston sc,south carolina,2,Charleston city,4513330,place,0.11111111111111122
+n prince george,virginia,2,Prince George CDP,5164560,place,0.1341880341880342
+new boston,michigan,2,New Lothrop village,2657520,place,0.13272727272727275
+new castroville,texas,2,Castroville city,4813312,place,0.08888888888888892
+north carolina,north carolina,2,North Clinton township,3716392308,cousub,0.10999000999000999
+north chatham,new york,2,North Castle town,3611951693,cousub,0.11153846153846152
+north cheasterfield,virginia,2,Northwestern district,5118594927,cousub,0.1280701754385965
+north scituate,rhode island,2,North Smithfield town,4400752480,cousub,0.13214285714285715
+nuhunta,georgia,2,Nahunta city,1354124,place,0.13571428571428581
+orchard lake,michigan,2,Orchard Lake Village city,2661020,place,0.08000000000000002
+owings court,maryland,2,Owings CDP,2459375,place,0.10000000000000002
+palmer,massachusetts,2,Palmer Town city,2552144,place,0.09090909090909094
+pamona,california,2,Armona CDP,0602700,place,0.11111111111111106
+peckville,pennsylvania,2,Pennville CDP,4259296,place,0.11851851851851859
+pecos,tennessee,2,Petros CDP,4757780,place,0.14222222222222222
+phila,pennsylvania,2,Philadelphia city,4260000,place,0.11666666666666663
+pho,arizona,2,Phoenix city,0455000,place,0.1333333333333333
+pipersville,pennsylvania,2,Minersville borough,4250088,place,0.12121212121212116
+potonoc,mississippi,2,Pontotoc city,2859160,place,0.09047619047619056
+quil ceda village,washington,2,Qui-nai-elt Village CDP,5357030,place,0.14424664602683182
+rdinburg,texas,2,Edinburg city,4822660,place,0.08333333333333338
+redwood,california,2,Redwood City city,0660102,place,0.08333333333333333
+ridgedale,missouri,2,Ridge township,2903361832,cousub,0.08888888888888895
+ross township,ohio,2,Ross CDP,3968602,place,0.13846153846153852
+rotonda west,florida,2,Rotonda CDP,1261937,place,0.08333333333333333
+rucksville,virginia,2,Ruckersville CDP,5169360,place,0.08333333333333333
+sam bernardino,california,2,San Marino city,0668224,place,0.12952380952380957
+san diego diego,california,2,San Diego city,0666000,place,0.08000000000000002
+san felipe,new mexico,2,San Felipe Pueblo CDP,3567450,place,0.08235294117647059
+san magnolia,texas,2,San Angelo city,4864472,place,0.1144444444444445
+san perdro,california,2,San Ardo CDP,0664476,place,0.08499999999999999
+san ysirdo,california,2,San Ardo CDP,0664476,place,0.08499999999999999
+sanata ana,california,2,Santa Ana city,0669000,place,0.1011111111111112
+say st. louis,mississippi,2,Bay St. Louis city,2803980,place,0.1068376068376068
+scarborough,massachusetts,2,Marlborough city,2538715,place,0.12121212121212116
+scott,pennsylvania,2,Scottdale borough,4268432,place,0.08888888888888895
+soldedad,california,2,Soledad city,0672520,place,0.09583333333333334
+south crockett,texas,2,South Fork Estates CDP,4868966,place,0.11190476190476197
+south louis,missouri,2,South Linn township,2904368948,cousub,0.09454545454545456
+southhampton,pennsylvania,2,Southmont borough,4272344,place,0.08333333333333333
+spring garden township,pennsylvania,2,Spring Garden township,4213373168,cousub,0.08181818181818186
+st. louis,illinois,2,St. Elmo city,1766794,place,0.11666666666666671
+sun city,florida,2,Sun City Center CDP,1269250,place,0.09333333333333338
+sunland,california,2,Summerland CDP,0675714,place,0.14476190476190476
+svannah,georgia,2,Savannah city,1369000,place,0.12321428571428572
+tamapa,florida,2,Tampa city,1271000,place,0.0855555555555555
+taylor,utah,2,Taylorsville city,4975360,place,0.10000000000000002
+toole,utah,2,Tooele city,4976680,place,0.0855555555555555
+torrance,pennsylvania,2,Dorrance township,4207919616,cousub,0.08333333333333338
+unionville,connecticut,2,Union town,0901377830,cousub,0.10000000000000002
+warwick,iowa,2,Hartwick city,1934770,place,0.130952380952381
+waterford township,michigan,2,Waterford charter township,2612584240,cousub,0.10000000000000002
+watford,north dakota,2,Watford City city,3883860,place,0.08333333333333333
+weatherftherford,oklahoma,2,Weatherford city,4079450,place,0.08068181818181819
+west collingswood,new jersey,2,West Wildwood borough,3480210,place,0.12863019333607567
+westchester,california,2,Westminster city,0684550,place,0.1465909090909091
+"wilder, idhao",idaho,2,Wilder city,1687670,place,0.10769230769230768
+winston-salem,georgia,2,Winston CCD,1309793396,cousub,0.09230769230769235
+yocumtown,pennsylvania,2,Youngstown borough,4287208,place,0.13925925925925928
