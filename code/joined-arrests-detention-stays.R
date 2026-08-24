@@ -169,7 +169,9 @@ arrests_with_detentions <-
   ) |>
   rename_with(
     ~ str_c("detention_facility_", .x),
-    matches("^(city|state|county)_(first|longest|last)$")
+    matches(
+      "^(city|state|county|core_based_statistical_area(_code|_type)?|federal_court_(district|circuit)_of_confinement)_(first|longest|last)$"
+    )
   )
 
 # ---- Final pointblank validation ----
@@ -255,13 +257,15 @@ arrests_with_detentions <-
     .after = detention_facility_code_last
   )
 
-# save_outputs(
-#   arrests_with_detentions,
-#   "joined-arrests-detention-stays-latest"
-# )
+save_outputs(
+  arrests_with_detentions,
+  "joined-arrests-detention-stays-latest"
+)
 
 arrests_with_detentions |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
   group_split(.chunk, .keep = FALSE) |>
-  set_names(~ str_c("Arrests w/ detentions (Sheet ", seq_along(.x), ")")) |>
+  set_names(~ str_c("Arrests with detentions (Sheet ", seq_along(.x), ")")) |>
   writexl::write_xlsx("data/joined-arrests-detention-stays-latest.xlsx")
+
+# END.

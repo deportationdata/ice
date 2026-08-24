@@ -12,22 +12,27 @@ facilities_df <- arrow::read_parquet(
   distinct(detention_facility_code, .keep_all = TRUE)
 
 # ---- Read in deduplicated stint-level data ----
+stints_raw_df <- arrow::read_parquet("data/detention-stints-latest.parquet")
+
 detentions_df <-
-  arrow::read_parquet("data/detention-stints-latest.parquet") |>
+  stints_raw_df |>
   filter(duplicate_drop_row == FALSE, !is.na(unique_identifier)) |>
   select(
     -starts_with("duplicate_"),
+    -starts_with("federal_court"),
     -any_of(c(
       "city",
       "state",
       "county",
-      "initial_bond_set_amount",
-      "initial_bond_set_date",
-      "bond_posted_amount",
-      "bond_posted_date"
+      "core_based_statistical_area",
+      "core_based_statistical_area_code",
+      "core_based_statistical_area_type"
     ))
   ) |>
+  mutate(initial_bond_set_amount = as.numeric(initial_bond_set_amount)) |>
   as.data.table()
+
+rm(stints_raw_df)
 
 setorder(
   detentions_df,
@@ -64,7 +69,7 @@ detentions_df[,
   longest_stay := {
     book_out_date_time_imputed <- fifelse(
       is.na(book_out_date_time),
-      as.POSIXct("2026-03-10 23:59:59", tz = "UTC"),
+      as.POSIXct("2026-08-06 23:59:59", tz = "UTC"),
       book_out_date_time
     )
     diff <- book_out_date_time_imputed - book_in_date_time
@@ -116,35 +121,7 @@ detention_stay_level_vars_df <-
         detention_facility_codes_all = str_c(
           detention_facility_code,
           collapse = "; "
-        ),
-        initial_bond_set_amount_lowest_seen = if (
-          all(is.na(initial_bond_set_amount_lowest_seen))
-        ) {
-          initial_bond_set_amount_lowest_seen[NA_integer_]
-        } else {
-          min(initial_bond_set_amount_lowest_seen, na.rm = TRUE)
-        },
-        initial_bond_set_date_earliest_seen = if (
-          all(is.na(initial_bond_set_date_earliest_seen))
-        ) {
-          initial_bond_set_date_earliest_seen[NA_integer_]
-        } else {
-          min(initial_bond_set_date_earliest_seen, na.rm = TRUE)
-        },
-        bond_posted_amount_lowest_seen = if (
-          all(is.na(bond_posted_amount_lowest_seen))
-        ) {
-          bond_posted_amount_lowest_seen[NA_integer_]
-        } else {
-          min(bond_posted_amount_lowest_seen, na.rm = TRUE)
-        },
-        bond_posted_date_earliest_seen = if (
-          all(is.na(bond_posted_date_earliest_seen))
-        ) {
-          bond_posted_date_earliest_seen[NA_integer_]
-        } else {
-          min(bond_posted_date_earliest_seen, na.rm = TRUE)
-        }
+        )
       ),
       lapply(
         .SD,
@@ -163,10 +140,7 @@ detention_stay_level_vars_df <-
         "detention_release_reason",
         "book_in_site",
         "book_in_aor",
-        "initial_bond_set_amount_lowest_seen",
-        "initial_bond_set_date_earliest_seen",
-        "bond_posted_amount_lowest_seen",
-        "bond_posted_date_earliest_seen"
+        "stint_length_days"
       )
     )
   ]
@@ -326,6 +300,7 @@ detention_stays_df |>
       "[1C] Expired Voluntary Departure Period - Referred to Investigation",
       "[2A] Deportable - Under Adjudication by IJ",
       "[2B] Deportable - Under Adjudication by BIA",
+      "[2V] Voluntary Departure Granted by IJ",
       "[3] Deportable - Administratively Final Order",
       "[5A] Referred for Investigation - No Show for Hearing - No Final Order",
       "[5B] Removable - ICE Fugitive",
@@ -343,6 +318,7 @@ detention_stays_df |>
       "[8H] Expedited Removal - Status Claim Referral",
       "[8I] Inadmissible - ICE Fugitive - Expedited Removal",
       "[8K] Expedited Removal Terminated due to Credible Fear Finding / NTA Issued",
+      "[8V] Voluntary Departure Granted by IJ",
       "[9] VR Under Safeguards",
       "[H] Historical Category For Migration Only",
       NA
@@ -387,20 +363,6 @@ detention_stays_df |>
     c("1", "2", "3", "NA", NA),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
-  # -- Bond amounts should be non-negative --
-  col_vals_gte(
-    initial_bond_set_amount_lowest_seen,
-    0,
-    na_pass = TRUE,
-    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
-  ) |>
-  col_vals_gte(
-    bond_posted_amount_lowest_seen,
-    0,
-    na_pass = TRUE,
-    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
-  ) |>
-  # -- Logical consistency: stay_book_in <= stay_book_out --
   col_vals_expr(
     expr(
       is.na(stay_book_in_date_time) |
@@ -453,32 +415,80 @@ detention_stays_df |>
   ) |>
   invisible()
 
-# ---- Merge in facility info (city, state, county) for first/longest/last ----
+# ---- Merge in facility info (city, state, county, CBSA, federal court) for first/longest/last ----
 n_before_facility_join <- nrow(detention_stays_df)
+
 detention_stays_df <-
   detention_stays_df |>
   left_join(
     facilities_df |>
-      select(detention_facility_code, city, state, county) |>
+      select(
+        detention_facility_code,
+        city,
+        state,
+        county,
+        core_based_statistical_area,
+        core_based_statistical_area_code,
+        core_based_statistical_area_type,
+        starts_with("federal_court")
+      ) |>
       rename_with(~ str_c(., "_first"), -detention_facility_code),
     by = c("detention_facility_code_first" = "detention_facility_code"),
     relationship = "many-to-one"
   ) |>
   left_join(
     facilities_df |>
-      select(detention_facility_code, city, state, county) |>
+      select(
+        detention_facility_code,
+        city,
+        state,
+        county,
+        core_based_statistical_area,
+        core_based_statistical_area_code,
+        core_based_statistical_area_type,
+        starts_with("federal_court")
+      ) |>
       rename_with(~ str_c(., "_longest"), -detention_facility_code),
     by = c("detention_facility_code_longest" = "detention_facility_code"),
     relationship = "many-to-one"
   ) |>
   left_join(
     facilities_df |>
-      select(detention_facility_code, city, state, county) |>
+      select(
+        detention_facility_code,
+        city,
+        state,
+        county,
+        core_based_statistical_area,
+        core_based_statistical_area_code,
+        core_based_statistical_area_type,
+        starts_with("federal_court")
+      ) |>
       rename_with(~ str_c(., "_last"), -detention_facility_code),
     by = c("detention_facility_code_last" = "detention_facility_code"),
     relationship = "many-to-one"
   )
+
 stopifnot(nrow(detention_stays_df) == n_before_facility_join)
+
+# ---- Check: bond variables ----
+detention_stays_df |>
+  col_exists(
+    c(initial_bond_set_amount, bond_posted_date, bond_posted_amount)
+  ) |>
+  col_vals_gte(
+    initial_bond_set_amount,
+    0,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_gte(
+    bond_posted_amount,
+    0,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  invisible()
 
 # ---- Sort by stay book-in date ----
 detention_stays_df <- detention_stays_df |>
@@ -504,3 +514,5 @@ detention_stays_df |>
   group_split(.chunk, .keep = FALSE) |>
   set_names(~ str_c("Detention stays (Sheet ", seq_along(.x), ")")) |>
   writexl::write_xlsx("data/detention-stays-latest.xlsx")
+
+# END.

@@ -10,42 +10,48 @@ source("code/functions/is_not_blank_or_redacted.R")
 # ---- Read in files ----
 
 col_types <- c(
-  "date", # Apprehension Date
-  "text", # Apprehension Type
-  "text", # State
+  "text", # AOR
   "text", # County
-  "text", # TOA Current Duty AOR
-  "text", # Apprehension Final Program
-  "text", # Arresting Agency
-  "text", # Apprehension Method
   "text", # Apprehension Criminality
-  "text", # Case Status
-  "text", # Case Category
-  "text", # Departure Country
-  "text", # Final Order Yes No
-  "text", # Birth Date
+  "date", # Apprehension Date
+  "text", # Event Landmark
+  "text", # Apprehension Method
+  "text", # State
+  "text", # City
   "numeric", # Birth Year
-  "text", # Citizenship Country
-  "text", # Gender
-  "date", # Departed Date
-  "date", # Final Order Date
-  "text", # Apprehension Site Landmark
-  "text", # Operation
-  "text", # TOA Current Duty Site
-  "text", # Case Criminality
+  "text", # Case Category
+  "text", # Case Status
   "text", # Case Threat Level
-  "text" # Anonymized Identifier
+  "text", # Citizenship Country
+  "date", # Departed Date
+  "text", # Departure Country
+  "date", # Final Order Date
+  "text", # Final Order Yes No
+  "text", # Final Program
+  "text", # Final Program Group
+  "text", # Gender
+  "text", # Alien File Number
+  "text" # Anonymized Unique Identifier
 )
+
+col_types_fy24 <- col_types[-21]
 
 arrests_df <-
   list.files(
-    Sys.getenv("ICE_RAW_DATA_DIR"),
-    pattern = "^[^~].*Arrests",
+    here::here("inputs"),
+    pattern = "^[^~].*ARS",
     full.names = TRUE
   ) |>
   set_names(basename) |>
   map_dfr(
     function(f) {
+      # FY24 file lacks Alien File Number column
+      n_cols <- ncol(readxl::read_excel(f, n_max = 0, skip = 6))
+      ct <- if (n_cols == length(col_types)) {
+        col_types
+      } else {
+        col_types_fy24
+      }
       readxl::excel_sheets(f) |>
         set_names() |>
         map_dfr(
@@ -53,7 +59,7 @@ arrests_df <-
             readxl::read_excel(
               path = f,
               sheet = s,
-              col_types = col_types,
+              col_types = ct,
               skip = 6
             )
           },
@@ -63,10 +69,16 @@ arrests_df <-
     .id = "file_original"
   )
 
+
 # ---- Check: read ----
 arrests_df |>
   col_exists(
-    c(`Apprehension Date`, `Anonymized Identifier`, `Gender`, `Case Status`)
+    c(
+      `Apprehension Date`,
+      `Anonymized Unique Identifier`,
+      `Gender`,
+      `Case Status`
+    )
   ) |>
   col_vals_not_null(
     `Apprehension Date`,
@@ -74,26 +86,17 @@ arrests_df |>
   ) |>
   invisible()
 
-us_abb <- c(
-  state.abb,
-  "DC",
-  "PR",
-  "GU",
-  "VI",
-  "MP",
-  "AS",
-  "FM"
+us_state_names <- c(
+  set_names(str_to_upper(state.name), state.abb),
+  DC = "DISTRICT OF COLUMBIA",
+  PR = "PUERTO RICO",
+  GU = "GUAM",
+  VI = "VIRGIN ISLANDS",
+  MP = "NORTHERN MARIANA ISLANDS",
+  AS = "AMERICAN SAMOA",
+  FM = "FEDERATED STATES OF MICRONESIA"
 )
-us_name_upper <- str_to_upper(c(
-  state.name,
-  "District of Columbia",
-  "Puerto Rico",
-  "Guam",
-  "Virgin Islands",
-  "Northern Mariana Islands",
-  "American Samoa",
-  "Federated States of Micronesia"
-))
+us_abb_regex <- str_c(names(us_state_names), collapse = "|")
 
 arrests_df <-
   arrests_df |>
@@ -119,24 +122,97 @@ arrests_df <-
     apprehension_date = as.Date(apprehension_date_time),
     # convert birth year to integer
     birth_year = as.integer(birth_year),
-    # construct filled-in state
+    # standardized landmark for whole-landmark matching
+    event_landmark_squished = str_squish(event_landmark |> str_to_upper())
+  )
+
+# landmarks recorded in a single state at least 99% of the time -> state
+landmark_states <-
+  arrests_df |>
+  filter(!is.na(event_landmark_squished), !is.na(state)) |>
+  count(event_landmark_squished, state) |>
+  filter(sum(n) >= 20, n / sum(n) >= 0.99, .by = event_landmark_squished) |>
+  select(event_landmark_squished, landmark_state = state)
+
+# AORs recorded in a single state at least 99% of the time -> state
+aor_states <-
+  arrests_df |>
+  filter(!is.na(aor), !is.na(state)) |>
+  count(aor, state) |>
+  filter(sum(n) >= 20, n / sum(n) >= 0.99, .by = aor) |>
+  select(aor, aor_state = state)
+
+arrests_df <-
+  arrests_df |>
+  left_join(
+    landmark_states,
+    by = "event_landmark_squished",
+    relationship = "many-to-one"
+  ) |>
+  left_join(aor_states, by = "aor", relationship = "many-to-one") |>
+  mutate(
+    # pick last two-letter state abbreviation in the landmark, either:
+    # 1. preceded by a comma ("GALVESTON CO JAIL, GALVESTON, TX") or
+    # 2. a hyphen with a space ("RAPPAHANNOCK REGIONAL JAIL - VA"), or
+    # 3. followed by "STATE" ("CAP - LEE COUNTY JAIL, AL STATE").
+    # Do not merge just state because of ambiguities e.g. IN is preposition.
+    landmark_state_abbr = str_extract(
+      event_landmark_squished,
+      str_c(
+        ".*",
+        "(?:,\\s*|-\\s+|\\b(?=(?:",
+        us_abb_regex,
+        ") STATE\\b))",
+        "\\b(",
+        us_abb_regex,
+        ")\\b"
+      ),
+      group = 1
+    ),
     apprehension_state_filled_in = coalesce(
       state,
-      # first try extracting state abbr from landmark
-      str_extract(
-        toa_current_duty_site |> str_to_upper(),
-        str_c("\\b(", str_c(us_abb, collapse = "|"), ")\\b")
-      ) |>
-        (\(x) us_name_upper[match(x, us_abb)])(),
-      # if not that, try extracting state name from landmark
-      str_extract(
-        toa_current_duty_site |> str_to_upper(),
-        str_c("\\b(", str_c(us_name_upper, collapse = "|"), ")\\b")
-      )
+      # first try the anchored state abbreviation from the landmark
+      unname(us_state_names[landmark_state_abbr]),
+      # if not that, use the state of landmarks that are >=99% same state
+      landmark_state,
+      # if not that, use the state of AORs that are >=99% in one state
+      aor_state
+    )
+  ) |>
+  select(
+    -event_landmark_squished,
+    -landmark_state_abbr,
+    -landmark_state,
+    -aor_state
+  )
+
+# Simplified processed variables
+arrests_df <-
+  arrests_df |>
+  mutate(
+    apprehension_method_simple = case_when(
+      apprehension_method %in%
+        c(
+          "Non-Custodial Arrest",
+          "Located",
+          "Probation and Parole",
+          "Worksite Enforcement"
+        ) ~ "At-Large Arrest",
+      apprehension_method %in%
+        c(
+          "Custodial Arrest",
+          "CAP Local Incarceration",
+          "CAP Federal Incarceration",
+          "CAP State Incarceration",
+          "Criminal Alien Program"
+        ) ~ "Custodial Arrest",
+      apprehension_method == "287(g) Program" ~ "287(g) Program",
+      TRUE ~ "Other"
     )
   )
 
 # ---- Check: state imputation ----
+
 arrests_df |>
   col_vals_expr(
     expr(is.na(state) | state == apprehension_state_filled_in),
@@ -160,7 +236,7 @@ arrests_df |>
   col_exists(
     c(
       apprehension_date,
-      anonymized_identifier,
+      anonymized_unique_identifier,
       gender,
       case_status,
       file_original,
@@ -183,9 +259,9 @@ setDT(arrests_df)
 arrests_df[,
   `:=`(
     anonymized_identifier_nona = fifelse(
-      is.na(anonymized_identifier),
+      is.na(anonymized_unique_identifier),
       paste0("noid_", .I),
-      anonymized_identifier
+      anonymized_unique_identifier
     ),
     is_reprocessed = apprehension_method == "ERO Reprocessed Arrest"
   )
@@ -217,7 +293,7 @@ arrests_df[,
   `:=`(
     duplicate_episode_first = seq_len(.N) == 1L,
     duplicate_likely = fifelse(
-      is.na(anonymized_identifier),
+      is.na(anonymized_unique_identifier),
       as.logical(NA),
       .N > 1L
     )
@@ -231,6 +307,41 @@ arrests_df <-
   arrests_df |>
   as_tibble() |>
   mutate(duplicate_drop_row = duplicate_likely & !duplicate_episode_first)
+
+# ---- Fill in state within duplicate arrest episodes ----
+# rows of the same arrest episode (e.g. an ERO Reprocessed Arrest of the same
+# event) sometimes have the state when another row does not; copy it over
+# when all rows of the episode that have a state agree
+episode_states <-
+  arrests_df |>
+  filter(
+    !is.na(anonymized_unique_identifier),
+    !is.na(apprehension_state_filled_in)
+  ) |>
+  distinct(
+    anonymized_unique_identifier,
+    duplicate_episode_identifier,
+    episode_state = apprehension_state_filled_in
+  ) |>
+  filter(
+    n() == 1,
+    .by = c(anonymized_unique_identifier, duplicate_episode_identifier)
+  )
+
+arrests_df <-
+  arrests_df |>
+  left_join(
+    episode_states,
+    by = c("anonymized_unique_identifier", "duplicate_episode_identifier"),
+    relationship = "many-to-one"
+  ) |>
+  mutate(
+    apprehension_state_filled_in = coalesce(
+      apprehension_state_filled_in,
+      episode_state
+    )
+  ) |>
+  select(-episode_state)
 
 # ---- Check: duplicates ----
 arrests_df |>
@@ -252,7 +363,7 @@ arrests_df |>
 arrests_df |>
   # -- Primary key / identifier checks --
   col_vals_not_null(
-    anonymized_identifier,
+    anonymized_unique_identifier,
     actions = action_levels(warn_at = 0.02, stop_at = 0.05)
   ) |>
   col_vals_not_null(
@@ -330,7 +441,7 @@ arrests_df |>
       "Z-SAW - Permanent Residence Granted",
       NA
     ),
-    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.05)
   ) |>
   col_vals_in_set(
     case_category,
@@ -348,6 +459,7 @@ arrests_df |>
       "[1C] Expired Voluntary Departure Period - Referred to Investigation",
       "[2A] Deportable - Under Adjudication by IJ",
       "[2B] Deportable - Under Adjudication by BIA",
+      "[2V] Voluntary Departure Granted by IJ",
       "[3] Deportable - Administratively Final Order",
       "[5A] Referred for Investigation - No Show for Hearing - No Final Order",
       "[5B] Removable - ICE Fugitive",
@@ -365,6 +477,7 @@ arrests_df |>
       "[8H] Expedited Removal - Status Claim Referral",
       "[8I] Inadmissible - ICE Fugitive - Expedited Removal",
       "[8K] Expedited Removal Terminated due to Credible Fear Finding / NTA Issued",
+      "[8V] Voluntary Departure Granted by IJ",
       "[9] VR Under Safeguards",
       "[H] Historical Category For Migration Only",
       NA
@@ -389,14 +502,14 @@ arrests_df |>
   ) |>
   invisible()
 
-# ---- Rename to match Oct 2025 release ----
+# ---- Rename to match previous releases ----
 arrests_df <-
   arrests_df |>
   rename(
+    apprehension_aor = aor,
     apprehension_state_original = state,
-    apprehension_aor = toa_current_duty_aor,
-    final_program = apprehension_final_program,
-    unique_identifier = anonymized_identifier
+    apprehension_city = city,
+    unique_identifier = anonymized_unique_identifier
   ) |>
   relocate(
     apprehension_state_filled_in,
@@ -413,3 +526,5 @@ arrow::write_parquet(
 writexl::write_xlsx(arrests_df, "data/arrests-latest.xlsx")
 haven::write_dta(arrests_df, "data/arrests-latest.dta")
 haven::write_sav(arrests_df, "data/arrests-latest.sav")
+
+# END.

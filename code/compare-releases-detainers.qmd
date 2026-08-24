@@ -1,0 +1,260 @@
+---
+title: "Comparison of ICE Aug 2026 versus Mar 2026 releases"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    df-print: kable
+execute:
+  warning: false
+  message: false
+  echo: false
+  freeze: true
+---
+
+```{r}
+#| label: setup
+
+library(dplyr)
+library(arrow)
+library(readxl)
+library(tidyr)
+library(tidylog)
+library(purrr)
+library(stringr)
+library(lubridate)
+library(knitr)
+library(ggplot2)
+library(pointblank)
+
+data_dir <- here::here("inputs/")
+mar_dir <- paste0(data_dir, "/2026-03-11/")
+aug_dir <- paste0(data_dir, "/2026-08-07/")
+
+```
+
+# Detainers
+
+```{r}
+
+# ---- Read in files ----
+
+col_types_aug <- c(
+  "date", # Apprehension Date
+  "text", # Apprehension Method
+  "text", # Biometric Match Yes No
+  "text", # Birth Country
+  "numeric", # Birth Year
+  "text", # Case Category
+  "text", # Case Status
+  "text", # Citizenship Country
+  "date", # Departed Date
+  "text", # Departure Country
+  "text", # Deportation Ordered Yes No
+  "text", # Detainer Lift Reason
+  "text", # Detainer Prepared Threat Level
+  "date", # Detainer Prepared Date
+  "text", # Detainer Prepared Criminality
+  "text", # Detainer Type
+  "text", # Detention Facility
+  "text", # Detention Facility Code
+  "date", # Entry Date
+  "text", # Entry Status
+  "text", # AOR
+  "text", # City
+  "text", # State
+  "text", # Felon
+  "date", # Final Order Date
+  "text", # Final Order Yes No
+  "text", # TOD Final Program
+  "text", # Gender
+  "text", # MSC Charge
+  "text", # MSC Charge Code
+  "text", # MSC Charge Date
+  "text", # MSC Conviction Date
+  "numeric", # Sentence Days
+  "numeric", # Sentence Months
+  "numeric", # Sentence Years
+  "text", # Order to Show Cause Served Yes No
+  "text", # Port Of Departure
+  "text", # Processing Disposition
+  "text", # Resume Custody Yes No
+  "text", # Statements Made Yes No
+  "text", # TOA Case Category
+  "text", # TOA Case Category Code
+  "text", # Alien File Number
+  "text" # Anonymized Unique Identifier
+)
+
+col_types_mar <- c(
+  "date", # Detainer Prepare Date
+  "text", # Facility State
+  "text", # Facility AOR
+  "text", # Port of Departure
+  "text", # Departure Country
+  "date", # Departed Date
+  "text", # Case Status
+  "text", # Detainer Criminality
+  "text", # Detainer Facility
+  "text", # Detainer Facility Code
+  "text", # Facility City
+  "text", # Detainer Threat Level
+  "text", # Gender
+  "text", # Citizenship Country
+  "text", # Birth Country
+  "text", # Birth Date
+  "numeric", # Birth Year
+  "text", # Entry Status
+  "text", # MSC Charge
+  "numeric", # MSC Sentence Days
+  "numeric", # MSC Sentence Months
+  "numeric", # MSC Sentence Years
+  "text", # MSC Charge Code
+  "date", # MSC Charge Date
+  "date", # MSC Conviction Date
+  "text", # Aggravated Felon Yes No
+  "text", # Processing Disposition
+  "text", # Case Category
+  "text", # TOA Case Category
+  "text", # TOA Current Program
+  "text", # Apprehension Method
+  "text", # Final Order Yes No
+  "date", # Final Order Date
+  "date", # Apprehension Date
+  "date", # Entry Date
+  "text", # Prior Felony Yes No
+  "text", # Multiple Prior MISD Yes No
+  "text", # Violent Misdemeanor Yes No
+  "text", # Illegal Entry Yes No
+  "text", # Illegal Reentry Yes No
+  "text", # Immigration Fraud Yes No
+  "text", # Significant Risk Yes No
+  "text", # Other Removal Reason Yes No
+  "text", # Other Removal Reason
+  "text", # Criminal Street Gang Yes No
+  "text", # Aggravated Felony Yes No
+  "text", # Deportation Ordered Yes No
+  "text", # Order to Show Cause Served Yes No
+  "date", # Order to Show Cause Served Date
+  "text", # Biometric Match Yes No
+  "text", # Statements Made Yes No
+  "text", # Unlawful Attempt Yes No
+  "text", # Unlawful Entry Yes No
+  "text", # Visa Yes No
+  "text", # Federal Register Notice Yes No
+  "text", # Resume Custody Yes No
+  "text", # Detainer Lift Reason
+  "text", # Detainer Lift Reason Code
+  "text", # Active Investigation Yes No
+  "date", # Arrest Warrant Served Date
+  "text", # Detainer Type
+  "text", # Notify Release Request Yes No
+  "text", # TOD Current Duty Site
+  "text", # EID DTA ID
+  "text" # Anonymized Identifier
+)
+
+
+detainers_df_aug <-
+  list.files(
+    aug_dir,
+    pattern = "^[^~].*DPR",
+    full.names = TRUE
+  ) |>
+  set_names(basename) |>
+  map_dfr(
+    function(f) {
+      readxl::excel_sheets(f) |>
+        set_names() |>
+        map_dfr(
+          function(s) {
+            readxl::read_excel(
+              path = f,
+              sheet = s,
+              col_types = col_types_aug,
+              skip = 6
+            )
+          },
+          .id = "sheet_original"
+        )
+    },
+    .id = "file_original"
+  )
+
+# FY23 and FY24 files lack the Birth Date column
+col_types_fy2324 <- col_types_mar[-16]
+
+detainers_df_mar <-
+  list.files(
+    mar_dir,
+    pattern = "^[^~].*Detainers",
+    full.names = TRUE
+  ) |>
+  set_names(basename) |>
+  map_dfr(
+    function(f) {
+      # FY23/FY24 files lack Birth Date column
+      n_cols <- ncol(readxl::read_excel(f, n_max = 0, skip = 6))
+      ct <- if (n_cols == length(col_types_mar)) {
+        col_types_mar
+      } else {
+        col_types_fy2324
+      }
+      readxl::excel_sheets(f) |>
+        set_names() |>
+        map_dfr(
+          function(s) {
+            readxl::read_excel(
+              path = f,
+              sheet = s,
+              col_types = ct,
+              skip = 6
+            )
+          },
+          .id = "sheet_original"
+        )
+    },
+    .id = "file_original"
+  )
+
+
+```
+
+
+## Naive cleaning
+```{r}
+
+
+detainers_df_mar <- detainers_df_mar |> 
+    janitor::clean_names()
+
+detainers_df_aug <- detainers_df_aug |> 
+    janitor::clean_names()
+
+```
+
+
+## Weekly counts
+
+```{r}
+
+dat_mar <- detainers_df_mar |> 
+    mutate(week = floor_date(detainer_prepare_date, unit="weeks")) |> 
+    count(week) |> 
+    mutate(source = "2026-03 release")
+
+dat_aug <- detainers_df_aug |> 
+    mutate(week = floor_date(detainer_prepared_date, unit="weeks")) |> 
+    count(week) |> 
+    mutate(source = "2026-08 release")
+
+dat <- rbind(dat_mar, dat_aug)
+
+p1 <- dat |> 
+    ggplot(aes(x = week, y = n, color = source, group = source)) +
+    geom_line() + theme_minimal()
+
+p1
+
+```
+

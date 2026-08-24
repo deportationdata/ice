@@ -1,0 +1,231 @@
+---
+title: "Comparison of ICE Aug 2026 versus Mar 2026 releases"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    df-print: kable
+execute:
+  warning: false
+  message: false
+  echo: false
+  freeze: true
+---
+
+```{r}
+#| label: setup
+
+library(dplyr)
+library(arrow)
+library(readxl)
+library(tidyr)
+library(tidylog)
+library(purrr)
+library(stringr)
+library(lubridate)
+library(knitr)
+library(ggplot2)
+library(pointblank)
+
+data_dir <- here::here("inputs/")
+mar_dir <- paste0(data_dir, "/2026-03-11/")
+aug_dir <- paste0(data_dir, "/2026-08-07/")
+
+```
+
+# Arrests
+
+```{r}
+
+# ---- Read in files ----
+
+col_types_mar <- c(
+  "date", # Apprehension Date
+  "text", # Apprehension Type
+  "text", # State
+  "text", # County
+  "text", # TOA Current Duty AOR
+  "text", # Apprehension Final Program
+  "text", # Arresting Agency
+  "text", # Apprehension Method
+  "text", # Apprehension Criminality
+  "text", # Case Status
+  "text", # Case Category
+  "text", # Departure Country
+  "text", # Final Order Yes No
+  "text", # Birth Date
+  "numeric", # Birth Year
+  "text", # Citizenship Country
+  "text", # Gender
+  "date", # Departed Date
+  "date", # Final Order Date
+  "text", # Apprehension Site Landmark
+  "text", # Operation
+  "text", # TOA Current Duty Site
+  "text", # Case Criminality
+  "text", # Case Threat Level
+  "text" # Anonymized Identifier
+)
+
+col_types_aug <- c(
+  "text", # AOR
+  "text", # County
+  "text", # Apprehension Criminality
+  "date", # Apprehension Date
+  "text", # Event Landmark
+  "text", # Apprehension Method
+  "text", # State
+  "text", # City
+  "numeric", # Birth Year
+  "text", # Case Category
+  "text", # Case Status
+  "text", # Case Threat Level
+  "text", # Citizenship Country
+  "date", # Departed Date
+  "text", # Departure Country
+  "date", # Final Order Date
+  "text", # Final Order Yes No
+  "text", # Final Program
+  "text", # Final Program Group
+  "text", # Gender
+  "text", # Alien File Number
+  "text" # Anonymized Unique Identifier
+)
+
+# FY24 file lacks Alien File Number column
+col_types_fy24 <- col_types_aug[-21]
+
+arrests_df_aug <-
+  list.files(
+    aug_dir,
+    pattern = "^[^~].*ARS",
+    full.names = TRUE
+  ) |>
+  set_names(basename) |>
+  map_dfr(
+    function(f) {
+      # FY24 file lacks Alien File Number column
+      n_cols <- ncol(readxl::read_excel(f, n_max = 0, skip = 6))
+      ct <- if (n_cols == length(col_types_aug)) {
+        col_types_aug
+      } else {
+        col_types_fy24
+      }
+      readxl::excel_sheets(f) |>
+        set_names() |>
+        map_dfr(
+          function(s) {
+            readxl::read_excel(
+              path = f,
+              sheet = s,
+              col_types = ct,
+              skip = 6
+            )
+          },
+          .id = "sheet_original"
+        )
+    },
+    .id = "file_original"
+  )
+
+arrests_df_mar <-
+  list.files(
+    mar_dir,
+    pattern = "^[^~].*Arrests",
+    full.names = TRUE
+  ) |>
+  set_names(basename) |>
+  map_dfr(
+    function(f) {
+      readxl::excel_sheets(f) |>
+        set_names() |>
+        map_dfr(
+          function(s) {
+            readxl::read_excel(
+              path = f,
+              sheet = s,
+              col_types = col_types_mar,
+              skip = 6
+            )
+          },
+          .id = "sheet_original"
+        )
+    },
+    .id = "file_original"
+  )
+
+# ---- Check: read ----
+arrests_df_aug |>
+  col_exists(
+    c(`Apprehension Date`, `Anonymized Unique Identifier`, `Gender`, `Case Status`)
+  ) |>
+  col_vals_not_null(
+    `Apprehension Date`,
+    actions = action_levels(warn_at = 0.01, stop_at = 0.05)
+  ) |>
+  invisible()
+
+arrests_df_mar |>
+  col_exists(
+    c(`Apprehension Date`, `Anonymized Identifier`, `Gender`, `Case Status`)
+  ) |>
+  col_vals_not_null(
+    `Apprehension Date`,
+    actions = action_levels(warn_at = 0.01, stop_at = 0.05)
+  ) |>
+  invisible()
+
+```
+
+
+## August 2026 data
+```{r}
+
+kable(head(arrests_df_aug))
+
+```
+
+## March 2026 data
+```{r}
+
+kable(head(arrests_df_mar))
+
+```
+
+## Naive cleaning
+```{r}
+
+arrests_df_mar <- arrests_df_mar |> 
+    janitor::clean_names()
+
+arrests_df_aug <- arrests_df_aug |> 
+    janitor::clean_names()
+
+```
+
+
+## Weekly counts
+
+```{r}
+
+dat_mar <- arrests_df_mar |> 
+    mutate(week = floor_date(apprehension_date, unit="weeks")) |> 
+    count(week) |> 
+    mutate(source = "2026-03 release")
+
+dat_aug <- arrests_df_aug |> 
+    mutate(week = floor_date(apprehension_date, unit="weeks")) |> 
+    count(week) |> 
+    mutate(source = "2026-08 release")
+
+dat <- rbind(dat_mar, dat_aug)
+
+p1 <- dat |> 
+    ggplot(aes(x = week, y = n, color = source, group = source)) +
+    geom_line() + theme_minimal()
+
+p1
+
+```
+
+
