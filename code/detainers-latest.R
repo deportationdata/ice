@@ -110,7 +110,7 @@ detainers_df <-
   # add row number from original file
   mutate(
     row_original = as.integer(row_number() + 6 + 1),
-    .by = "sheet_original"
+    .by = c("file_original", "sheet_original")
   ) |>
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |>
@@ -125,11 +125,12 @@ detainers_df <-
     birth_year = as.integer(birth_year)
   ) |>
   mutate(
-    duplicate_likely = if_else(!is.na(anonymized_unique_identifier), n() > 1, NA),
+    duplicate_likely = if_else(
+      !is.na(anonymized_unique_identifier),
+      n() > 1,
+      NA
+    ),
     .by = c("detainer_prepared_date", "anonymized_unique_identifier")
-  ) |>
-  rename(
-    order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
 
@@ -146,7 +147,7 @@ detainers_df |>
       sheet_original,
       row_original,
       duplicate_likely,
-      order_show_cause_served_yes_no
+      order_to_show_cause_served_yes_no
     )
   ) |>
   col_vals_not_null(
@@ -371,7 +372,8 @@ detainers_df <-
     msc_sentence_days = sentence_days,
     msc_sentence_months = sentence_months,
     msc_sentence_years = sentence_years,
-    unique_identifier = anonymized_unique_identifier
+    unique_identifier = anonymized_unique_identifier,
+    order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
   )
 
 
