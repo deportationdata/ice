@@ -35,6 +35,6 @@ joined_charge_codes_tbl <- rbind(
 ) |>
   distinct(msc_charge, msc_charge_code)
 
-write_csv(msc_charge_codes_tbl, here::here("data/msc-charge-codes.csv"))
+write_csv(joined_charge_codes_tbl, here::here("data/msc-charge-codes.csv"))
 
 # END.
