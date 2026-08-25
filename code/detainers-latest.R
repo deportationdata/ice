@@ -83,7 +83,7 @@ detainers_df <-
     .id = "file_original"
   )
 
-# warnings about date parsing, all in MSC charge and conviction dates, cannot be resolved unambiguously
+# one date parsing warning: FY2026 Apprehension Date (Excel row 47273) holds text "06/14/0002 03:10 PM", coerced to NA
 
 # ---- Check: read ----
 detainers_df |>
@@ -109,7 +109,7 @@ detainers_df <-
   # add row number from original file
   mutate(
     row_original = as.integer(row_number() + 6 + 1),
-    .by = "sheet_original"
+    .by = c("file_original", "sheet_original")
   ) |>
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |>
@@ -120,15 +120,17 @@ detainers_df <-
   # replace redacted values with NA
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
+  mutate(across(where(is.character), ~ na_if(.x, "NA"))) |>
   mutate(
     birth_year = as.integer(birth_year)
   ) |>
   mutate(
-    duplicate_likely = if_else(!is.na(anonymized_unique_identifier), n() > 1, NA),
+    duplicate_likely = if_else(
+      !is.na(anonymized_unique_identifier),
+      n() > 1,
+      NA
+    ),
     .by = c("detainer_prepared_date", "anonymized_unique_identifier")
-  ) |>
-  rename(
-    order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
 
@@ -205,7 +207,7 @@ detainers_df |>
       sheet_original,
       row_original,
       duplicate_likely,
-      order_show_cause_served_yes_no
+      order_to_show_cause_served_yes_no
     )
   ) |>
   col_vals_not_null(
@@ -325,8 +327,10 @@ detainers_df |>
       "10-USC Prosecution Case Closed",
       "A-Proceedings Terminated",
       "B-Relief Granted",
+      "D-IJ/BIA Dismissed",
       "E-Charging Document Canceled by ICE",
       "L-Legalization - Permanent Residence Granted",
+      "P-Policy closure",
       "Z-SAW - Permanent Residence Granted",
       NA
     ),
@@ -439,7 +443,8 @@ detainers_df <-
     msc_sentence_days = sentence_days,
     msc_sentence_months = sentence_months,
     msc_sentence_years = sentence_years,
-    unique_identifier = anonymized_unique_identifier
+    unique_identifier = anonymized_unique_identifier,
+    order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
   )
 
 
