@@ -83,7 +83,7 @@ detainers_df <-
     .id = "file_original"
   )
 
-# warnings about date parsing, all in MSC charge and conviction dates, cannot be resolved unambiguously
+# one date parsing warning: FY2026 Apprehension Date (Excel row 47273) holds text "06/14/0002 03:10 PM", coerced to NA
 
 # ---- Check: read ----
 detainers_df |>
@@ -121,6 +121,7 @@ detainers_df <-
   # replace redacted values with NA
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
+  mutate(across(where(is.character), ~ na_if(.x, "NA"))) |>
   mutate(
     birth_year = as.integer(birth_year)
   ) |>
@@ -258,8 +259,10 @@ detainers_df |>
       "10-USC Prosecution Case Closed",
       "A-Proceedings Terminated",
       "B-Relief Granted",
+      "D-IJ/BIA Dismissed",
       "E-Charging Document Canceled by ICE",
       "L-Legalization - Permanent Residence Granted",
+      "P-Policy closure",
       "Z-SAW - Permanent Residence Granted",
       NA
     ),
