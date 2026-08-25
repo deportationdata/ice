@@ -300,7 +300,7 @@ detainers_df |>
     conviction,
     c(
       "Violent crime",
-      "Non-violent crime",
+      "Nonviolent crime",
       "None"
     ),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
