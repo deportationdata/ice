@@ -102,7 +102,6 @@ detainers_df |>
   ) |>
   invisible()
 
-
 detainers_df <-
   detainers_df |>
   # clean names
@@ -132,6 +131,66 @@ detainers_df <-
     order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
+
+
+detainers_df <-
+  detainers_df |>
+  mutate(
+    apprehension_method_simple = case_when(
+      apprehension_method %in%
+        c(
+          "Non-Custodial Arrest",
+          "Located",
+          "Probation and Parole",
+          "Worksite Enforcement"
+        ) ~ "At-Large Arrest",
+      apprehension_method %in%
+        c(
+          "Custodial Arrest",
+          "CAP Local Incarceration",
+          "CAP Federal Incarceration",
+          "CAP State Incarceration",
+          "Criminal Alien Program"
+        ) ~ "Custodial Arrest",
+      apprehension_method == "287(g) Program" ~ "287(g) Program",
+      TRUE ~ "Other"
+    )
+  )
+
+# Detainers table has MSC charge and code variables so we don't need to join in
+
+detainers_df <-
+  detainers_df |>
+  mutate(
+    msc_code = as.character(msc_charge_code),
+    
+    # keep only pure 4-digit numeric NCIC-style codes for the UCR logic
+    msc4 = if_else(str_detect(msc_code, "^[0-9]{4}$"), msc_code, NA_character_),
+    
+    # Homicide (09xx) EXCLUDING negligent manslaughter (0909, 0910)
+    ucr_violent = (str_detect(msc4, "^09") & !msc4 %in% c("0909", "0910")) |
+      
+      # Rape / Sexual Assault (11xx) EXCLUDING statutory rape - no force (1116)
+      (str_detect(msc4, "^11") & msc4 != "1116") |
+      
+      # Robbery (12xx)
+      str_detect(msc4, "^12") |
+      
+      # Aggravated assault ONLY: 1301–1312 plus 1314–1315
+      msc4 %in%
+      c(
+        sprintf("13%02d", 1:12),
+        "1314",
+        "1315"
+      ),
+    conviction = case_when(
+      ucr_violent ~ "Violent crime",
+      !is.na(msc_charge_code) ~ "Nonviolent crime",
+      TRUE ~ "None"
+    )
+  ) |>
+  select(-msc_code, -msc4, -ucr_violent)
+
 
 # ---- Check: clean + duplicates ----
 detainers_df |>
@@ -234,6 +293,15 @@ detainers_df |>
       "2 Pending Criminal Charges",
       "3 Other Immigration Violator",
       NA
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    conviction,
+    c(
+      "Violent crime",
+      "Non-violent crime",
+      "None"
     ),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
