@@ -28,7 +28,7 @@ col_types <- c(
   "text", # Final Charge Code
   "text", # Final Charge Section
   "text", # Final Order Yes No
-  "text", # Final Order Date
+  "date", # Final Order Date
   "text", # Final Program
   "text", # Final Program Code
   "text", # Gender
@@ -94,10 +94,6 @@ removals_df <-
   mutate(
     # convert birth year to integer
     birth_year = as.integer(birth_year)
-  ) |>
-  mutate(
-    duplicate_likely = if_else(!is.na(anonymized_unique_identifier), n() > 1, NA),
-    .by = c("departed_date", "anonymized_unique_identifier")
   )
 
 # Removals table has MSC charge and code variables so we don't need to join in
@@ -134,36 +130,91 @@ removals_df <-
   ) |>
   select(-msc_code, -msc4, -ucr_violent)
 
-# Join with detentions
-# Need to deal with duplicates generated in join
+# ---- Construct Duplicate Episode Indicators ----
+library(data.table)
+setDT(removals_df)
 
-removals_with_anon_id <- removals_df |>
-  filter(!is.na(anonymized_unique_identifier))
+removals_df[,
+           `:=`(
+             anonymized_identifier_nona = fifelse(
+               is.na(anonymized_unique_identifier),
+               paste0("noid_", .I),
+               anonymized_unique_identifier
+             )
+           )
+]
 
-removals_no_anon_id <- removals_df |>
-  filter(is.na(anonymized_unique_identifier))
+setorder(
+  removals_df,
+  anonymized_identifier_nona,
+  departed_date,
+  departure_country,
+  sheet_original,
+  row_original,
+  na.last = TRUE
+)
 
-detention_subset <- detentions_df |>
+removals_df[,
+           `:=`(
+             episode_first = seq_len(.N) == 1L,
+             episode_last = seq_len(.N) == .N,
+             duplicate_likely = fifelse(
+               is.na(anonymized_unique_identifier),
+               as.logical(NA),
+               .N > 1L
+             )
+           ),
+           by = .(anonymized_identifier_nona, departed_date)
+]
+
+removals_df <-
+  removals_df |>
+  as_tibble() |>
+  mutate(duplicate_drop_row = duplicate_likely & !episode_last)
+
+
+# ---- Flag for whether removal associated with detention stay ----
+
+pre_join_rows <- nrow(removals_df)
+
+removals_with_anon_id_deduped <- removals_df |>
+  filter(!is.na(anonymized_unique_identifier),
+         duplicate_drop_row == FALSE)
+
+removals_no_anon_id_and_dupes <- removals_df |>
+  filter(is.na(anonymized_unique_identifier) | duplicate_drop_row == TRUE)
+
+detentions_df <- detentions_df |>
   mutate(has_detention = TRUE,
          stay_book_out_date_time_minus_1 = stay_book_out_date_time - days(1)) |>
   select(unique_identifier,
          departure_country,
          stay_book_out_date_time_minus_1,
-         has_detention)
+         has_detention) %>% 
+  distinct(.keep_all=TRUE)
 
-has_detention <- removals_with_anon_id |>
+# Create flag for `has_detention` based on matching unique ID, departed date +/- 1 day from stay book out
+# But this creates new rows, how to deal with that?
+removals_with_anon_id_deduped <- removals_with_anon_id_deduped |>
   mutate(departed_date_plus_1 = departed_date + days(1)) |>
-  left_join(detention_subset, by =
+  left_join(detentions_df, by =
               join_by(anonymized_unique_identifier == unique_identifier,
                       departure_country == departure_country,
                       departed_date_plus_1 >= stay_book_out_date_time_minus_1
                                            )) |>
-  mutate(id_in_detentions = anonymized_unique_identifier %in% unique(detention_subset$unique_identifier)) |>
-  group_by(file_original, sheet_original, row_original) %>%
-  mutate(is_duplicate = n() > 1,
-         duplicate_first = is_duplicate == TRUE & n() == 1 # This doesn't work
-         ) %>% 
-  ungroup()
+  mutate(id_in_detentions = anonymized_unique_identifier %in% unique(detentions_df$unique_identifier),
+         has_detention = case_when(has_detention == TRUE ~ TRUE,
+                                   TRUE ~ FALSE)) |>
+  select(-departed_date_plus_1, -stay_book_out_date_time_minus_1)
+
+removals_no_anon_id_and_dupes$has_detention = NA
+removals_no_anon_id_and_dupes$id_in_detentions = NA
+
+removals_df_out <- rbind(removals_with_anon_id_deduped, removals_no_anon_id_and_dupes)
+
+stopifnot(pre_join_rows == nrow(removals_df_out))
+
+# ---- Rename and organize to match other datasets ----
 
 removals_df <- removals_df |>
   rename(
