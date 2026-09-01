@@ -156,6 +156,7 @@ setorder(
 
 removals_df[,
            `:=`(
+             episode_count = .GRP,
              episode_first = seq_len(.N) == 1L,
              episode_last = seq_len(.N) == .N,
              duplicate_likely = fifelse(
@@ -248,11 +249,10 @@ removals_no_anon_id_and_dupes$stay_ID <- NA
 removals_no_anon_id_and_dupes$has_detention_stay <- NA
 removals_no_anon_id_and_dupes$id_in_detentions <- NA
 
-# # Fill in detention stays for duplicate groups
-# # But this is wrong because only grouped by anon ID, so ignores real multiple unique removals
-# removals_df <- rbind(removals_with_detentions, removals_no_anon_id_and_dupes) |>
-#   group_by(anonymized_unique_identifier) |>
-#   fill(has_detention_stay, stay_ID, removal_ID, id_in_detentions, .direction = "downup")
+# Fill in detention stays for duplicate groups
+removals_df <- rbind(removals_with_detentions, removals_no_anon_id_and_dupes) |>
+  group_by(anonymized_unique_identifier, episode_count) |>
+  fill(has_detention_stay, stay_ID, removal_ID, id_in_detentions, .direction = "downup")
 
 stopifnot(nrow(removals_df) == pre_join_rows)
 
