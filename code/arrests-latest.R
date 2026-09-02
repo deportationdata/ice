@@ -126,12 +126,17 @@ arrests_df <-
     event_landmark_squished = str_squish(event_landmark |> str_to_upper())
   )
 
-# landmarks recorded in a single state at least 99% of the time -> state
-landmark_states <-
+# per-landmark state distribution where state is present
+landmark_state_counts <-
   arrests_df |>
   filter(!is.na(event_landmark_squished), !is.na(state)) |>
   count(event_landmark_squished, state) |>
-  filter(sum(n) >= 20, n / sum(n) >= 0.99, .by = event_landmark_squished) |>
+  mutate(n_known = sum(n), share = n / sum(n), .by = event_landmark_squished)
+
+# landmarks recorded in a single state at least 99% of the time -> state
+landmark_states <-
+  landmark_state_counts |>
+  filter(n_known >= 20, share >= 0.99) |>
   select(event_landmark_squished, landmark_state = state)
 
 # AORs recorded in a single state at least 99% of the time -> state
@@ -169,19 +174,50 @@ arrests_df <-
       ),
       group = 1
     ),
+    abbr_state = unname(us_state_names[landmark_state_abbr])
+  ) |>
+  # how often this landmark's recorded state agrees with its typed
+  # abbreviation; distrust the abbreviation when a well-observed landmark
+  # disagrees too often (facility across a state line)
+  left_join(
+    landmark_state_counts |>
+      select(event_landmark_squished, state, abbr_share = share),
+    by = c("event_landmark_squished", "abbr_state" = "state"),
+    relationship = "many-to-one"
+  ) |>
+  left_join(
+    distinct(landmark_state_counts, event_landmark_squished, n_known),
+    by = "event_landmark_squished",
+    relationship = "many-to-one"
+  ) |>
+  mutate(
+    abbr_state = if_else(
+      coalesce(n_known, 0L) >= 20 & coalesce(abbr_share, 0) < 0.90,
+      NA_character_,
+      abbr_state
+    ),
     apprehension_state_filled_in = coalesce(
       state,
-      # first try the anchored state abbreviation from the landmark
-      unname(us_state_names[landmark_state_abbr]),
-      # if not that, use the state of landmarks that are >=99% same state
+      # first try the state abbreviation in the landmark field itself
+      abbr_state,
+      # if not that, use the state of landmarks that are >=99% same state - based on the state field
       landmark_state,
       # if not that, use the state of AORs that are >=99% in one state
       aor_state
+    ),
+    apprehension_state_fill_source = case_when(
+      !is.na(state) ~ "original",
+      !is.na(abbr_state) ~ "Abbreviation in landmark field",
+      !is.na(landmark_state) ~ "Landmark appears in one state 99%",
+      !is.na(aor_state) ~ "AOR appears in one state 99%",
     )
   ) |>
   select(
     -event_landmark_squished,
     -landmark_state_abbr,
+    -abbr_state,
+    -abbr_share,
+    -n_known,
     -landmark_state,
     -aor_state
   )
@@ -216,6 +252,13 @@ arrests_df <-
 arrests_df |>
   col_vals_expr(
     expr(is.na(state) | state == apprehension_state_filled_in),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(apprehension_state_filled_in) ==
+        is.na(apprehension_state_fill_source)
+    ),
     actions = action_levels(warn_at = 1L, stop_at = 1L)
   ) |>
   specially(
@@ -336,6 +379,11 @@ arrests_df <-
     relationship = "many-to-one"
   ) |>
   mutate(
+    apprehension_state_fill_source = if_else(
+      is.na(apprehension_state_filled_in) & !is.na(episode_state),
+      "episode",
+      apprehension_state_fill_source
+    ),
     apprehension_state_filled_in = coalesce(
       apprehension_state_filled_in,
       episode_state
@@ -343,8 +391,9 @@ arrests_df <-
   ) |>
   select(-episode_state)
 
-arrests_df <-
+city_common_case_lookup <-
   arrests_df |>
+  distinct(city) |>
   mutate(
     apprehension_city_common_case = city |>
       # insert a space when a period sits between two letters (e.g. "St.hospital"
@@ -426,6 +475,14 @@ arrests_df <-
       NA_character_,
       apprehension_city_common_case
     )
+  )
+
+arrests_df <-
+  arrests_df |>
+  left_join(
+    city_common_case_lookup,
+    by = "city",
+    relationship = "many-to-one"
   )
 
 # ---- Check: duplicates ----
@@ -598,6 +655,7 @@ arrests_df <-
   ) |>
   relocate(
     apprehension_state_filled_in,
+    apprehension_state_fill_source,
     .before = apprehension_state_original
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
