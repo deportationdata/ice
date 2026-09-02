@@ -343,6 +343,91 @@ arrests_df <-
   ) |>
   select(-episode_state)
 
+arrests_df <-
+  arrests_df |>
+  mutate(
+    apprehension_city_common_case = city |>
+      # insert a space when a period sits between two letters (e.g. "St.hospital"
+      # -> "St. hospital", "FED.CORR." -> "FED. CORR.") so title-case and word
+      # boundaries work properly downstream.
+      str_replace_all("(?<=[A-Za-z])\\.(?=[A-Za-z])", ". ") |>
+      # strip periods only from single-letter acronyms (U.S., C.F., L.E.C.) so
+      # the single-letter-collapse step can re-join them. Preserve periods in
+      # word abbreviations (St., Ste., Mt., Jr., Inc.).
+      str_replace_all("(?<=\\b[A-Za-z])\\.", " ") |>
+      str_to_lower() |>
+      # drop stray typo characters ("C]HICAGO", "Berl;in", "Atlanta =")
+      str_remove_all("[;=*?\\[\\]\\\\]") |>
+      # slashes act as separators ("N/ Chesterfield", "Cape/Islands")
+      str_replace_all("/", " ") |>
+      # normalize all apostrophe-like characters to curly ’ — including the
+      # straight ASCII ' and the 0x19 control byte (a mangled ’), otherwise
+      # downstream problems with dealing with 's
+      str_replace_all("[‘’`'\u0019]", "’") |>
+      str_squish() |>
+      # join single-letter apostrophe prefixes to the next word
+      # (coeur d’ alene -> coeur d’alene)
+      str_replace_all("\\b([a-z]’) (?=[a-z])", "\\1") |>
+      # exception: Land O’ Lakes officially has a space after O’
+      str_replace_all("\\bland o’lakes\\b", "land o’ lakes") |>
+      # close up stray spaces around hyphens ("winston- salem" -> "winston-salem")
+      str_replace_all("(?<=[a-z]) ?- ?(?=[a-z])", "-") |>
+      # drop space before comma
+      str_replace_all("\\s+,", ",") |>
+      # fix , replacements re prefix words directly before a comma that should have had . ("St, X" -> "St X")
+      str_replace_all(
+        regex("\\b(st|ste|el|ft|mt|corpus)(\\.?),\\s*", ignore_case = TRUE),
+        "\\1\\2 "
+      ) |>
+      # drop , at end of name
+      str_replace_all(",\\s*$", "") |>
+      # drop leading comma (", Birmingham" -> "Birmingham")
+      str_remove("^,\\s*") |>
+      # drop everything after a comma (", Birmingham, AL" -> "Birmingham")
+      str_remove(",.*$") |>
+      # ensure there is a space before an open parenthesis
+      str_replace_all("([^ ])\\(", "\\1 (") |>
+      # and after close parenthesis
+      str_replace_all("\\)([^ ])", ") \\1") |>
+      # drop trailing periods after full words ("beaufort." -> "beaufort") but
+      # keep them on abbreviations of 3 letters or fewer ("cranberry twp.")
+      str_replace("(?<=[a-z]{4})\\.+$", "") |>
+      # collapse space-separated single letters into abbreviations (e.g. "u s" -> "US")
+      str_replace_all("(?:^|(?<= ))([a-z]( [a-z])+)(?= |$)", function(m) {
+        str_to_upper(str_replace_all(m, " ", ""))
+      }) |>
+      tools::toTitleCase() |>
+      # capitalize letter after apostrophe (O'hare -> O'Hare). The apostrophe
+      # normalization above makes everything curly, so this pattern must match
+      # curly, not straight.
+      str_replace_all("’([a-z])", function(m) {
+        str_c("’", str_to_upper(str_sub(m, 2, 2)))
+      }) |>
+      # but keep possessive ’s lowercase (St. Luke’s)
+      str_replace_all("’S\\b", "’s") |>
+      # and Coeur d’Alene keeps a lowercase d’
+      str_replace_all("\\b(Coeur|Couer) D’", "\\1 d’") |>
+      # capitalize letter after "Mc" prefix (Mccreary -> McCreary)
+      str_replace_all("\\bMc([a-z])", function(m) {
+        str_c("Mc", str_to_upper(str_sub(m, 3, 3)))
+      }) |>
+      # close up spaced Mc names (Mc Lean -> McLean)
+      str_replace_all("\\bMc ([A-Z])", "Mc\\1") |>
+      # uppercase standalone single letters (initials like "g" in "Dale g Haile"),
+      # leaving letters attached to an apostrophe alone
+      str_replace_all("(?<!’)\\b([a-z])\\b(?!’)", str_to_upper) |>
+      # add period to Saint abbreviations (St Luke's -> St. Luke's)
+      str_replace_all("\\bSt\\b(?=\\s+[A-Z])", "St.") |>
+      str_squish(),
+    apprehension_city_common_case = if_else(
+      !str_detect(apprehension_city_common_case, "[A-Za-z]") |
+        str_to_lower(apprehension_city_common_case) %in%
+          c("na", "n/a", "unk", "none"),
+      NA_character_,
+      apprehension_city_common_case
+    )
+  )
+
 # ---- Check: duplicates ----
 arrests_df |>
   col_exists(c(
@@ -508,7 +593,7 @@ arrests_df <-
   rename(
     apprehension_aor = aor,
     apprehension_state_original = state,
-    apprehension_city = city,
+    apprehension_city_original = city,
     unique_identifier = anonymized_unique_identifier
   ) |>
   relocate(
