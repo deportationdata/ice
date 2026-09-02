@@ -105,7 +105,7 @@ arrests_df <-
   # add row number from original file
   mutate(
     row_original = as.integer(row_number() + 6 + 1),
-    .by = "sheet_original"
+    .by = c("file_original", "sheet_original")
   ) |>
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |>
@@ -580,9 +580,9 @@ arrests_df |>
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
-  # -- duplicate_likely should not be null when anonymized_identifier is present --
+  # -- duplicate_likely should not be null when anonymized_unique_identifier is present --
   col_vals_expr(
-    expr(is.na(anonymized_identifier) | !is.na(duplicate_likely)),
+    expr(is.na(anonymized_unique_identifier) | !is.na(duplicate_likely)),
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   invisible()
