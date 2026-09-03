@@ -125,7 +125,11 @@ detentions_df <-
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
   mutate(
-    birth_year = as.integer(birth_year)
+    birth_year = as.integer(birth_year),
+    age_book_in_approx = as.integer(
+      year(detention_book_in_date_time) - birth_year
+    ),
+    .after = birth_year
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   # filter(!is.na(anonymized_identifier)) |>
@@ -206,6 +210,7 @@ detentions_df |>
       detention_facility_code,
       detention_book_in_date_time,
       birth_year,
+      age_book_in_approx,
       file_original,
       sheet_original,
       row_original
@@ -420,6 +425,13 @@ detentions_df |>
     birth_year,
     1900L,
     as.integer(format(Sys.Date(), "%Y")),
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  col_vals_between(
+    age_book_in_approx,
+    0L,
+    120L,
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>

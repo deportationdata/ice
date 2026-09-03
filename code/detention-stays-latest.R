@@ -140,7 +140,8 @@ detention_stay_level_vars_df <-
         "detention_release_reason",
         "book_in_site",
         "book_in_aor",
-        "stint_length_days"
+        "stint_length_days",
+        "age_book_in_approx"
       )
     )
   ]
@@ -165,7 +166,13 @@ detention_stays_df <-
     -sheet_original,
     -row_original
   ) |>
-  as_tibble()
+  as_tibble() |>
+  mutate(
+    age_stay_book_in_approx = as.integer(
+      year(stay_book_in_date_time) - birth_year
+    ),
+    .after = birth_year
+  )
 
 # ---- Check: stay-level assembly ----
 detention_stays_df |>
@@ -181,7 +188,8 @@ detention_stays_df |>
       detention_facility_codes_all,
       book_in_date_time_first,
       book_in_date_time_longest,
-      book_in_date_time_last
+      book_in_date_time_last,
+      age_stay_book_in_approx
     )
   ) |>
   rows_distinct(
@@ -235,6 +243,13 @@ detention_stays_df |>
     birth_year,
     1900L,
     as.integer(format(Sys.Date(), "%Y")),
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  col_vals_between(
+    age_stay_book_in_approx,
+    0L,
+    120L,
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
