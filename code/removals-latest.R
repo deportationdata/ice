@@ -86,7 +86,7 @@ removals_df <-
   # add row number from original file
   mutate(
     row_original = as.integer(row_number() + 6 + 1),
-    .by = "sheet_original"
+    .by = c("file_original", "sheet_original")
   ) |>
   # convert dttm to date if there is no time information in the column
   mutate(
@@ -97,32 +97,30 @@ removals_df <-
     birth_year = as.integer(birth_year)
   )
 
-# Removals table has MSC charge and code variables so we don't need to join in
-
 removals_df <-
   removals_df |>
   mutate(
     msc_code = as.character(msc_charge_code),
-    
+
     # keep only pure 4-digit numeric NCIC-style codes for the UCR logic
     msc4 = if_else(str_detect(msc_code, "^[0-9]{4}$"), msc_code, NA_character_),
-    
+
     # Homicide (09xx) EXCLUDING negligent manslaughter (0909, 0910)
     ucr_violent = (str_detect(msc4, "^09") & !msc4 %in% c("0909", "0910")) |
-      
+
       # Rape / Sexual Assault (11xx) EXCLUDING statutory rape - no force (1116)
       (str_detect(msc4, "^11") & msc4 != "1116") |
-      
+
       # Robbery (12xx)
       str_detect(msc4, "^12") |
-      
+
       # Aggravated assault ONLY: 1301–1312 plus 1314–1315
       msc4 %in%
-      c(
-        sprintf("13%02d", 1:12),
-        "1314",
-        "1315"
-      ),
+        c(
+          sprintf("13%02d", 1:12),
+          "1314",
+          "1315"
+        ),
     conviction = case_when(
       ucr_violent ~ "Violent crime",
       !is.na(msc_charge_code) ~ "Nonviolent crime",
@@ -135,13 +133,13 @@ removals_df <-
 setDT(removals_df)
 
 removals_df[,
-           `:=`(
-             anonymized_identifier_nona = fifelse(
-               is.na(anonymized_unique_identifier),
-               paste0("noid_", .I),
-               anonymized_unique_identifier
-             )
-           )
+  `:=`(
+    anonymized_identifier_nona = fifelse(
+      is.na(anonymized_unique_identifier),
+      paste0("noid_", .I),
+      anonymized_unique_identifier
+    )
+  )
 ]
 
 setorder(
@@ -155,17 +153,17 @@ setorder(
 )
 
 removals_df[,
-           `:=`(
-             episode_count = .GRP,
-             episode_first = seq_len(.N) == 1L,
-             episode_last = seq_len(.N) == .N,
-             duplicate_likely = fifelse(
-               is.na(anonymized_unique_identifier),
-               as.logical(NA),
-               .N > 1L
-             )
-           ),
-           by = .(anonymized_identifier_nona, departed_date)
+  `:=`(
+    episode_count = .GRP,
+    episode_first = seq_len(.N) == 1L,
+    episode_last = seq_len(.N) == .N,
+    duplicate_likely = fifelse(
+      is.na(anonymized_unique_identifier),
+      as.logical(NA),
+      .N > 1L
+    )
+  ),
+  by = .(anonymized_identifier_nona, departed_date)
 ]
 
 # Prefer last record; appear to have better info, but should check
@@ -175,12 +173,10 @@ removals_df <-
   mutate(duplicate_drop_row = duplicate_likely & !episode_last)
 
 # ---- Flag for whether removal associated with detention stay ----
-
 pre_join_rows <- nrow(removals_df)
 
 removals_with_anon_id_deduped <- removals_df |>
-  filter(!is.na(anonymized_unique_identifier),
-         duplicate_drop_row == FALSE) |>
+  filter(!is.na(anonymized_unique_identifier), duplicate_drop_row == FALSE) |>
   mutate(removal_ID = row_number())
 
 removals_no_anon_id_and_dupes <- removals_df |>
@@ -188,20 +184,20 @@ removals_no_anon_id_and_dupes <- removals_df |>
 
 detentions_df_deduped <- detentions_df |>
   filter(!is.na(unique_identifier)) |>
-  distinct(.keep_all=TRUE)
+  distinct(.keep_all = TRUE)
 
 # ---- Match stays to removals ----
 removal_detention_pairs <-
   detentions_df_deduped |>
-  select(stay_ID,
-         unique_identifier,
-         stay_book_out_date_time) |>
+  select(stay_ID, unique_identifier, stay_book_out_date_time) |>
   inner_join(
     removals_with_anon_id_deduped |>
-      select(anonymized_unique_identifier,
-             departed_date,
-             departure_country,
-             removal_ID),
+      select(
+        anonymized_unique_identifier,
+        departed_date,
+        departure_country,
+        removal_ID
+      ),
     by = c("unique_identifier" = "anonymized_unique_identifier"),
     relationship = "many-to-many"
   ) |>
@@ -228,19 +224,21 @@ removal_detention_pairs <-
     by = removal_ID
   ) |>
   select(stay_ID, removal_ID)
-  
+
 # ---- Merge stays onto removals ----
 
 detention_ids <- unique(detentions_df$unique_identifier)
 
 removals_with_detentions <- removals_with_anon_id_deduped |>
-  left_join(removal_detention_pairs,
+  left_join(
+    removal_detention_pairs,
     by = "removal_ID",
     relationship = "one-to-one"
   ) |>
-  mutate(has_detention_stay = !is.na(stay_ID),
-         id_in_detentions =
-           anonymized_unique_identifier %in% detention_ids)
+  mutate(
+    has_detention_stay = !is.na(stay_ID),
+    id_in_detentions = anonymized_unique_identifier %in% detention_ids
+  )
 
 # Better to drop any of these cols that we don't want to output, but keeping for now
 # # Dupes with unique IDs lack detention stay flags
@@ -252,7 +250,13 @@ removals_no_anon_id_and_dupes$id_in_detentions <- NA
 # Fill in detention stays for duplicate groups
 removals_df <- rbind(removals_with_detentions, removals_no_anon_id_and_dupes) |>
   group_by(anonymized_unique_identifier, episode_count) |>
-  fill(has_detention_stay, stay_ID, removal_ID, id_in_detentions, .direction = "downup")
+  fill(
+    has_detention_stay,
+    stay_ID,
+    removal_ID,
+    id_in_detentions,
+    .direction = "downup"
+  )
 
 stopifnot(nrow(removals_df) == pre_join_rows)
 
@@ -262,7 +266,7 @@ removals_df <- removals_df |>
   rename(
     unique_identifier = anonymized_unique_identifier,
   ) |>
-  relocate(file_original, sheet_original, row_original, .after = last_col()) |> 
+  relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   arrange(file_original, sheet_original, row_original)
 
 # ---- Save Outputs ----
