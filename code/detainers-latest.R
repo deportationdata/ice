@@ -40,8 +40,8 @@ col_types <- c(
   "text", # Gender
   "text", # MSC Charge
   "text", # MSC Charge Code
-  "text", # MSC Charge Date
-  "text", # MSC Conviction Date
+  "date", # MSC Charge Date
+  "date", # MSC Conviction Date
   "numeric", # Sentence Days
   "numeric", # Sentence Months
   "numeric", # Sentence Years
@@ -153,6 +153,7 @@ detainers_df <-
           "Criminal Alien Program"
         ) ~ "Custodial Arrest",
       apprehension_method == "287(g) Program" ~ "287(g) Program",
+      is.na(apprehension_method) ~ NA_character_,
       TRUE ~ "Other"
     )
   )
@@ -427,26 +428,26 @@ detainers_df |>
   ) |>
   invisible()
 
-# ---- Rename to match prior releases ----
+# ---- Rename to match March 2026 release ----
 detainers_df <-
   detainers_df |>
   rename(
+    detainer_prepare_date = detainer_prepared_date,
+    facility_aor = aor,
+    facility_city = city,
+    facility_state = state,
     detainer_prep_threat_level = detainer_prepared_threat_level,
     most_serious_conviction_charge = msc_charge,
     arrest_time_case_category = toa_case_category,
+    arrest_time_case_category_code = toa_case_category_code,
     msc_sentence_days = sentence_days,
     msc_sentence_months = sentence_months,
     msc_sentence_years = sentence_years,
     unique_identifier = anonymized_unique_identifier,
     order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
   ) |>
-  relocate(
-    unique_identifier,
-    file_original,
-    sheet_original,
-    row_original,
-    .after = last_col()
-  )
+  relocate(unique_identifier, .before = duplicate_likely) |>
+  relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
 
