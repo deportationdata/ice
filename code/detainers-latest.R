@@ -147,7 +147,7 @@ detainers_df <-
     )
   ) |>
   mutate(
-    form_type = case_when(
+    request_type = case_when(
       str_detect(detainer_type, "I247A") ~ "Detainer request",
       str_detect(detainer_type, "I247D") ~ "Detainer request",
       str_detect(detainer_type, "I247G") ~ "Request for advance notification of release",
