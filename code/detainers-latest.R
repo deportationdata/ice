@@ -125,17 +125,6 @@ detainers_df <-
     birth_year = as.integer(birth_year)
   ) |>
   mutate(
-    duplicate_likely = if_else(
-      !is.na(anonymized_unique_identifier),
-      n() > 1,
-      NA
-    ),
-    .by = c("detainer_prepared_date", "anonymized_unique_identifier")
-  )
-
-detainers_df <-
-  detainers_df |>
-  mutate(
     apprehension_method_simple = case_when(
       apprehension_method %in%
         c(
@@ -155,6 +144,16 @@ detainers_df <-
       apprehension_method == "287(g) Program" ~ "287(g) Program",
       is.na(apprehension_method) ~ NA_character_,
       TRUE ~ "Other"
+    )
+  ) |>
+  mutate(
+    form_type = case_when(
+      str_detect(detainer_type, "I247A") ~ "Detainer request",
+      str_detect(detainer_type, "I247D") ~ "Detainer request",
+      str_detect(detainer_type, "I247G") ~ "Request for advance notification of release",
+      str_detect(detainer_type, "I247N") ~ "Request for advance notification of release",
+      str_detect(detainer_type, "I247X") ~ "Other",
+      str_detect(detainer_type, "I247 ") ~ "Detainer request"
     )
   )
 
@@ -190,6 +189,64 @@ detainers_df <-
     )
   ) |>
   select(-msc_code, -msc4, -ucr_violent)
+
+# ---- Construct Duplicate Episode Indicators ----
+
+library(data.table)
+setDT(detainers_df)
+
+detainers_df[,
+           `:=`(
+             anonymized_identifier_nona = fifelse(
+               is.na(anonymized_unique_identifier),
+               paste0("noid_", .I),
+               anonymized_unique_identifier
+             )
+           )
+]
+
+setorder(
+  detainers_df,
+  anonymized_identifier_nona,
+  detainer_prepared_date,
+  file_original,
+  sheet_original,
+  row_original,
+  na.last = TRUE
+)
+
+detainers_df[,
+           duplicate_episode_identifier := {
+             gap <- as.numeric(
+               detainer_prepared_date - shift(detainer_prepared_date, type = "lag"),
+               units = "hours"
+             )
+             cumsum(is.na(gap) | gap > 24)
+           },
+           by = .(anonymized_identifier_nona)
+]
+
+detainers_df[,
+           `:=`(
+             duplicate_episode_first = seq_len(.N) == 1L,
+             duplicate_likely = fifelse(
+               is.na(anonymized_unique_identifier),
+               as.logical(NA),
+               .N > 1L
+             )
+           ),
+           by = .(anonymized_identifier_nona,
+                  duplicate_episode_identifier,
+                  detainer_type,
+                  detention_facility)
+]
+
+detainers_df[, c("anonymized_identifier_nona") := NULL]
+
+detainers_df <-
+  detainers_df |>
+  as_tibble() |>
+  mutate(duplicate_drop_row = duplicate_likely & !duplicate_episode_first)
 
 # ---- Check: clean + duplicates ----
 detainers_df |>
