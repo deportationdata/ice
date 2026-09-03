@@ -131,9 +131,7 @@ detainers_df <-
       NA
     ),
     .by = c("detainer_prepared_date", "anonymized_unique_identifier")
-  ) |>
-  relocate(file_original, sheet_original, row_original, .after = last_col())
-
+  )
 
 detainers_df <-
   detainers_df |>
@@ -160,31 +158,30 @@ detainers_df <-
   )
 
 # Detainers table has MSC charge and code variables so we don't need to join in
-
 detainers_df <-
   detainers_df |>
   mutate(
     msc_code = as.character(msc_charge_code),
-    
+
     # keep only pure 4-digit numeric NCIC-style codes for the UCR logic
     msc4 = if_else(str_detect(msc_code, "^[0-9]{4}$"), msc_code, NA_character_),
-    
+
     # Homicide (09xx) EXCLUDING negligent manslaughter (0909, 0910)
     ucr_violent = (str_detect(msc4, "^09") & !msc4 %in% c("0909", "0910")) |
-      
+
       # Rape / Sexual Assault (11xx) EXCLUDING statutory rape - no force (1116)
       (str_detect(msc4, "^11") & msc4 != "1116") |
-      
+
       # Robbery (12xx)
       str_detect(msc4, "^12") |
-      
+
       # Aggravated assault ONLY: 1301–1312 plus 1314–1315
       msc4 %in%
-      c(
-        sprintf("13%02d", 1:12),
-        "1314",
-        "1315"
-      ),
+        c(
+          sprintf("13%02d", 1:12),
+          "1314",
+          "1315"
+        ),
     conviction = case_when(
       ucr_violent ~ "Violent crime",
       !is.na(msc_charge_code) ~ "Nonviolent crime",
@@ -192,7 +189,6 @@ detainers_df <-
     )
   ) |>
   select(-msc_code, -msc4, -ucr_violent)
-
 
 # ---- Check: clean + duplicates ----
 detainers_df |>
@@ -223,7 +219,6 @@ detainers_df |>
 
 
 # ---- Pointblank Validation ----
-
 detainers_df |>
   # -- Primary key / identifier checks --
   col_vals_not_null(
@@ -432,7 +427,6 @@ detainers_df |>
   ) |>
   invisible()
 
-
 # ---- Rename to match prior releases ----
 detainers_df <-
   detainers_df |>
@@ -445,8 +439,14 @@ detainers_df <-
     msc_sentence_years = sentence_years,
     unique_identifier = anonymized_unique_identifier,
     order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
+  ) |>
+  relocate(
+    unique_identifier,
+    file_original,
+    sheet_original,
+    row_original,
+    .after = last_col()
   )
-
 
 # ---- Save Outputs ----
 
@@ -455,8 +455,8 @@ arrow::write_parquet(
   "data/detainers-latest.parquet",
   compression = "zstd"
 )
-writexl::write_xlsx(detainers_df, "data/detainers-latest.xlsx")
-haven::write_dta(detainers_df, "data/detainers-latest.dta")
-haven::write_sav(detainers_df, "data/detainers-latest.sav")
+# writexl::write_xlsx(detainers_df, "data/detainers-latest.xlsx")
+# haven::write_dta(detainers_df, "data/detainers-latest.dta")
+# haven::write_sav(detainers_df, "data/detainers-latest.sav")
 
 # END.
