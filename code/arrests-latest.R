@@ -207,6 +207,7 @@ arrests_df <-
           "Criminal Alien Program"
         ) ~ "Custodial Arrest",
       apprehension_method == "287(g) Program" ~ "287(g) Program",
+      is.na(apprehension_method) ~ NA_character_,
       TRUE ~ "Other"
     )
   )
