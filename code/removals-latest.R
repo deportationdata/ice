@@ -271,15 +271,12 @@ removals_df <- removals_df |>
 
 # ---- Save Outputs ----
 
-# arrow::write_feather(removals_df, "data/removals-latest.feather")
-# removals_df |>
-#   mutate(.chunk = ceiling(row_number() / 1e6)) |>
-#   group_split(.chunk, .keep = FALSE) |>
-#   set_names(~ str_c("Removals (Sheet ", seq_along(.x), ")")) |>
-#   writexl::write_xlsx("data/removals-latest.xlsx")
-# haven::write_dta(
-#   removals_df |>
-#     rename(latest_arrest_program_code = latest_arrest_program_current_code), # What is this??
-#   "data/removals-latest.dta"
-# )
+# ---- Save Outputs ----
+arrow::write_parquet(
+  removals_df,
+  "data/removals-latest.parquet",
+  compression = "zstd"
+)
+# writexl::write_xlsx(removals_df, "data/removals-latest.xlsx")
+# haven::write_dta(removals_df, "data/removals-latest.dta")
 # haven::write_sav(removals_df, "data/removals-latest.sav")
