@@ -467,6 +467,8 @@ city_common_case_lookup <-
       str_replace_all("(?<!’)\\b([a-z])\\b(?!’)", str_to_upper) |>
       # add period to Saint abbreviations (St Luke's -> St. Luke's)
       str_replace_all("\\bSt\\b(?=\\s+[A-Z])", "St.") |>
+      # change back to straight quotes throughout
+      str_replace_all("[‘’]", "'") |>
       str_squish(),
     apprehension_city_common_case = if_else(
       !str_detect(apprehension_city_common_case, "[A-Za-z]") |
