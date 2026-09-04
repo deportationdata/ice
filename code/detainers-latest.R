@@ -150,8 +150,14 @@ detainers_df <-
     request_type = case_when(
       str_detect(detainer_type, "I247A") ~ "Detainer request",
       str_detect(detainer_type, "I247D") ~ "Detainer request",
-      str_detect(detainer_type, "I247G") ~ "Request for advance notification of release",
-      str_detect(detainer_type, "I247N") ~ "Request for advance notification of release",
+      str_detect(
+        detainer_type,
+        "I247G"
+      ) ~ "Request for advance notification of release",
+      str_detect(
+        detainer_type,
+        "I247N"
+      ) ~ "Request for advance notification of release",
       str_detect(detainer_type, "I247X") ~ "Other",
       str_detect(detainer_type, "I247 ") ~ "Detainer request"
     )
@@ -196,13 +202,13 @@ library(data.table)
 setDT(detainers_df)
 
 detainers_df[,
-           `:=`(
-             anonymized_identifier_nona = fifelse(
-               is.na(anonymized_unique_identifier),
-               paste0("noid_", .I),
-               anonymized_unique_identifier
-             )
-           )
+  `:=`(
+    anonymized_identifier_nona = fifelse(
+      is.na(anonymized_unique_identifier),
+      paste0("noid_", .I),
+      anonymized_unique_identifier
+    )
+  )
 ]
 
 setorder(
@@ -216,29 +222,31 @@ setorder(
 )
 
 detainers_df[,
-           duplicate_episode_identifier := {
-             gap <- as.numeric(
-               detainer_prepared_date - shift(detainer_prepared_date, type = "lag"),
-               units = "hours"
-             )
-             cumsum(is.na(gap) | gap > 24)
-           },
-           by = .(anonymized_identifier_nona)
+  duplicate_episode_identifier := {
+    gap <- as.numeric(
+      detainer_prepared_date - shift(detainer_prepared_date, type = "lag"),
+      units = "hours"
+    )
+    cumsum(is.na(gap) | gap > 24)
+  },
+  by = .(anonymized_identifier_nona)
 ]
 
 detainers_df[,
-           `:=`(
-             duplicate_episode_first = seq_len(.N) == 1L,
-             duplicate_likely = fifelse(
-               is.na(anonymized_unique_identifier),
-               as.logical(NA),
-               .N > 1L
-             )
-           ),
-           by = .(anonymized_identifier_nona,
-                  duplicate_episode_identifier,
-                  detainer_type,
-                  detention_facility)
+  `:=`(
+    duplicate_episode_first = seq_len(.N) == 1L,
+    duplicate_likely = fifelse(
+      is.na(anonymized_unique_identifier),
+      as.logical(NA),
+      .N > 1L
+    )
+  ),
+  by = .(
+    anonymized_identifier_nona,
+    duplicate_episode_identifier,
+    detainer_type,
+    detention_facility
+  )
 ]
 
 detainers_df[, c("anonymized_identifier_nona") := NULL]
@@ -513,8 +521,8 @@ arrow::write_parquet(
   "data/detainers-latest.parquet",
   compression = "zstd"
 )
-# writexl::write_xlsx(detainers_df, "data/detainers-latest.xlsx")
-# haven::write_dta(detainers_df, "data/detainers-latest.dta")
-# haven::write_sav(detainers_df, "data/detainers-latest.sav")
+writexl::write_xlsx(detainers_df, "data/detainers-latest.xlsx")
+haven::write_dta(detainers_df, "data/detainers-latest.dta")
+haven::write_sav(detainers_df, "data/detainers-latest.sav")
 
 # END.
