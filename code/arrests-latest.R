@@ -126,12 +126,17 @@ arrests_df <-
     event_landmark_squished = str_squish(event_landmark |> str_to_upper())
   )
 
-# landmarks recorded in a single state at least 99% of the time -> state
-landmark_states <-
+# per-landmark state distribution where state is present
+landmark_state_counts <-
   arrests_df |>
   filter(!is.na(event_landmark_squished), !is.na(state)) |>
   count(event_landmark_squished, state) |>
-  filter(sum(n) >= 20, n / sum(n) >= 0.99, .by = event_landmark_squished) |>
+  mutate(n_known = sum(n), share = n / sum(n), .by = event_landmark_squished)
+
+# landmarks recorded in a single state at least 99% of the time -> state
+landmark_states <-
+  landmark_state_counts |>
+  filter(n_known >= 20, share >= 0.99) |>
   select(event_landmark_squished, landmark_state = state)
 
 # AORs recorded in a single state at least 99% of the time -> state
@@ -169,19 +174,50 @@ arrests_df <-
       ),
       group = 1
     ),
+    abbr_state = unname(us_state_names[landmark_state_abbr])
+  ) |>
+  # how often this landmark's recorded state agrees with its typed
+  # abbreviation; distrust the abbreviation when a well-observed landmark
+  # disagrees too often (facility across a state line)
+  left_join(
+    landmark_state_counts |>
+      select(event_landmark_squished, state, abbr_share = share),
+    by = c("event_landmark_squished", "abbr_state" = "state"),
+    relationship = "many-to-one"
+  ) |>
+  left_join(
+    distinct(landmark_state_counts, event_landmark_squished, n_known),
+    by = "event_landmark_squished",
+    relationship = "many-to-one"
+  ) |>
+  mutate(
+    abbr_state = if_else(
+      coalesce(n_known, 0L) >= 20 & coalesce(abbr_share, 0) < 0.90,
+      NA_character_,
+      abbr_state
+    ),
     apprehension_state_filled_in = coalesce(
       state,
-      # first try the anchored state abbreviation from the landmark
-      unname(us_state_names[landmark_state_abbr]),
-      # if not that, use the state of landmarks that are >=99% same state
+      # first try the state abbreviation in the landmark field itself
+      abbr_state,
+      # if not that, use the state of landmarks that are >=99% same state - based on the state field
       landmark_state,
       # if not that, use the state of AORs that are >=99% in one state
       aor_state
+    ),
+    apprehension_state_fill_source = case_when(
+      !is.na(state) ~ "original",
+      !is.na(abbr_state) ~ "Abbreviation in landmark field",
+      !is.na(landmark_state) ~ "Landmark appears in one state 99%",
+      !is.na(aor_state) ~ "AOR appears in one state 99%",
     )
   ) |>
   select(
     -event_landmark_squished,
     -landmark_state_abbr,
+    -abbr_state,
+    -abbr_share,
+    -n_known,
     -landmark_state,
     -aor_state
   )
@@ -216,6 +252,13 @@ arrests_df <-
 arrests_df |>
   col_vals_expr(
     expr(is.na(state) | state == apprehension_state_filled_in),
+    actions = action_levels(warn_at = 1L, stop_at = 1L)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(apprehension_state_filled_in) ==
+        is.na(apprehension_state_fill_source)
+    ),
     actions = action_levels(warn_at = 1L, stop_at = 1L)
   ) |>
   specially(
@@ -336,12 +379,113 @@ arrests_df <-
     relationship = "many-to-one"
   ) |>
   mutate(
+    apprehension_state_fill_source = if_else(
+      is.na(apprehension_state_filled_in) & !is.na(episode_state),
+      "episode",
+      apprehension_state_fill_source
+    ),
     apprehension_state_filled_in = coalesce(
       apprehension_state_filled_in,
       episode_state
     )
   ) |>
   select(-episode_state)
+
+city_common_case_lookup <-
+  arrests_df |>
+  distinct(city) |>
+  mutate(
+    apprehension_city_common_case = city |>
+      # insert a space when a period sits between two letters (e.g. "St.hospital"
+      # -> "St. hospital", "FED.CORR." -> "FED. CORR.") so title-case and word
+      # boundaries work properly downstream.
+      str_replace_all("(?<=[A-Za-z])\\.(?=[A-Za-z])", ". ") |>
+      # strip periods only from single-letter acronyms (U.S., C.F., L.E.C.) so
+      # the single-letter-collapse step can re-join them. Preserve periods in
+      # word abbreviations (St., Ste., Mt., Jr., Inc.).
+      str_replace_all("(?<=\\b[A-Za-z])\\.", " ") |>
+      str_to_lower() |>
+      # drop stray typo characters ("C]HICAGO", "Berl;in", "Atlanta =")
+      str_remove_all("[;=*?\\[\\]\\\\]") |>
+      # slashes act as separators ("N/ Chesterfield", "Cape/Islands")
+      str_replace_all("/", " ") |>
+      # normalize all apostrophe-like characters to curly ’ — including the
+      # straight ASCII ' and the 0x19 control byte (a mangled ’), otherwise
+      # downstream problems with dealing with 's
+      str_replace_all("[‘’`'\u0019]", "’") |>
+      str_squish() |>
+      # join single-letter apostrophe prefixes to the next word
+      # (coeur d’ alene -> coeur d’alene)
+      str_replace_all("\\b([a-z]’) (?=[a-z])", "\\1") |>
+      # exception: Land O’ Lakes officially has a space after O’
+      str_replace_all("\\bland o’lakes\\b", "land o’ lakes") |>
+      # close up stray spaces around hyphens ("winston- salem" -> "winston-salem")
+      str_replace_all("(?<=[a-z]) ?- ?(?=[a-z])", "-") |>
+      # drop space before comma
+      str_replace_all("\\s+,", ",") |>
+      # fix , replacements re prefix words directly before a comma that should have had . ("St, X" -> "St X")
+      str_replace_all(
+        regex("\\b(st|ste|el|ft|mt|corpus)(\\.?),\\s*", ignore_case = TRUE),
+        "\\1\\2 "
+      ) |>
+      # drop , at end of name
+      str_replace_all(",\\s*$", "") |>
+      # drop leading comma (", Birmingham" -> "Birmingham")
+      str_remove("^,\\s*") |>
+      # drop everything after a comma (", Birmingham, AL" -> "Birmingham")
+      str_remove(",.*$") |>
+      # ensure there is a space before an open parenthesis
+      str_replace_all("([^ ])\\(", "\\1 (") |>
+      # and after close parenthesis
+      str_replace_all("\\)([^ ])", ") \\1") |>
+      # drop trailing periods after full words ("beaufort." -> "beaufort") but
+      # keep them on abbreviations of 3 letters or fewer ("cranberry twp.")
+      str_replace("(?<=[a-z]{4})\\.+$", "") |>
+      # collapse space-separated single letters into abbreviations (e.g. "u s" -> "US")
+      str_replace_all("(?:^|(?<= ))([a-z]( [a-z])+)(?= |$)", function(m) {
+        str_to_upper(str_replace_all(m, " ", ""))
+      }) |>
+      tools::toTitleCase() |>
+      # capitalize letter after apostrophe (O'hare -> O'Hare). The apostrophe
+      # normalization above makes everything curly, so this pattern must match
+      # curly, not straight.
+      str_replace_all("’([a-z])", function(m) {
+        str_c("’", str_to_upper(str_sub(m, 2, 2)))
+      }) |>
+      # but keep possessive ’s lowercase (St. Luke’s)
+      str_replace_all("’S\\b", "’s") |>
+      # and Coeur d’Alene keeps a lowercase d’
+      str_replace_all("\\b(Coeur|Couer) D’", "\\1 d’") |>
+      # capitalize letter after "Mc" prefix (Mccreary -> McCreary)
+      str_replace_all("\\bMc([a-z])", function(m) {
+        str_c("Mc", str_to_upper(str_sub(m, 3, 3)))
+      }) |>
+      # close up spaced Mc names (Mc Lean -> McLean)
+      str_replace_all("\\bMc ([A-Z])", "Mc\\1") |>
+      # uppercase standalone single letters (initials like "g" in "Dale g Haile"),
+      # leaving letters attached to an apostrophe alone
+      str_replace_all("(?<!’)\\b([a-z])\\b(?!’)", str_to_upper) |>
+      # add period to Saint abbreviations (St Luke's -> St. Luke's)
+      str_replace_all("\\bSt\\b(?=\\s+[A-Z])", "St.") |>
+      # change back to straight quotes throughout
+      str_replace_all("[‘’]", "'") |>
+      str_squish(),
+    apprehension_city_common_case = if_else(
+      !str_detect(apprehension_city_common_case, "[A-Za-z]") |
+        str_to_lower(apprehension_city_common_case) %in%
+          c("na", "n/a", "unk", "none"),
+      NA_character_,
+      apprehension_city_common_case
+    )
+  )
+
+arrests_df <-
+  arrests_df |>
+  left_join(
+    city_common_case_lookup,
+    by = "city",
+    relationship = "many-to-one"
+  )
 
 # ---- Check: duplicates ----
 arrests_df |>
@@ -495,9 +639,9 @@ arrests_df |>
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
-  # -- duplicate_likely should not be null when anonymized_identifier is present --
+  # -- duplicate_likely should not be null when anonymized_unique_identifier is present --
   col_vals_expr(
-    expr(is.na(anonymized_identifier) | !is.na(duplicate_likely)),
+    expr(is.na(anonymized_unique_identifier) | !is.na(duplicate_likely)),
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   invisible()
@@ -508,11 +652,12 @@ arrests_df <-
   rename(
     apprehension_aor = aor,
     apprehension_state_original = state,
-    apprehension_city = city,
+    apprehension_city_original = city,
     unique_identifier = anonymized_unique_identifier
   ) |>
   relocate(
     apprehension_state_filled_in,
+    apprehension_state_fill_source,
     .before = apprehension_state_original
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
