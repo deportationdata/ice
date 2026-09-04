@@ -120,7 +120,6 @@ detainers_df <-
   # replace redacted values with NA
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
-  mutate(across(where(is.character), ~ na_if(.x, "NA"))) |>
   mutate(
     birth_year = as.integer(birth_year)
   ) |>
