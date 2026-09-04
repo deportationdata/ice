@@ -9,93 +9,63 @@ source("code/functions/is_not_blank_or_redacted.R")
 
 # ---- Read ----
 
-col_types_all <- c(
-  "date", # Detainer Prepare Date
-  "text", # Facility State
-  "text", # Facility AOR
-  "text", # Port of Departure
-  "text", # Departure Country
-  "date", # Departed Date
-  "text", # Case Status
-  "text", # Detainer Criminality
-  "text", # Detainer Facility
-  "text", # Detainer Facility Code
-  "text", # Facility City
-  "text", # Detainer Threat Level
-  "text", # Gender
-  "text", # Citizenship Country
+col_types <- c(
+  "date", # Apprehension Date
+  "text", # Apprehension Method
+  "text", # Biometric Match Yes No
   "text", # Birth Country
-  "text", # Birth Date
   "numeric", # Birth Year
+  "text", # Case Category
+  "text", # Case Status
+  "text", # Citizenship Country
+  "date", # Departed Date
+  "text", # Departure Country
+  "text", # Deportation Ordered Yes No
+  "text", # Detainer Lift Reason
+  "text", # Detainer Prepared Threat Level
+  "date", # Detainer Prepared Date
+  "text", # Detainer Prepared Criminality
+  "text", # Detainer Type
+  "text", # Detention Facility
+  "text", # Detention Facility Code
+  "date", # Entry Date
   "text", # Entry Status
+  "text", # AOR
+  "text", # City
+  "text", # State
+  "text", # Felon
+  "date", # Final Order Date
+  "text", # Final Order Yes No
+  "text", # TOD Final Program
+  "text", # Gender
   "text", # MSC Charge
-  "numeric", # MSC Sentence Days
-  "numeric", # MSC Sentence Months
-  "numeric", # MSC Sentence Years
   "text", # MSC Charge Code
   "date", # MSC Charge Date
   "date", # MSC Conviction Date
-  "text", # Aggravated Felon Yes No
-  "text", # Processing Disposition
-  "text", # Case Category
-  "text", # TOA Case Category
-  "text", # TOA Current Program
-  "text", # Apprehension Method
-  "text", # Final Order Yes No
-  "date", # Final Order Date
-  "date", # Apprehension Date
-  "date", # Entry Date
-  "text", # Prior Felony Yes No
-  "text", # Multiple Prior MISD Yes No
-  "text", # Violent Misdemeanor Yes No
-  "text", # Illegal Entry Yes No
-  "text", # Illegal Reentry Yes No
-  "text", # Immigration Fraud Yes No
-  "text", # Significant Risk Yes No
-  "text", # Other Removal Reason Yes No
-  "text", # Other Removal Reason
-  "text", # Criminal Street Gang Yes No
-  "text", # Aggravated Felony Yes No
-  "text", # Deportation Ordered Yes No
+  "numeric", # Sentence Days
+  "numeric", # Sentence Months
+  "numeric", # Sentence Years
   "text", # Order to Show Cause Served Yes No
-  "date", # Order to Show Cause Served Date
-  "text", # Biometric Match Yes No
-  "text", # Statements Made Yes No
-  "text", # Unlawful Attempt Yes No
-  "text", # Unlawful Entry Yes No
-  "text", # Visa Yes No
-  "text", # Federal Register Notice Yes No
+  "text", # Port Of Departure
+  "text", # Processing Disposition
   "text", # Resume Custody Yes No
-  "text", # Detainer Lift Reason
-  "text", # Detainer Lift Reason Code
-  "text", # Active Investigation Yes No
-  "date", # Arrest Warrant Served Date
-  "text", # Detainer Type
-  "text", # Notify Release Request Yes No
-  "text", # TOD Current Duty Site
-  "text", # EID DTA ID
-  "text" # Anonymized Identifier
+  "text", # Statements Made Yes No
+  "text", # TOA Case Category
+  "text", # TOA Case Category Code
+  "text", # Alien File Number
+  "text" # Anonymized Unique Identifier
 )
 
-# FY23 and FY24 files lack the Birth Date column
-col_types_fy2324 <- col_types_all[-16]
 
 detainers_df <-
   list.files(
-    Sys.getenv("ICE_RAW_DATA_DIR"),
-    pattern = "^[^~].*Detainers",
+    here::here("inputs"),
+    pattern = "^[^~].*DPR",
     full.names = TRUE
   ) |>
   set_names(basename) |>
   map_dfr(
     function(f) {
-      # FY23/FY24 files lack Birth Date column
-      n_cols <- ncol(readxl::read_excel(f, n_max = 0, skip = 6))
-      ct <- if (n_cols == length(col_types_all)) {
-        col_types_all
-      } else {
-        col_types_fy2324
-      }
       readxl::excel_sheets(f) |>
         set_names() |>
         map_dfr(
@@ -103,7 +73,7 @@ detainers_df <-
             readxl::read_excel(
               path = f,
               sheet = s,
-              col_types = ct,
+              col_types = col_types,
               skip = 6
             )
           },
@@ -112,25 +82,25 @@ detainers_df <-
     },
     .id = "file_original"
   )
-# warnings about date parsing, all in MSC charge and conviction dates, cannot be resolved unambiguously
+
+# one date parsing warning: FY2026 Apprehension Date (Excel row 47273) holds text "06/14/0002 03:10 PM", coerced to NA
 
 # ---- Check: read ----
 detainers_df |>
   col_exists(
     c(
-      `Detainer Prepare Date`,
-      `Anonymized Identifier`,
+      `Detainer Prepared Date`,
+      `Anonymized Unique Identifier`,
       `Gender`,
-      `Case Status`,
-      `Detainer Facility Code`
+      `Case Category`,
+      `Detention Facility Code`
     )
   ) |>
   col_vals_not_null(
-    `Detainer Prepare Date`,
+    `Detainer Prepared Date`,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
   invisible()
-
 
 detainers_df <-
   detainers_df |>
@@ -139,7 +109,7 @@ detainers_df <-
   # add row number from original file
   mutate(
     row_original = as.integer(row_number() + 6 + 1),
-    .by = "sheet_original"
+    .by = c("file_original", "sheet_original")
   ) |>
   # remove columns that are fully blank (all NA) or fully redacted
   select(where(is_not_blank_or_redacted)) |>
@@ -150,32 +120,156 @@ detainers_df <-
   # replace redacted values with NA
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
+  mutate(across(where(is.character), ~ na_if(.x, "NA"))) |>
   mutate(
     birth_year = as.integer(birth_year)
   ) |>
   mutate(
-    duplicate_likely = if_else(!is.na(anonymized_identifier), n() > 1, NA),
-    .by = c("detainer_prepare_date", "anonymized_identifier")
+    apprehension_method_simple = case_when(
+      apprehension_method %in%
+        c(
+          "Non-Custodial Arrest",
+          "Located",
+          "Probation and Parole",
+          "Worksite Enforcement"
+        ) ~ "At-Large Arrest",
+      apprehension_method %in%
+        c(
+          "Custodial Arrest",
+          "CAP Local Incarceration",
+          "CAP Federal Incarceration",
+          "CAP State Incarceration",
+          "Criminal Alien Program"
+        ) ~ "Custodial Arrest",
+      apprehension_method == "287(g) Program" ~ "287(g) Program",
+      is.na(apprehension_method) ~ NA_character_,
+      TRUE ~ "Other"
+    )
   ) |>
-  rename(
-    order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
+  mutate(
+    request_type = case_when(
+      str_detect(detainer_type, "I247A") ~ "Detainer request",
+      str_detect(detainer_type, "I247D") ~ "Detainer request",
+      str_detect(
+        detainer_type,
+        "I247G"
+      ) ~ "Request for advance notification of release",
+      str_detect(
+        detainer_type,
+        "I247N"
+      ) ~ "Request for advance notification of release",
+      str_detect(detainer_type, "I247X") ~ "Other",
+      str_detect(detainer_type, "I247 ") ~ "Detainer request"
+    )
+  )
+
+# Detainers table has MSC charge and code variables so we don't need to join in
+detainers_df <-
+  detainers_df |>
+  mutate(
+    msc_code = as.character(msc_charge_code),
+
+    # keep only pure 4-digit numeric NCIC-style codes for the UCR logic
+    msc4 = if_else(str_detect(msc_code, "^[0-9]{4}$"), msc_code, NA_character_),
+
+    # Homicide (09xx) EXCLUDING negligent manslaughter (0909, 0910)
+    ucr_violent = (str_detect(msc4, "^09") & !msc4 %in% c("0909", "0910")) |
+
+      # Rape / Sexual Assault (11xx) EXCLUDING statutory rape - no force (1116)
+      (str_detect(msc4, "^11") & msc4 != "1116") |
+
+      # Robbery (12xx)
+      str_detect(msc4, "^12") |
+
+      # Aggravated assault ONLY: 1301–1312 plus 1314–1315
+      msc4 %in%
+        c(
+          sprintf("13%02d", 1:12),
+          "1314",
+          "1315"
+        ),
+    conviction = case_when(
+      ucr_violent ~ "Violent crime",
+      !is.na(msc_charge_code) ~ "Nonviolent crime",
+      TRUE ~ "None"
+    )
   ) |>
-  relocate(file_original, sheet_original, row_original, .after = last_col())
+  select(-msc_code, -msc4, -ucr_violent)
+
+# ---- Construct Duplicate Episode Indicators ----
+
+library(data.table)
+setDT(detainers_df)
+
+detainers_df[,
+  `:=`(
+    anonymized_identifier_nona = fifelse(
+      is.na(anonymized_unique_identifier),
+      paste0("noid_", .I),
+      anonymized_unique_identifier
+    )
+  )
+]
+
+setorder(
+  detainers_df,
+  anonymized_identifier_nona,
+  detainer_prepared_date,
+  file_original,
+  sheet_original,
+  row_original,
+  na.last = TRUE
+)
+
+detainers_df[,
+  duplicate_episode_identifier := {
+    gap <- as.numeric(
+      detainer_prepared_date - shift(detainer_prepared_date, type = "lag"),
+      units = "hours"
+    )
+    cumsum(is.na(gap) | gap > 24)
+  },
+  by = .(anonymized_identifier_nona)
+]
+
+detainers_df[,
+  `:=`(
+    duplicate_episode_first = seq_len(.N) == 1L,
+    duplicate_likely = fifelse(
+      is.na(anonymized_unique_identifier),
+      as.logical(NA),
+      .N > 1L
+    )
+  ),
+  by = .(
+    anonymized_identifier_nona,
+    duplicate_episode_identifier,
+    detainer_type,
+    detention_facility
+  )
+]
+
+detainers_df[, c("anonymized_identifier_nona") := NULL]
+
+detainers_df <-
+  detainers_df |>
+  as_tibble() |>
+  mutate(duplicate_drop_row = duplicate_likely & !duplicate_episode_first)
 
 # ---- Check: clean + duplicates ----
 detainers_df |>
   col_exists(
     c(
-      detainer_prepare_date,
-      anonymized_identifier,
+      detainer_prepared_date,
+      anonymized_unique_identifier,
       gender,
       case_status,
-      detainer_facility_code,
+      detention_facility_code,
       file_original,
       sheet_original,
       row_original,
       duplicate_likely,
-      order_show_cause_served_yes_no
+      order_to_show_cause_served_yes_no
     )
   ) |>
   col_vals_not_null(
@@ -191,24 +285,23 @@ detainers_df |>
 
 
 # ---- Pointblank Validation ----
-
 detainers_df |>
   # -- Primary key / identifier checks --
   col_vals_not_null(
-    anonymized_identifier,
+    anonymized_unique_identifier,
     actions = action_levels(warn_at = 0.15, stop_at = 0.20)
   ) |>
   col_vals_not_null(
-    detainer_prepare_date,
+    detainer_prepared_date,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   col_vals_not_null(
-    detainer_facility_code,
+    detention_facility_code,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
   # -- Date range checks --
   col_vals_between(
-    detainer_prepare_date,
+    detainer_prepared_date,
     as.Date("2022-09-01"),
     Sys.Date(),
     na_pass = TRUE,
@@ -257,12 +350,21 @@ detainers_df |>
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_in_set(
-    detainer_criminality,
+    detainer_prepared_criminality,
     c(
       "1 Convicted Criminal",
       "2 Pending Criminal Charges",
       "3 Other Immigration Violator",
       NA
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_in_set(
+    conviction,
+    c(
+      "Violent crime",
+      "Nonviolent crime",
+      "None"
     ),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
@@ -286,8 +388,10 @@ detainers_df |>
       "10-USC Prosecution Case Closed",
       "A-Proceedings Terminated",
       "B-Relief Granted",
+      "D-IJ/BIA Dismissed",
       "E-Charging Document Canceled by ICE",
       "L-Legalization - Permanent Residence Granted",
+      "P-Policy closure",
       "Z-SAW - Permanent Residence Granted",
       NA
     ),
@@ -309,6 +413,7 @@ detainers_df |>
       "[1C] Expired Voluntary Departure Period - Referred to Investigation",
       "[2A] Deportable - Under Adjudication by IJ",
       "[2B] Deportable - Under Adjudication by BIA",
+      "[2V] Voluntary Departure Granted by IJ",
       "[3] Deportable - Administratively Final Order",
       "[5A] Referred for Investigation - No Show for Hearing - No Final Order",
       "[5B] Removable - ICE Fugitive",
@@ -326,21 +431,11 @@ detainers_df |>
       "[8H] Expedited Removal - Status Claim Referral",
       "[8I] Inadmissible - ICE Fugitive - Expedited Removal",
       "[8K] Expedited Removal Terminated due to Credible Fear Finding / NTA Issued",
+      "[8V] Voluntary Departure Granted by IJ",
       "[9] VR Under Safeguards",
       "[H] Historical Category For Migration Only",
       NA
     ),
-    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
-  ) |>
-  col_vals_in_set(
-    aggravated_felony_yes_no,
-    c("YES", "NO", NA),
-    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
-  ) |>
-  # -- Yes/No flag columns should only contain YES, NO, or NA --
-  col_vals_in_set(
-    prior_felony_yes_no,
-    c("YES", "NO", NA),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_in_set(
@@ -350,19 +445,19 @@ detainers_df |>
   ) |>
   # -- Sentence fields should be non-negative --
   col_vals_gte(
-    msc_sentence_days,
+    sentence_days,
     0,
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_gte(
-    msc_sentence_months,
+    sentence_months,
     0,
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_gte(
-    msc_sentence_years,
+    sentence_years,
     0,
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
@@ -372,12 +467,12 @@ detainers_df |>
     expr(is.na(departed_date) | !is.na(departure_country)),
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
-  # -- Logical consistency: detainer_prepare_date should be <= departed_date --
+  # -- Logical consistency: detainer_prepared_date should be <= departed_date --
   col_vals_expr(
     expr(
-      is.na(detainer_prepare_date) |
+      is.na(detainer_prepared_date) |
         is.na(departed_date) |
-        detainer_prepare_date <= departed_date
+        detainer_prepared_date <= departed_date
     ),
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
@@ -390,31 +485,34 @@ detainers_df |>
     na_pass = TRUE,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
-  # -- duplicate_likely should not be null for rows with anonymized_identifier --
+  # -- duplicate_likely should not be null for rows with anonymized_unique_identifier --
   col_vals_not_null(
     duplicate_likely,
-    preconditions = \(x) dplyr::filter(x, !is.na(anonymized_identifier)),
+    preconditions = \(x) dplyr::filter(x, !is.na(anonymized_unique_identifier)),
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
   ) |>
   invisible()
 
-
-# ---- Rename to match Oct 2025 release ----
+# ---- Rename to match March 2026 release ----
 detainers_df <-
   detainers_df |>
   rename(
-    detainer_prepared_criminality = detainer_criminality,
-    detention_facility = detainer_facility,
-    detention_facility_code = detainer_facility_code,
-    detainer_prep_threat_level = detainer_threat_level,
+    detainer_prepare_date = detainer_prepared_date,
+    facility_aor = aor,
+    facility_city = city,
+    facility_state = state,
+    detainer_prep_threat_level = detainer_prepared_threat_level,
     most_serious_conviction_charge = msc_charge,
-    felon = aggravated_felon_yes_no,
     arrest_time_case_category = toa_case_category,
-    arrest_time_current_program = toa_current_program,
-    federal_interest_yes_no = federal_register_notice_yes_no,
-    unique_identifier = anonymized_identifier
-  )
-
+    arrest_time_case_category_code = toa_case_category_code,
+    msc_sentence_days = sentence_days,
+    msc_sentence_months = sentence_months,
+    msc_sentence_years = sentence_years,
+    unique_identifier = anonymized_unique_identifier,
+    order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
+  ) |>
+  relocate(unique_identifier, .before = duplicate_likely) |>
+  relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
 
@@ -426,3 +524,5 @@ arrow::write_parquet(
 writexl::write_xlsx(detainers_df, "data/detainers-latest.xlsx")
 haven::write_dta(detainers_df, "data/detainers-latest.dta")
 haven::write_sav(detainers_df, "data/detainers-latest.sav")
+
+# END.
