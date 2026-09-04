@@ -668,8 +668,8 @@ arrow::write_parquet(
   "data/arrests-latest.parquet",
   compression = "zstd"
 )
-# writexl::write_xlsx(arrests_df, "data/arrests-latest.xlsx")
-# haven::write_dta(arrests_df, "data/arrests-latest.dta")
-# haven::write_sav(arrests_df, "data/arrests-latest.sav")
+writexl::write_xlsx(arrests_df, "data/arrests-latest.xlsx")
+haven::write_dta(arrests_df, "data/arrests-latest.dta")
+haven::write_sav(arrests_df, "data/arrests-latest.sav")
 
 # END.
