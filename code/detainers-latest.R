@@ -120,7 +120,6 @@ detainers_df <-
   # replace redacted values with NA
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
-  mutate(across(where(is.character), ~ na_if(.x, "NA"))) |>
   mutate(
     birth_year = as.integer(birth_year)
   ) |>
@@ -147,19 +146,20 @@ detainers_df <-
     )
   ) |>
   mutate(
-    request_type = case_when(
-      str_detect(detainer_type, "I247A") ~ "Detainer request",
-      str_detect(detainer_type, "I247D") ~ "Detainer request",
+    detainer_type_original = detainer_type,
+    detainer_type = case_when(
+      str_detect(detainer_type_original, "I247A") ~ "Detainer request",
+      str_detect(detainer_type_original, "I247D") ~ "Detainer request",
       str_detect(
-        detainer_type,
+        detainer_type_original,
         "I247G"
       ) ~ "Request for advance notification of release",
       str_detect(
-        detainer_type,
+        detainer_type_original,
         "I247N"
       ) ~ "Request for advance notification of release",
-      str_detect(detainer_type, "I247X") ~ "Other",
-      str_detect(detainer_type, "I247 ") ~ "Detainer request"
+      str_detect(detainer_type_original, "I247X") ~ "Other",
+      str_detect(detainer_type_original, "I247 ") ~ "Detainer request"
     )
   )
 
