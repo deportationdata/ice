@@ -109,7 +109,7 @@ detentions_df <-
   # add row number from original file
   mutate(
     row_original = as.integer(row_number() + 6 + 1),
-    .by = "sheet_original"
+    .by = c("file_original", "sheet_original")
   ) |>
   # add identifier for each ICE stay, encompassing multiple detentions or stints
   mutate(

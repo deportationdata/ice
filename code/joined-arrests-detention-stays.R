@@ -172,6 +172,14 @@ arrests_with_detentions <-
     matches(
       "^(city|state|county|core_based_statistical_area(_code|_type)?|federal_court_(district|circuit)_of_confinement)_(first|longest|last)$"
     )
+  ) |>
+  mutate(
+    conviction = case_when(
+      !has_detention_stay &
+        apprehension_criminality != "1 Convicted Criminal" ~ "None",
+      !has_detention_stay ~ "Conviction, type unknown",
+      TRUE ~ conviction
+    )
   )
 
 # ---- Final pointblank validation ----
