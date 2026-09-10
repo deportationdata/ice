@@ -663,13 +663,7 @@ arrests_df <-
   relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
-arrow::write_parquet(
-  arrests_df,
-  "data/arrests-latest.parquet",
-  compression = "zstd"
-)
-writexl::write_xlsx(arrests_df, "data/arrests-latest.xlsx")
-haven::write_dta(arrests_df, "data/arrests-latest.dta")
-haven::write_sav(arrests_df, "data/arrests-latest.sav")
+source("code/functions/save_outputs.R")
+save_outputs(arrests_df, "arrests-latest")
 
 # END.

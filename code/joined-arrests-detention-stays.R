@@ -265,10 +265,7 @@ arrests_with_detentions <-
     .after = detention_facility_code_last
   )
 
-save_outputs(
-  arrests_with_detentions,
-  "joined-arrests-detention-stays-latest"
-)
+save_outputs(arrests_with_detentions, "joined-arrests-detention-stays-latest")
 
 arrests_with_detentions |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>

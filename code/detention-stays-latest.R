@@ -4,6 +4,8 @@ library(tidylog)
 library(data.table)
 library(pointblank)
 
+source("code/functions/save_outputs.R")
+
 # ---- Input data ---
 facilities_df <- arrow::read_parquet(
   "https://github.com/deportationdata/ice-detention-facilities/raw/refs/heads/main/data/facilities-latest.parquet"
@@ -495,20 +497,8 @@ detention_stays_df <- detention_stays_df |>
   arrange(stay_book_in_date_time)
 
 # ---- Save Outputs ----
-arrow::write_parquet(
-  detention_stays_df,
-  "data/detention-stays-latest.parquet",
-  compression = "zstd"
-)
-detention_stays_df |>
-  rename_with(
-    ~ make.unique(
-      abbreviate(.x, minlength = 32, strict = FALSE),
-      sep = "_"
-    )
-  ) |>
-  haven::write_dta("data/detention-stays-latest.dta")
-haven::write_sav(detention_stays_df, "data/detention-stays-latest.sav")
+save_outputs(detention_stays_df, "detention-stays-latest")
+
 detention_stays_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
   group_split(.chunk, .keep = FALSE) |>

@@ -157,7 +157,8 @@ detentions_df <-
 detentions_df <-
   detentions_df |>
   left_join(
-    msc_charge_codes_tbl,
+    msc_charge_codes_tbl |>
+      rename(most_serious_conviction_code = msc_charge_code),
     by = "msc_charge",
     relationship = "many-to-one"
   )
@@ -619,20 +620,8 @@ detentions_df$stint_date <- NULL
 
 # ---- Save Outputs ----
 
-arrow::write_parquet(
-  detentions_df,
-  "data/detention-stints-latest.parquet",
-  compression = "zstd"
-)
-detentions_df |>
-  rename_with(
-    ~ make.unique(
-      abbreviate(.x, minlength = 32, strict = FALSE),
-      sep = "_"
-    )
-  ) |>
-  haven::write_dta("data/detention-stints-latest.dta")
-haven::write_sav(detentions_df, "data/detention-stints-latest.sav")
+source("code/functions/save_outputs.R")
+save_outputs(detentions_df, "detention-stints-latest")
 
 detentions_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
