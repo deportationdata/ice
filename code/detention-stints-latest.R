@@ -4,6 +4,24 @@ library(tidylog)
 library(data.table)
 library(pointblank)
 
+# special function to deal with Aug. 2026 files that have dates in diff
+#   formats across files
+excel_list_to_date <- function(l) {
+  is_dt <- map_lgl(l, \(x) inherits(x, "POSIXt"))
+  is_ch <- map_lgl(l, is.character)
+  stopifnot(all(is_dt | is_ch | map_lgl(l, is.logical)))
+  out <- rep(as.Date(NA), length(l))
+  out[is_dt] <- as.Date(as.POSIXct(
+    unlist(l[is_dt]),
+    origin = "1970-01-01",
+    tz = "UTC"
+  ))
+  parsed <- lubridate::mdy(as.character(unlist(l[is_ch])), quiet = TRUE)
+  stopifnot("unparsed date strings" = !anyNA(parsed))
+  out[is_ch] <- parsed
+  out
+}
+
 # ---- Input data ---
 facilities_df <- arrow::read_parquet(
   "https://media.githubusercontent.com/media/deportationdata/ice-detention-facilities/main/data/facilities-latest.parquet"
@@ -17,11 +35,12 @@ msc_charge_codes_tbl <- read_csv(here::here("data/msc-charge-codes.csv"))
 # ---- Functions ----
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
+source("code/functions/check_missing_by_source.R")
 
 col_types <- c(
   "numeric", # Birth Year
   "numeric", # Bond Posted Amount
-  "date", # Bond Posted Date
+  "list", # Bond Posted Date
   "text", # Book In Criminality
   "date", # Detention Book In Date Time
   "text", # Case Category
@@ -39,7 +58,7 @@ col_types <- c(
   "text", # Ethnicity
   "text", # Felon
   "text", # Final Charge
-  "date", # Final Order Date
+  "list", # Final Order Date
   "text", # Final Order Yes No
   "text", # Apprehension Final Program
   "text", # Gender
@@ -99,6 +118,7 @@ detentions_df |>
     `Stay Book In Date Time`,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
+  check_missing_by_source() |>
   invisible()
 
 # ---- Initial cleaning of stint-level data ----
@@ -111,6 +131,7 @@ detentions_df <-
     row_original = as.integer(row_number() + 6 + 1),
     .by = c("file_original", "sheet_original")
   ) |>
+  mutate(across(c(bond_posted_date, final_order_date), excel_list_to_date)) |>
   # add identifier for each ICE stay, encompassing multiple detentions or stints
   mutate(
     stay_ID = str_c(anonymized_unique_identifier, "_", stay_book_in_date_time)
