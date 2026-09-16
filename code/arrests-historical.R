@@ -8,6 +8,12 @@
 # |     |                      |                          |         | truncated original 19-digit IDs (collisions confirmed)            |
 # | df3 | 120125               | 2023-09-01 .. 2025-10-16 | exclude | functionally identical to df5 (same rows, ids, NA pattern)        |
 # | df4 | uwchr                | 2011-10-01 .. 2023-01-29 | exclude | no identifier; window fully covered by df2 which has one          |
+#
+# df2 lacks apprehension AOR and lots of other characteristics present in df4;
+# what we get from unique ID is ability to de-duplicate, but how much do overall
+# counts differ after de-duplication? About 2.3% duplicates in arrests-historical.parquet;
+# ranges from <1% to >4% likely duplicates per month
+
 
 # --- Packages ---
 library(readxl)
