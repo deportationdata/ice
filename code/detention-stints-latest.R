@@ -160,7 +160,7 @@ detentions_df <-
     )
   )
 
-# ---- New processed vars ----
+# ---- Processed vars ----
 
 detentions_df <-
   detentions_df |>
@@ -172,6 +172,54 @@ detentions_df <-
     stay_length_days = as.numeric(
       stay_book_out_date_time - stay_book_in_date_time,
       units = "days"
+    ),
+    final_order_before_book_in = !is.na(final_order_date) &
+      final_order_date < as.Date(stay_book_in_date_time),
+    stay_release_reason_simplified = case_when(
+      stay_release_reason %in%
+        c("Removed", "Voluntary Return", "Voluntary departure") ~ "Deported",
+      stay_release_reason %in%
+        c(
+          "Bonded Out - Field Office",
+          "Bonded Out - IJ",
+          "Court Ordered",
+          "Order of Recognizance - Humanitarian",
+          "Order of Supervision - Humanitarian",
+          "Order of Supervision - No SLRRFF",
+          "Order of Supervision - Re-Release",
+          "Order of recognizance",
+          "Order of supervision",
+          "Paroled",
+          "Paroled - Fear Found",
+          "Paroled - Humanitarian",
+          "Paroled - Public Benefit",
+          "Paroled - With Conditions",
+          "Processing Disposition Changed Locally",
+          "Relief Granted by IJ",
+          "Withdrawal",
+          "Proceedings Terminated"
+        ) ~ "Released",
+      stay_release_reason %in%
+        c(
+          "ORR - Office of Refugee Resettlement",
+          "Transferred",
+          "U.S. Marshals or other agency (explain in Detention Comments)"
+        ) ~ "Transferred",
+      stay_release_reason %in% c("Escaped", "ORR-Runaway") ~ "Other"
+    ),
+    release_within_60_days = case_when(
+      stay_release_reason_simplified == "Deported" &
+        stay_length_days < 60 ~ "Deported within 60 days",
+      stay_release_reason_simplified == "Released" &
+        stay_length_days < 60 ~ "Released within 60 days",
+      TRUE ~ "Not released within 60 days"
+    ),
+    release_within_90_days = case_when(
+      stay_release_reason_simplified == "Deported" &
+        stay_length_days < 90 ~ "Deported within 90 days",
+      stay_release_reason_simplified == "Released" &
+        stay_length_days < 90 ~ "Released within 90 days",
+      TRUE ~ "Not released within 90 days"
     )
   )
 

@@ -244,7 +244,9 @@ arrests_df <-
         ) ~ "Custodial Arrest",
       apprehension_method == "287(g) Program" ~ "287(g) Program",
       TRUE ~ "Other"
-    )
+    ),
+    final_order_before_apprehension = !is.na(final_order_date) &
+      final_order_date < as.Date(apprehension_date_time)
   )
 
 # ---- Check: state imputation ----

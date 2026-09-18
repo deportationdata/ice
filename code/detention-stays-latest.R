@@ -31,7 +31,9 @@ detentions_df <-
       "core_based_statistical_area_type"
     ))
   ) |>
-  mutate(initial_bond_set_amount = as.numeric(initial_bond_set_amount)) |>
+  mutate(
+    initial_bond_set_amount = as.numeric(initial_bond_set_amount)
+  ) |>
   as.data.table()
 
 rm(stints_raw_df)
