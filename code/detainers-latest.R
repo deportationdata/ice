@@ -161,6 +161,10 @@ detainers_df <-
       str_detect(detainer_type_original, "I247X") ~ "Other",
       str_detect(detainer_type_original, "I247 ") ~ "Detainer request"
     )
+  ) |>
+  mutate(
+    final_order_before_detainer_prepared = !is.na(final_order_date) &
+      final_order_date < as.Date(detainer_prepared_date)
   )
 
 # Detainers table has MSC charge and code variables so we don't need to join in
