@@ -122,6 +122,8 @@ arrests_df <-
     apprehension_date = as.Date(apprehension_date_time),
     # convert birth year to integer
     birth_year = as.integer(birth_year),
+    # calculate approximate age at time of apprehension
+    approx_age_at_apprehension = year(apprehension_date) - birth_year,
     # standardized landmark for whole-landmark matching
     event_landmark_squished = str_squish(event_landmark |> str_to_upper())
   )
