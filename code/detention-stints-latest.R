@@ -146,7 +146,9 @@ detentions_df <-
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
   mutate(
-    birth_year = as.integer(birth_year)
+    birth_year = as.integer(birth_year),
+    approx_age_at_stint_book_in = year(detention_book_in_date_time) - birth_year,
+    approx_age_at_stay_book_in = year(stay_book_in_date_time) - birth_year,
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   # filter(!is.na(anonymized_identifier)) |>
@@ -177,7 +179,11 @@ detentions_df <-
       final_order_date < as.Date(stay_book_in_date_time),
     stay_release_reason_simplified = case_when(
       stay_release_reason %in%
-        c("Removed", "Voluntary Return", "Voluntary departure") ~ "Deported",
+        c(
+          "Removed",
+          "Voluntary Return",
+          "Voluntary departure",
+          "Title 42 Return") ~ "Deported",
       stay_release_reason %in%
         c(
           "Bonded Out - Field Office",
@@ -205,7 +211,8 @@ detentions_df <-
           "Transferred",
           "U.S. Marshals or other agency (explain in Detention Comments)"
         ) ~ "Transferred",
-      stay_release_reason %in% c("Escaped", "ORR-Runaway") ~ "Other"
+      stay_release_reason %in% c("Died", "Escaped", "ORR-Runaway") ~ "Other",
+      is.na(stay_release_reason) ~ "Not released as of 2026-08-05"
     ),
     release_within_60_days = case_when(
       stay_release_reason_simplified == "Deported" &
