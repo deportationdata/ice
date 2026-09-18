@@ -670,4 +670,10 @@ arrests_df <-
 source("code/functions/save_outputs.R")
 save_outputs(arrests_df, "arrests-latest")
 
+arrests_df |>
+  mutate(.chunk = ceiling(row_number() / 1e6)) |>
+  group_split(.chunk, .keep = FALSE) |>
+  set_names(~ str_c("Arrests (Sheet ", seq_along(.x), ")")) |>
+  writexl::write_xlsx("data/arrests-latest.xlsx")
+
 # END.
