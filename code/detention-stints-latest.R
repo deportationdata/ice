@@ -147,8 +147,9 @@ detentions_df <-
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
   mutate(
     birth_year = as.integer(birth_year),
-    approx_age_at_stint_book_in = year(detention_book_in_date_time) - birth_year,
-    approx_age_at_stay_book_in = year(stay_book_in_date_time) - birth_year,
+    age_at_stint_book_in_approximate = year(detention_book_in_date_time) -
+      birth_year,
+    age_at_stay_book_in_approximate = year(stay_book_in_date_time) - birth_year,
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   # filter(!is.na(anonymized_identifier)) |>
@@ -177,13 +178,14 @@ detentions_df <-
     ),
     final_order_before_book_in = !is.na(final_order_date) &
       final_order_date < as.Date(stay_book_in_date_time),
-    stay_release_reason_simplified = case_when(
+    stay_release_reason_simple = case_when(
       stay_release_reason %in%
         c(
           "Removed",
           "Voluntary Return",
           "Voluntary departure",
-          "Title 42 Return") ~ "Deported",
+          "Title 42 Return"
+        ) ~ "Deported",
       stay_release_reason %in%
         c(
           "Bonded Out - Field Office",
@@ -215,16 +217,16 @@ detentions_df <-
       is.na(stay_release_reason) ~ "Not released as of 2026-08-05"
     ),
     release_within_60_days = case_when(
-      stay_release_reason_simplified == "Deported" &
+      stay_release_reason_simple == "Deported" &
         stay_length_days < 60 ~ "Deported within 60 days",
-      stay_release_reason_simplified == "Released" &
+      stay_release_reason_simple == "Released" &
         stay_length_days < 60 ~ "Released within 60 days",
       TRUE ~ "Not released within 60 days"
     ),
     release_within_90_days = case_when(
-      stay_release_reason_simplified == "Deported" &
+      stay_release_reason_simple == "Deported" &
         stay_length_days < 90 ~ "Deported within 90 days",
-      stay_release_reason_simplified == "Released" &
+      stay_release_reason_simple == "Released" &
         stay_length_days < 90 ~ "Released within 90 days",
       TRUE ~ "Not released within 90 days"
     )
