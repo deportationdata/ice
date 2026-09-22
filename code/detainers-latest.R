@@ -161,6 +161,10 @@ detainers_df <-
       str_detect(detainer_type_original, "I247X") ~ "Other",
       str_detect(detainer_type_original, "I247 ") ~ "Detainer request"
     )
+  ) |>
+  mutate(
+    final_order_before_detainer_prepared = !is.na(final_order_date) &
+      final_order_date < as.Date(detainer_prepared_date)
   )
 
 # Detainers table has MSC charge and code variables so we don't need to join in
@@ -516,13 +520,13 @@ detainers_df <-
 
 # ---- Save Outputs ----
 
-arrow::write_parquet(
-  detainers_df,
-  "data/detainers-latest.parquet",
-  compression = "zstd"
-)
-writexl::write_xlsx(detainers_df, "data/detainers-latest.xlsx")
-haven::write_dta(detainers_df, "data/detainers-latest.dta")
-haven::write_sav(detainers_df, "data/detainers-latest.sav")
+source("code/functions/save_outputs.R")
+save_outputs(detainers_df, "detainers-latest")
+
+detainers_df |>
+  mutate(.chunk = ceiling(row_number() / 1e6)) |>
+  group_split(.chunk, .keep = FALSE) |>
+  set_names(~ str_c("Detainers (Sheet ", seq_along(.x), ")")) |>
+  writexl::write_xlsx("data/detainers-latest.xlsx")
 
 # END.

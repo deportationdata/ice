@@ -122,6 +122,8 @@ arrests_df <-
     apprehension_date = as.Date(apprehension_date_time),
     # convert birth year to integer
     birth_year = as.integer(birth_year),
+    # calculate approximate age at time of apprehension
+    age_at_apprehension_approximate = year(apprehension_date) - birth_year,
     # standardized landmark for whole-landmark matching
     event_landmark_squished = str_squish(event_landmark |> str_to_upper())
   )
@@ -244,7 +246,9 @@ arrests_df <-
         ) ~ "Custodial Arrest",
       apprehension_method == "287(g) Program" ~ "287(g) Program",
       TRUE ~ "Other"
-    )
+    ),
+    final_order_before_apprehension = !is.na(final_order_date) &
+      final_order_date < as.Date(apprehension_date_time)
   )
 
 # ---- Check: state imputation ----
@@ -665,5 +669,11 @@ arrests_df <-
 # ---- Save Outputs ----
 source("code/functions/save_outputs.R")
 save_outputs(arrests_df, "arrests-latest")
+
+arrests_df |>
+  mutate(.chunk = ceiling(row_number() / 1e6)) |>
+  group_split(.chunk, .keep = FALSE) |>
+  set_names(~ str_c("Arrests (Sheet ", seq_along(.x), ")")) |>
+  writexl::write_xlsx("data/arrests-latest.xlsx")
 
 # END.
