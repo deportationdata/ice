@@ -256,7 +256,8 @@ removals_df <- rbind(removals_with_detentions, removals_no_anon_id_and_dupes) |>
     removal_ID,
     id_in_detentions,
     .direction = "downup"
-  )
+  ) |>
+  ungroup()
 
 stopifnot(nrow(removals_df) == pre_join_rows)
 
@@ -268,8 +269,6 @@ removals_df <- removals_df |>
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   arrange(file_original, sheet_original, row_original)
-
-# ---- Save Outputs ----
 
 # ---- Save Outputs ----
 arrow::write_parquet(
