@@ -264,14 +264,12 @@ stopifnot(nrow(removals_df) == pre_join_rows)
 # ---- Rename and organize to match other datasets ----
 
 removals_df <- removals_df |>
-  mutate(final_program_copy = final_program) |> # temporary copy of `final_program` (actually final program codes)
   rename(
     unique_identifier = anonymized_unique_identifier,
     processing_disposition = progrocessing_disposition, # typo in raw data
     final_program = final_program_code, # `final_program` and `final_program_code` swapped in raw data
-    final_program_code = final_program_copy
+    final_program_code = final_program
   ) |>
-  select(-final_program_copy) |>
   relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   arrange(file_original, sheet_original, row_original)
 
