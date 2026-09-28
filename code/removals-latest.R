@@ -266,6 +266,7 @@ stopifnot(nrow(removals_df) == pre_join_rows)
 removals_df <- removals_df |>
   rename(
     unique_identifier = anonymized_unique_identifier,
+    processing_disposition = progrocessing_disposition,
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   arrange(file_original, sheet_original, row_original)
