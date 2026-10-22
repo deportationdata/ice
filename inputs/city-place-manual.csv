@@ -1,0 +1,6 @@
+city,state,ref_name,ref_state,ref_geoid,note
+boise,idaho,Boise City,idaho,,census legal name differs
+honolulu,hawaii,Urban Honolulu,hawaii,,census CDP name differs
+canon city,colorado,Cañon City,colorado,,ascii spelling
+devens,massachusetts,Ayer,massachusetts,,regional enterprise zone mostly in Ayer town
+hanscom afb,massachusetts,Bedford,massachusetts,,air base mostly in Bedford town

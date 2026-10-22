@@ -3,15 +3,17 @@
 # "Laredo, Texas" -> "laredo"); applied identically when building the
 # crosswalk and when joining it back
 
+.state_abb_dotted <- paste0(
+  substr(tolower(state.abb), 1, 1), "\\.?", substr(tolower(state.abb), 2, 2), "\\.?"
+)
+
 # trailing state suffixes people type into the city field
 .state_suffix_re <- paste0(
   ",\\s*(",
   paste(
     c(
       tolower(state.name),
-      tolower(state.abb),
-      "dc",
-      "d\\.c\\.",
+      .state_abb_dotted,
       "district of columbia",
       "pr",
       "puerto rico",
@@ -24,21 +26,42 @@
   ")\\.?$"
 )
 
+.state_abb_wordlike <- c("in", "or", "me", "hi", "oh", "ok", "de", "la", "co")
+
+.state_abb_suffix_re <- paste0(
+  "\\s+(",
+  paste(
+    .state_abb_dotted[!tolower(state.abb) %in% .state_abb_wordlike],
+    collapse = "|"
+  ),
+  ")\\.?$"
+)
+
 normalize_city <- function(x) {
   x |>
+    stringi::stri_trans_general("Latin-ASCII") |>
     stringr::str_to_lower() |>
+    stringr::str_replace_all("[\u2019\u2018'`]", " ") |>
+    stringr::str_replace_all("-", " ") |>
     stringr::str_squish() |>
+    stringr::str_remove("[,.;:]+$") |>
+    stringr::str_squish() |>
+    stringr::str_replace("(^|,\\s*|\\s+)d\\.?c$", "\\1dc") |>
+    stringr::str_replace(",\\s*dc$", " dc") |>
     stringr::str_remove(.state_suffix_re) |>
+    stringr::str_remove(.state_abb_suffix_re) |>
     # "ft.pierce" -> "ft. pierce" so the prefix rules below apply
     stringr::str_replace("^(ft|mt|st)\\.(\\S)", "\\1. \\2") |>
-    stringr::str_replace("^saint ", "st. ") |>
-    stringr::str_replace("^st ", "st. ") |>
+    stringr::str_replace_all("\\bsainte ", "ste. ") |>
+    stringr::str_replace_all("\\bsaint ", "st. ") |>
+    stringr::str_replace_all("\\bst\\.? ", "st. ") |>
+    stringr::str_replace_all("\\bste\\.? ", "ste. ") |>
     stringr::str_replace("^ft\\.? ", "fort ") |>
     stringr::str_replace("^mt\\.? ", "mount ") |>
-    stringr::str_replace("^n\\. ", "north ") |>
-    stringr::str_replace("^s\\. ", "south ") |>
-    stringr::str_replace("^e\\. ", "east ") |>
-    stringr::str_replace("^w\\. ", "west ") |>
+    stringr::str_replace("^n\\.? ", "north ") |>
+    stringr::str_replace("^s\\.? ", "south ") |>
+    stringr::str_replace("^e\\.? ", "east ") |>
+    stringr::str_replace("^w\\.? ", "west ") |>
     stringr::str_replace(" twp\\.?$", " township") |>
     stringr::str_squish()
 }

@@ -1,91 +1,81 @@
-city,state,ref_name,ref_state,geo_level,note
-nashville,tennessee,Nashville-Davidson metropolitan government (balance),tennessee,place,consolidated government balance
-ventura,california,San Buenaventura (Ventura),california,place,census legal name differs
-louisville,kentucky,Louisville/Jefferson County metro government (balance),kentucky,place,consolidated government balance
-athens,georgia,Athens-Clarke County unified government (balance),georgia,place,consolidated government balance
-augusta,georgia,Augusta-Richmond County consolidated government (balance),georgia,place,consolidated government balance
-butte,montana,Butte-Silver Bow (balance),montana,place,consolidated government balance
-lexington,kentucky,Lexington-Fayette,kentucky,place,consolidated government
-new york city,new york,New York,new york,place,name variant
-nyc,new york,New York,new york,place,abbreviation
-manhattan,new york,New York,new york,place,NYC borough
-bronx,new york,New York,new york,place,NYC borough
-the bronx,new york,New York,new york,place,NYC borough
-brooklyn,new york,New York,new york,place,NYC borough
-queens,new york,New York,new york,place,NYC borough
-staten island,new york,New York,new york,place,NYC borough
-jamaica,new york,New York,new york,place,NYC neighborhood
-flushing,new york,New York,new york,place,NYC neighborhood
-elmhurst,new york,New York,new york,place,NYC neighborhood
-east elmhurst,new york,New York,new york,place,NYC neighborhood
-astoria,new york,New York,new york,place,NYC neighborhood
-maspeth,new york,New York,new york,place,NYC neighborhood
-college point,new york,New York,new york,place,NYC neighborhood
-long island city,new york,New York,new york,place,NYC neighborhood
-far rockaway,new york,New York,new york,place,NYC neighborhood
-rego park,new york,New York,new york,place,NYC neighborhood
-sunnyside,new york,New York,new york,place,NYC neighborhood
-bayside,new york,New York,new york,place,NYC neighborhood
-fresh meadows,new york,New York,new york,place,NYC neighborhood
-kew gardens,new york,New York,new york,place,NYC neighborhood
-queens village,new york,New York,new york,place,NYC neighborhood
-ozone park,new york,New York,new york,place,NYC neighborhood
-rockaway park,new york,New York,new york,place,NYC neighborhood
-van nuys,california,Los Angeles,california,place,LA neighborhood
-sylmar,california,Los Angeles,california,place,LA neighborhood
-reseda,california,Los Angeles,california,place,LA neighborhood
-canoga park,california,Los Angeles,california,place,LA neighborhood
-tarzana,california,Los Angeles,california,place,LA neighborhood
-sherman oaks,california,Los Angeles,california,place,LA neighborhood
-chatsworth,california,Los Angeles,california,place,LA neighborhood
-winnetka,california,Los Angeles,california,place,LA neighborhood
-pacoima,california,Los Angeles,california,place,LA neighborhood
-tujunga,california,Los Angeles,california,place,LA neighborhood
-studio city,california,Los Angeles,california,place,LA neighborhood
-porter ranch,california,Los Angeles,california,place,LA neighborhood
-harbor city,california,Los Angeles,california,place,LA neighborhood
-san pedro,california,Los Angeles,california,place,LA neighborhood
-north hollywood,california,Los Angeles,california,place,LA neighborhood
-hollywood,california,Los Angeles,california,place,LA neighborhood
-venice,california,Los Angeles,california,place,LA neighborhood
-boyle heights,california,Los Angeles,california,place,LA neighborhood
-echo park,california,Los Angeles,california,place,LA neighborhood
-arleta,california,Los Angeles,california,place,LA neighborhood
-canyon country,california,Santa Clarita,california,place,Santa Clarita neighborhood
-la jolla,california,San Diego,california,place,San Diego neighborhood
-roxbury,massachusetts,Boston,massachusetts,place,Boston neighborhood
-dorchester,massachusetts,Boston,massachusetts,place,Boston neighborhood
-dorchester center,massachusetts,Boston,massachusetts,place,Boston neighborhood
-jamaica plain,massachusetts,Boston,massachusetts,place,Boston neighborhood
-brighton,massachusetts,Boston,massachusetts,place,Boston neighborhood
-allston,massachusetts,Boston,massachusetts,place,Boston neighborhood
-hyde park,massachusetts,Boston,massachusetts,place,Boston neighborhood
-mattapan,massachusetts,Boston,massachusetts,place,Boston neighborhood
-roslindale,massachusetts,Boston,massachusetts,place,Boston neighborhood
-charlestown,massachusetts,Boston,massachusetts,place,Boston neighborhood
-east boston,massachusetts,Boston,massachusetts,place,Boston neighborhood
-okc,oklahoma,Oklahoma City,oklahoma,place,abbreviation
-slc,utah,Salt Lake City,utah,place,abbreviation
-wvc,utah,West Valley City,utah,place,abbreviation
-nsl,utah,North Salt Lake,utah,place,abbreviation
-nlv,nevada,North Las Vegas,nevada,place,abbreviation
-wpb,florida,West Palm Beach,florida,place,abbreviation
-pcb,florida,Panama City Beach,florida,place,abbreviation
-fwb,florida,Fort Walton Beach,florida,place,abbreviation
-mpls,minnesota,Minneapolis,minnesota,place,abbreviation
-abq,new mexico,Albuquerque,new mexico,place,abbreviation
-indianapolis,indiana,Indianapolis city (balance),indiana,place,consolidated government balance
-milford,connecticut,Milford city (balance),connecticut,place,consolidated government balance
-macon,georgia,Macon-Bibb County,georgia,place,consolidated government
-corona,new york,New York,new york,place,NYC neighborhood
-north chesterfield,virginia,Chesterfield,virginia,county,postal name for chesterfield county
-south boston,massachusetts,Boston,massachusetts,place,Boston neighborhood
-west roxbury,massachusetts,Boston,massachusetts,place,Boston neighborhood
-allston brighton,massachusetts,Boston,massachusetts,place,Boston neighborhood
-e boston,massachusetts,Boston,massachusetts,place,Boston neighborhood variant
-newton highlands,massachusetts,Newton,massachusetts,place,Newton neighborhood
-newtonville,massachusetts,Newton,massachusetts,place,Newton neighborhood
-vernon rockville,connecticut,Vernon,connecticut,cousub,Rockville village in Vernon town
-attelborough,massachusetts,Attleboro,massachusetts,place,misspelling
-promfret,connecticut,Pomfret,connecticut,cousub,misspelling
-north bilerica,massachusetts,Billerica,massachusetts,cousub,misspelled village in billerica town
+city,state,ref_name,ref_state,geo_level,ref_geoid,note
+ventura,california,San Buenaventura (Ventura),california,place,,census legal name differs
+louisville,kentucky,Louisville/Jefferson County metro government (balance),kentucky,place,,consolidated government balance
+athens,georgia,Athens-Clarke County unified government (balance),georgia,place,,consolidated government balance
+augusta,georgia,Augusta-Richmond County consolidated government (balance),georgia,place,,consolidated government balance
+butte,montana,Butte-Silver Bow (balance),montana,place,,consolidated government balance
+nyc,new york,New York,new york,place,,abbreviation
+elmhurst,new york,New York,new york,place,,NYC neighborhood
+sunnyside,new york,New York,new york,place,,NYC neighborhood
+porter ranch,california,Los Angeles,california,place,,LA neighborhood
+arleta,california,Los Angeles,california,place,,LA neighborhood
+la jolla,california,San Diego,california,place,,San Diego neighborhood
+okc,oklahoma,Oklahoma City,oklahoma,place,,abbreviation
+slc,utah,Salt Lake City,utah,place,,abbreviation
+wvc,utah,West Valley City,utah,place,,abbreviation
+nsl,utah,North Salt Lake,utah,place,,abbreviation
+nlv,nevada,North Las Vegas,nevada,place,,abbreviation
+wpb,florida,West Palm Beach,florida,place,,abbreviation
+pcb,florida,Panama City Beach,florida,place,,abbreviation
+fwb,florida,Fort Walton Beach,florida,place,,abbreviation
+mpls,minnesota,Minneapolis,minnesota,place,,abbreviation
+abq,new mexico,Albuquerque,new mexico,place,,abbreviation
+allston brighton,massachusetts,Boston,massachusetts,place,,Boston neighborhood
+e boston,massachusetts,Boston,massachusetts,place,,Boston neighborhood variant
+vernon rockville,connecticut,Vernon,connecticut,cousub,,Rockville village in Vernon town
+attelborough,massachusetts,Attleboro,massachusetts,place,,misspelling
+promfret,connecticut,Pomfret,connecticut,cousub,,misspelling
+north bilerica,massachusetts,Billerica,massachusetts,cousub,,misspelled village in billerica town
+antioch,tennessee,Nashville-Davidson metropolitan government (balance),tennessee,place,,Nashville neighborhood; ambiguous in GNIS
+riverdale,maryland,Riverdale Park,maryland,place,,postal name; GNIS point is a different Riverdale
+phillipsburg,pennsylvania,Philipsburg,pennsylvania,place,,misspelling; GNIS point is a different Phillipsburg
+marlboro,massachusetts,Marlborough,massachusetts,place,,misspelling; GNIS point is a different Marlboro
+greenbriar,tennessee,Greenbrier,tennessee,place,,misspelling; GNIS point is a different Greenbriar
+greenville,tennessee,Greeneville,tennessee,place,,misspelling; GNIS point is a different Greenville
+southgate,california,South Gate,california,place,,misspelling; GNIS point is a different Southgate
+brooklyn,minnesota,Brooklyn Park,minnesota,place,,shortened name; GNIS point is a different Brooklyn
+la belle,florida,LaBelle,florida,place,,misspelling; GNIS point is a different La Belle
+windemere,florida,Windermere,florida,place,,misspelling; GNIS point is a different Windemere
+san ysidro,california,San Diego,california,place,,San Diego neighborhood; ambiguous in GNIS
+west valley,utah,West Valley City,utah,place,,shortened name
+salt lake,utah,Salt Lake City,utah,place,,shortened name
+south salt lake city,utah,South Salt Lake,utah,place,,name variant
+city of industry,california,Industry,california,place,,postal name
+yazoo,mississippi,Yazoo City,mississippi,place,,shortened name
+dania,florida,Dania Beach,florida,place,,shortened name
+pompano,florida,Pompano Beach,florida,place,,shortened name
+hallandale,florida,Hallandale Beach,florida,place,,shortened name
+horizon,texas,Horizon City,texas,place,,shortened name
+angelton,texas,Angleton,texas,place,,misspelling
+beaufrot,south carolina,Beaufort,south carolina,place,,misspelling
+edingburg,texas,Edinburg,texas,place,,misspelling
+gonzalez,texas,Gonzales,texas,place,,misspelling
+la fayette,georgia,LaFayette,georgia,place,,spacing
+la place,louisiana,Laplace,louisiana,place,,spacing
+westminister,maryland,Westminster,maryland,place,,misspelling; GNIS point is a different Westminister
+fort george g meade,maryland,Fort Meade,maryland,place,,postal name
+hot springs national,arkansas,Hot Springs,arkansas,place,,truncated Hot Springs National Park
+woodside,new york,New York,new york,place,,NYC neighborhood
+washington dc,district of columbia,Washington,district of columbia,place,,name variant
+washington dc,virginia,Washington,district of columbia,place,,wrong state
+washington dc,maryland,Washington,district of columbia,place,,wrong state
+washington dc,washington,Washington,district of columbia,place,,wrong state
+dc,district of columbia,Washington,district of columbia,place,,abbreviation
+district of columbia,district of columbia,Washington,district of columbia,place,,name variant
+raybrook,new york,North Elba town,new york,cousub,3603151935,spacing; ray brook is in North Elba town
+westover,maryland,"District 13, Westover",maryland,cousub,2403991176,district named for Westover; ambiguous in GNIS
+marlboro,new jersey,Marlboro township,new jersey,cousub,3402544070,township in Monmouth County; same-named CDP is in Cumberland County
+voorhees,new jersey,Voorhees township,new jersey,cousub,3400776220,township in Camden County; same-named CDP is in Somerset County
+macon,georgia,Macon-Bibb County,georgia,place,,consolidated government; Macon County is elsewhere
+madison,tennessee,Nashville-Davidson metropolitan government (balance),tennessee,place,,Nashville neighborhood; Madison County is elsewhere
+canon,colorado,Cañon City,colorado,place,,shortened name; GNIS point is a different Canon
+karnes,texas,Karnes City,texas,place,,shortened name
+la salle,illinois,LaSalle,illinois,place,,spacing
+lake worth,florida,Lake Worth Beach,florida,place,,city renamed in 2019
+stafford,virginia,Stafford Courthouse,virginia,place,,county seat; GNIS point is in Stafford County
+cranberry township,pennsylvania,Cranberry township,pennsylvania,cousub,4201916920,Butler County (pop 33096); the other is in Venango County (6342)
+cranberry,pennsylvania,Cranberry township,pennsylvania,cousub,4201916920,Butler County (pop 33096); the other is in Venango County (6342)
+clinton township,michigan,Clinton charter township,michigan,cousub,2609916520,Macomb County (pop 100513); the others are in Lenawee (3765) and Oscoda (431)
+bayamon,puerto rico,Bayamón zona urbana,puerto rico,place,7206593,zona urbana (pop 165368); the other is a comunidad in Cidra (1923)
+eagleville,pennsylvania,Eagleville CDP,pennsylvania,place,4220672,Montgomery County (pop 4647); the other is in Centre County (285)
+spring valley,california,Spring Valley CDP,california,place,0673696,San Diego County (pop 30998); the other is in Lake County (964)
