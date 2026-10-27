@@ -2,7 +2,6 @@ library(sf)
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
-source("code/functions/read_cell_names.R")
 
 # ==== References ==============================================================
 
@@ -204,7 +203,10 @@ stoplist <-
   readr::read_csv("inputs/facility-stoplist.csv", show_col_types = FALSE) |>
   mutate(city = normalize_city(city))
 
-cell_names <- read_cell_names(shp_dir) |> select(cell_geoid, cell_name)
+cell_names <-
+  xwalk_all |>
+  filter(!is.na(cell_geoid)) |>
+  distinct(cell_geoid, cell_name = cell_common_name)
 
 gnis <-
   arrow::read_parquet(
