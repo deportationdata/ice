@@ -2,44 +2,31 @@ library(sf)
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
+source("code/functions/read_cell_names.R")
 
 # ==== References ==============================================================
 
 shp_dir <- "~/github/us-shapefiles/data"
+
+source("code/functions/check_us_shapefiles.R")
+check_us_shapefiles(shp_dir)
 gnis_review_min <- 50
 
-arrests_df <- arrow::read_parquet("data/arrests-latest.parquet")
+xwalk_all <-
+  arrow::read_parquet(
+    file.path(shp_dir, "places-cousubs-xwalk.parquet")
+  ) |>
+  left_join(state_names, by = "stusps")
 
-state_names <-
-  tibble(
-    abb = c(state.abb, "DC", "PR", "GU", "VI", "MP", "AS"),
-    full = str_to_lower(c(
-      state.name,
-      "District of Columbia",
-      "Puerto Rico",
-      "Guam",
-      "United States Virgin Islands",
-      "Commonwealth of the Northern Mariana Islands",
-      "American Samoa"
-    ))
-  )
+xwalk <- xwalk_all |> filter(!is.na(cell_geoid))
 
-xwalk <-
-  arrow::read_parquet(file.path(shp_dir, "places-cousubs-xwalk.parquet")) |>
-  filter(!is.na(cell_geoid)) |>
-  mutate(key_state = state_names$full[match(stusps, state_names$abb)])
-
-entity_cols <- c(
-  "stusps",
-  "raw_geoid",
-  "raw_name",
-  "raw_level",
-  "is_cdp",
-  "cell_geoid",
-  "cell_level",
-  "cell_namelsad",
-  "rule"
-)
+declined_places <-
+  xwalk_all |>
+  filter(geo_level == "place") |>
+  mutate(key_city = normalize_city(name)) |>
+  filter(n_distinct(geoid) > 1, .by = c(key_city, key_state)) |>
+  distinct(key_city, key_state) |>
+  mutate(place_note = "ambiguous census place")
 
 places_lookup <-
   xwalk |>
@@ -62,6 +49,34 @@ places_lookup <-
   filter(n_distinct(cell_geoid) == 1) |>
   ungroup() |>
   distinct(key_city, key_state, .keep_all = TRUE)
+
+consolidated_lookup <-
+  xwalk |>
+  filter(geo_level == "place", common_name != name) |>
+  transmute(
+    key_city = normalize_city(common_name),
+    key_state,
+    stusps,
+    raw_geoid = geoid,
+    raw_name = namelsad,
+    raw_level = geo_level,
+    is_cdp,
+    cell_geoid,
+    cell_level,
+    cell_namelsad,
+    rule
+  ) |>
+  anti_join(
+    xwalk |>
+      filter(geo_level == "place") |>
+      distinct(key_city = normalize_city(name), key_state),
+    by = c("key_city", "key_state")
+  ) |>
+  group_by(key_city, key_state) |>
+  filter(n() == 1) |>
+  ungroup()
+
+places_lookup <- bind_rows(places_lookup, consolidated_lookup)
 
 cousub_lookup <-
   xwalk |>
@@ -101,38 +116,60 @@ cousub_lookup <-
   ungroup() |>
   select(-rank)
 
-ref_union <-
+reference_union <-
   bind_rows(places_lookup, cousub_lookup) |>
   distinct(key_city, key_state, .keep_all = TRUE)
 
-manual_refs <-
-  bind_rows(
-    readr::read_csv(
-      "inputs/city-place-manual.csv",
-      col_types = readr::cols(.default = "c")
-    ),
-    readr::read_csv(
-      "inputs/city-aliases-manual.csv",
-      col_types = readr::cols(.default = "c")
-    )
+counties_lookup <-
+  arrow::read_parquet(
+    file.path(shp_dir, "counties-sf.parquet"),
+    col_select = c("geoid", "stusps", "name", "namelsad")
+  ) |>
+  left_join(state_names, by = "stusps") |>
+  transmute(
+    key_city = normalize_city(name),
+    key_city_lsad = normalize_city(namelsad),
+    key_state,
+    stusps,
+    raw_geoid = geoid,
+    raw_name = name,
+    raw_level = "county",
+    is_cdp = NA,
+    cell_geoid = geoid,
+    cell_level = "county",
+    cell_namelsad = name,
+    rule = "county name"
+  ) |>
+  pivot_longer(c(key_city, key_city_lsad), names_to = NULL, values_to = "key_city") |>
+  distinct() |>
+  group_by(key_city, key_state) |>
+  filter(n() == 1) |>
+  ungroup()
+
+manual_references <-
+  readr::read_csv(
+    "inputs/city-aliases-manual.csv",
+    col_types = readr::cols(.default = "c")
   ) |>
   transmute(
     key_city = normalize_city(city),
     key_state = normalize_state(state),
-    ref_name = normalize_city(ref_name),
-    ref_state,
-    ref_geoid
+    reference_name = normalize_city(reference_name),
+    reference_state,
+    reference_geoid,
+    geo_level,
+    display_name
   ) |>
   distinct(key_city, key_state, .keep_all = TRUE)
 
 manual <-
   bind_rows(
-    manual_refs |>
-      filter(!is.na(ref_geoid)) |>
+    manual_references |>
+      filter(!is.na(reference_geoid)) |>
       inner_join(
         xwalk |>
           transmute(
-            ref_geoid = geoid,
+            reference_geoid = geoid,
             stusps,
             raw_geoid = geoid,
             raw_name = namelsad,
@@ -143,49 +180,40 @@ manual <-
             cell_namelsad,
             rule
           ),
-        by = "ref_geoid"
+        by = "reference_geoid"
       ),
-    manual_refs |>
-      filter(is.na(ref_geoid)) |>
+    manual_references |>
+      filter(is.na(reference_geoid), !geo_level %in% "county") |>
       inner_join(
-        ref_union |> rename(ref_name = key_city, ref_state = key_state),
-        by = c("ref_name", "ref_state")
+        reference_union |>
+          rename(reference_name = key_city, reference_state = key_state),
+        by = c("reference_name", "reference_state")
+      ),
+    manual_references |>
+      filter(is.na(reference_geoid), geo_level %in% "county") |>
+      inner_join(
+        counties_lookup |>
+          rename(reference_name = key_city, reference_state = key_state),
+        by = c("reference_name", "reference_state")
       )
   )
 
-stopifnot(nrow(manual) == nrow(manual_refs))
+stopifnot(nrow(manual) == nrow(manual_references))
 
 stoplist <-
   readr::read_csv("inputs/facility-stoplist.csv", show_col_types = FALSE) |>
   mutate(city = normalize_city(city))
 
-processing_sites <-
-  readr::read_csv("inputs/processing-sites.csv", show_col_types = FALSE) |>
-  transmute(
-    key_city = normalize_city(city),
-    key_state = normalize_state(state),
-    processing_site = TRUE
-  )
-
-counties <-
-  arrow::read_parquet(
-    file.path(shp_dir, "counties-sf.parquet"),
-    col_select = c("stusps", "name")
-  ) |>
-  transmute(
-    key_city = normalize_city(name),
-    key_state = state_names$full[match(stusps, state_names$abb)]
-  ) |>
-  distinct()
+cell_names <- read_cell_names(shp_dir) |> select(cell_geoid, cell_name)
 
 gnis <-
-  arrow::read_parquet(file.path(
-    shp_dir,
-    "gnis-places-cousubs-xwalk.parquet"
-  )) |>
+  arrow::read_parquet(
+    file.path(shp_dir, "gnis-places-cousubs-xwalk.parquet")
+  ) |>
+  left_join(state_names, by = "stusps") |>
   transmute(
     key_city = normalize_city(name),
-    key_state = state_names$full[match(stusps, state_names$abb)],
+    key_state,
     gnis_name = name,
     cell_geoid,
     cell_level,
@@ -195,10 +223,9 @@ gnis <-
 # ==== Arrest keys =============================================================
 
 arrest_cities <-
-  arrests_df |>
-  transmute(
-    key_city = na_if(normalize_city(apprehension_city), ""),
-    key_state = normalize_state(apprehension_state_filled_in)
+  arrow::read_parquet(
+    "data/intermediate/arrests-latest-read.parquet",
+    col_select = c("key_city", "key_state")
   ) |>
   count(key_city, key_state, name = "n_rows")
 
@@ -264,60 +291,65 @@ t0 <-
     reason
   )
 
-rem <- arrest_cities |> anti_join(t0, by = c("key_city", "key_state"))
-
-stop()
+remainder <- arrest_cities |> anti_join(t0, by = c("key_city", "key_state"))
 
 # ==== T1: manual ==============================================================
 
 t1 <-
-  rem |>
+  remainder |>
   inner_join(
-    manual |> select(key_city, key_state, all_of(entity_cols)),
+    manual |>
+      select(
+        key_city,
+        key_state,
+        stusps,
+        raw_geoid,
+        raw_name,
+        raw_level,
+        is_cdp,
+        cell_geoid,
+        cell_level,
+        cell_namelsad,
+        rule,
+        display_name
+      ),
     by = c("key_city", "key_state")
   ) |>
   mutate(match_tier = "T1 manual", confidence = "high")
 
-rem <- rem |> anti_join(t1, by = c("key_city", "key_state"))
+remainder <- remainder |> anti_join(t1, by = c("key_city", "key_state"))
 
 # ==== T2: exact place =========================================================
 
 t2 <-
-  rem |>
+  remainder |>
   inner_join(places_lookup, by = c("key_city", "key_state")) |>
   mutate(match_tier = "T2 place exact", confidence = "high")
 
-rem <- rem |> anti_join(t2, by = c("key_city", "key_state"))
+remainder <- remainder |> anti_join(t2, by = c("key_city", "key_state"))
 
 # ==== T3: exact county subdivision ===========================================
 
 t3 <-
-  rem |>
+  remainder |>
   inner_join(cousub_lookup, by = c("key_city", "key_state")) |>
   mutate(match_tier = "T3 cousub exact", confidence = "high")
 
-rem <- rem |> anti_join(t3, by = c("key_city", "key_state"))
+remainder <- remainder |> anti_join(t3, by = c("key_city", "key_state"))
 
-# ==== County names ============================================================
+# ==== T5: exact county ========================================================
 
-tc <-
-  rem |>
-  semi_join(counties, by = c("key_city", "key_state")) |>
-  transmute(
-    key_city,
-    key_state,
-    n_rows,
-    match_tier = "T5 unresolved",
-    confidence = NA_character_,
-    reason = "county name"
-  )
+t5 <-
+  remainder |>
+  inner_join(counties_lookup, by = c("key_city", "key_state")) |>
+  mutate(match_tier = "T5 county exact", confidence = "high")
 
-rem <- rem |> anti_join(tc, by = c("key_city", "key_state"))
+remainder <- remainder |> anti_join(t5, by = c("key_city", "key_state"))
 
 # ==== T4: GNIS populated places, point within one cell =======================
 
 gnis_status <-
-  rem |>
+  remainder |>
   filter(!is.na(key_city), !is.na(key_state)) |>
   inner_join(gnis, by = c("key_city", "key_state")) |>
   group_by(key_city, key_state, n_rows) |>
@@ -329,8 +361,10 @@ gnis_status <-
     cell_namelsad = first(cell_namelsad, na_rm = TRUE),
     .groups = "drop"
   ) |>
+  left_join(declined_places, by = c("key_city", "key_state")) |>
   mutate(
     gnis_status = case_when(
+      !is.na(place_note) ~ place_note,
       n_cells == 1 ~ "accepted",
       n_cells == 0 ~ "not within a cell",
       TRUE ~ "ambiguous"
@@ -340,11 +374,12 @@ gnis_status <-
 t4 <-
   gnis_status |>
   filter(gnis_status == "accepted") |>
+  left_join(state_names, by = "key_state") |>
   transmute(
     key_city,
     key_state,
     n_rows,
-    stusps = state_names$abb[match(key_state, state_names$full)],
+    stusps,
     raw_geoid = NA_character_,
     raw_name = NA_character_,
     raw_level = NA_character_,
@@ -363,25 +398,25 @@ gnis_status |>
   transmute(
     city = key_city,
     state = key_state,
-    ref_name = if_else(gnis_status == "accepted", cell_namelsad, ""),
-    ref_state = if_else(gnis_status == "accepted", key_state, ""),
+    reference_name = if_else(gnis_status == "accepted", cell_namelsad, ""),
+    reference_state = if_else(gnis_status == "accepted", key_state, ""),
     note = gnis_status,
     n_rows,
     n_pts
   ) |>
   readr::write_csv("inputs/gnis-review.csv")
 
-rem <- rem |> anti_join(t4, by = c("key_city", "key_state"))
+remainder <- remainder |> anti_join(t4, by = c("key_city", "key_state"))
 
-# ==== T5: residual ============================================================
+# ==== T6: residual ============================================================
 
-t5 <-
-  rem |>
+t6 <-
+  remainder |>
   transmute(
     key_city,
     key_state,
     n_rows,
-    match_tier = "T5 unresolved",
+    match_tier = "T6 unresolved",
     confidence = NA_character_,
     reason = "no match"
   )
@@ -389,15 +424,15 @@ t5 <-
 # ==== Assemble ================================================================
 
 crosswalk <-
-  bind_rows(t1, t2, t3, t4, t0, tc, t5) |>
-  left_join(processing_sites, by = c("key_city", "key_state")) |>
+  bind_rows(t1, t2, t3, t4, t5, t0, t6) |>
+  left_join(cell_names, by = "cell_geoid") |>
   transmute(
     key_city,
     key_state,
     n_rows,
     geoid = cell_geoid,
     geo_level = cell_level,
-    matched_name = cell_namelsad,
+    matched_name = coalesce(display_name, cell_name, cell_namelsad),
     raw_geoid,
     raw_level,
     raw_name,
@@ -405,18 +440,20 @@ crosswalk <-
     rule,
     match_tier,
     confidence,
-    reason,
-    processing_site = coalesce(processing_site, FALSE)
+    reason
   ) |>
   arrange(match_tier, desc(n_rows))
 
 stopifnot(
   !anyDuplicated(crosswalk[c("key_city", "key_state")]),
   nrow(crosswalk) == nrow(arrest_cities),
-  all(is.na(crosswalk$geoid) | crosswalk$geoid %in% xwalk$cell_geoid)
+  all(
+    is.na(crosswalk$geoid) |
+      crosswalk$geoid %in% c(xwalk$cell_geoid, counties_lookup$cell_geoid)
+  )
 )
 
-readr::write_csv(crosswalk, "data/city-match-crosswalk.csv")
+arrow::write_parquet(crosswalk, "data/city-match-crosswalk.parquet")
 
 # ==== Counts ==================================================================
 
@@ -446,7 +483,14 @@ crosswalk |>
   print(n = 25)
 
 crosswalk |>
-  filter(match_tier == "T5 unresolved", n_rows >= 20) |>
+  filter(match_tier == "T5 county exact") |>
+  semi_join(gnis, by = c("key_city", "key_state")) |>
+  arrange(desc(n_rows)) |>
+  select(key_city, key_state, n_rows, matched_name) |>
+  print(n = 30)
+
+crosswalk |>
+  filter(match_tier == "T6 unresolved", n_rows >= 20) |>
   arrange(desc(n_rows)) |>
   select(key_city, key_state, n_rows) |>
   print(n = 30)

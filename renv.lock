@@ -1,6 +1,6 @@
 {
   "R": {
-    "Version": "4.6.0",
+    "Version": "4.6.1",
     "Repositories": [
       {
         "Name": "CRAN",
@@ -63,10 +63,10 @@
     },
     "KernSmooth": {
       "Package": "KernSmooth",
-      "Version": "2.23-27",
+      "Version": "2.23-26",
       "Source": "Repository",
       "Priority": "recommended",
-      "Date": "2026-08-11",
+      "Date": "2024-12-10",
       "Title": "Functions for Kernel Smoothing Supporting Wand & Jones (1995)",
       "Authors@R": "c(person(\"Matt\", \"Wand\", role = \"aut\", email = \"Matt.Wand@uts.edu.au\"), person(\"Cleve\", \"Moler\", role = \"ctb\", comment = \"LINPACK routines in src/d*\"), person(\"Brian\", \"Ripley\", role = c(\"trl\", \"cre\", \"ctb\"), email = \"Brian.Ripley@R-project.org\", comment = \"R port and updates\"))",
       "Note": "Maintainers are not available to give advice on using a package they did not author.",
@@ -83,6 +83,42 @@
       "ByteCompile": "yes",
       "NeedsCompilation": "yes",
       "Author": "Matt Wand [aut], Cleve Moler [ctb] (LINPACK routines in src/d*), Brian Ripley [trl, cre, ctb] (R port and updates)",
+      "Maintainer": "Brian Ripley <Brian.Ripley@R-project.org>",
+      "Repository": "CRAN"
+    },
+    "MASS": {
+      "Package": "MASS",
+      "Version": "7.3-65",
+      "Source": "Repository",
+      "Priority": "recommended",
+      "Date": "2025-02-19",
+      "Revision": "$Rev: 3681 $",
+      "Depends": [
+        "R (>= 4.4.0)",
+        "grDevices",
+        "graphics",
+        "stats",
+        "utils"
+      ],
+      "Imports": [
+        "methods"
+      ],
+      "Suggests": [
+        "lattice",
+        "nlme",
+        "nnet",
+        "survival"
+      ],
+      "Authors@R": "c(person(\"Brian\", \"Ripley\", role = c(\"aut\", \"cre\", \"cph\"), email = \"Brian.Ripley@R-project.org\"), person(\"Bill\", \"Venables\", role = c(\"aut\", \"cph\")), person(c(\"Douglas\", \"M.\"), \"Bates\", role = \"ctb\"), person(\"Kurt\", \"Hornik\", role = \"trl\", comment = \"partial port ca 1998\"), person(\"Albrecht\", \"Gebhardt\", role = \"trl\", comment = \"partial port ca 1998\"), person(\"David\", \"Firth\", role = \"ctb\", comment = \"support functions for polr\"))",
+      "Description": "Functions and datasets to support Venables and Ripley, \"Modern Applied Statistics with S\" (4th edition, 2002).",
+      "Title": "Support Functions and Datasets for Venables and Ripley's MASS",
+      "LazyData": "yes",
+      "ByteCompile": "yes",
+      "License": "GPL-2 | GPL-3",
+      "URL": "http://www.stats.ox.ac.uk/pub/MASS4/",
+      "Contact": "<MASS@stats.ox.ac.uk>",
+      "NeedsCompilation": "yes",
+      "Author": "Brian Ripley [aut, cre, cph], Bill Venables [aut, cph], Douglas M. Bates [ctb], Kurt Hornik [trl] (partial port ca 1998), Albrecht Gebhardt [trl] (partial port ca 1998), David Firth [ctb] (support functions for polr)",
       "Maintainer": "Brian Ripley <Brian.Ripley@R-project.org>",
       "Repository": "CRAN"
     },
@@ -1007,16 +1043,16 @@
     },
     "class": {
       "Package": "class",
-      "Version": "7.3-24",
+      "Version": "7.3-23",
       "Source": "Repository",
       "Priority": "recommended",
-      "Date": "2026-08-01",
+      "Date": "2025-01-01",
       "Depends": [
         "R (>= 3.0.0)",
         "stats",
         "utils"
       ],
-      "Suggests": [
+      "Imports": [
         "MASS"
       ],
       "Authors@R": "c(person(\"Brian\", \"Ripley\", role = c(\"aut\", \"cre\", \"cph\"), email = \"Brian.Ripley@R-project.org\"), person(\"William\", \"Venables\", role = \"cph\"))",
@@ -1901,50 +1937,6 @@
       "Maintainer": "Jeroen Ooms <jeroenooms@gmail.com>",
       "Repository": "CRAN"
     },
-    "fuzzyjoin": {
-      "Package": "fuzzyjoin",
-      "Version": "0.1.8",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Join Tables Together on Inexact Matching",
-      "Authors@R": "c(person(\"David\", \"Robinson\", email = \"admiral.david@gmail.com\", role = c(\"aut\", \"cre\")), person(\"Jennifer\", \"Bryan\", email = \"jenny@rstudio.com\", role = \"ctb\"), person(\"Joran\", \"Elias\", email = \"statisticalskier@gmail.com\", role = \"ctb\"), person(\"Steffen\", \"Ehrmann\", email = \"steffen.ehrmann@posteo.de\", role = \"ctb\"))",
-      "Maintainer": "David Robinson <admiral.david@gmail.com>",
-      "Description": "Join tables together based not on whether columns match exactly, but whether they are similar by some comparison. Implementations include string distance and regular expression matching.",
-      "License": "MIT + file LICENSE",
-      "Encoding": "UTF-8",
-      "LazyData": "TRUE",
-      "VignetteBuilder": "knitr",
-      "Depends": [
-        "R (>= 2.10)"
-      ],
-      "Imports": [
-        "stringdist",
-        "stringr",
-        "dplyr (>= 0.8.1)",
-        "tidyr (>= 0.4.0)",
-        "purrr",
-        "geosphere",
-        "tibble"
-      ],
-      "Suggests": [
-        "testthat",
-        "knitr",
-        "ggplot2",
-        "qdapDictionaries",
-        "readr",
-        "rvest",
-        "rmarkdown",
-        "maps",
-        "IRanges",
-        "covr"
-      ],
-      "RoxygenNote": "7.3.3",
-      "URL": "https://github.com/dgrtwo/fuzzyjoin",
-      "BugReports": "https://github.com/dgrtwo/fuzzyjoin/issues",
-      "NeedsCompilation": "no",
-      "Author": "David Robinson [aut, cre], Jennifer Bryan [ctb], Joran Elias [ctb], Steffen Ehrmann [ctb]",
-      "Repository": "CRAN"
-    },
     "gargle": {
       "Package": "gargle",
       "Version": "1.6.1",
@@ -2025,39 +2017,6 @@
       "Author": "Hadley Wickham [aut, cre] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Max Kuhn [aut], Davis Vaughan [aut], Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
       "Maintainer": "Hadley Wickham <hadley@posit.co>",
       "Repository": "CRAN"
-    },
-    "geosphere": {
-      "Package": "geosphere",
-      "Version": "1.6-8",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Spherical Trigonometry",
-      "Date": "2026-04-04",
-      "LinkingTo": [
-        "Rcpp"
-      ],
-      "Imports": [
-        "Rcpp"
-      ],
-      "Depends": [
-        "R (>= 3.0.0)",
-        "methods"
-      ],
-      "Suggests": [
-        "terra",
-        "sf",
-        "sp"
-      ],
-      "Authors@R": "c( person(\"Robert J.\", \"Hijmans\", role = c(\"cre\", \"aut\"),  email = \"r.hijmans@gmail.com\"), person(\"Charles\", \"Karney\", role = \"ctb\", comment=\"GeographicLib\"),\t person(\"Ed\", \"Williams\", role = \"ctb\"), person(\"Chris\", \"Vennes\", role = \"ctb\"))",
-      "Description": "Spherical trigonometry for geographic applications. That is, compute distances and related measures for angular (longitude/latitude) locations.",
-      "BugReports": "https://github.com/rspatial/geosphere/issues/",
-      "License": "GPL (>= 3)",
-      "LazyLoad": "yes",
-      "NeedsCompilation": "yes",
-      "Author": "Robert J. Hijmans [cre, aut], Charles Karney [ctb] (GeographicLib), Ed Williams [ctb], Chris Vennes [ctb]",
-      "Maintainer": "Robert J. Hijmans <r.hijmans@gmail.com>",
-      "Repository": "CRAN",
-      "Encoding": "UTF-8"
     },
     "getPass": {
       "Package": "getPass",
@@ -4734,34 +4693,6 @@
       "VignetteBuilder": "knitr",
       "NeedsCompilation": "no",
       "Author": "Malte Grosser [aut, cre]",
-      "Repository": "CRAN"
-    },
-    "stringdist": {
-      "Package": "stringdist",
-      "Version": "0.9.17",
-      "Source": "Repository",
-      "Maintainer": "Mark van der Loo <mark.vanderloo@gmail.com>",
-      "License": "GPL-3",
-      "Title": "Approximate String Matching, Fuzzy Text Search, and String Distance Functions",
-      "Type": "Package",
-      "LazyLoad": "yes",
-      "Authors@R": "c( person(\"Mark\", \"van der Loo\", role=c(\"aut\",\"cre\") , email=\"mark.vanderloo@gmail.com\" , comment= c(ORCID=\"0000-0002-9807-4686\")) , person(\"Jan\", \"van der Laan\", role=\"ctb\") , person(\"R Core Team\",\"\"     , role=\"ctb\") , person(\"Nick\",\"Logan\"       , role=\"ctb\") , person(\"Chris\",\"Muir\"       , role=\"ctb\") , person(\"Johannes\", \"Gruber\" , role=\"ctb\") , person(\"Brian\",\"Ripley\"     , role=\"ctb\"))",
-      "Description": "Implements an approximate string matching version of R's native 'match' function. Also offers fuzzy text search based on various string distance measures. Can calculate various string distances based on edits (Damerau-Levenshtein, Hamming, Levenshtein, optimal sting alignment), qgrams (q- gram, cosine, jaccard distance) or heuristic metrics (Jaro, Jaro-Winkler). An implementation of soundex is provided as well. Distances can be computed between character vectors while taking proper care of encoding or between integer vectors representing generic sequences. This package is built for speed and runs in parallel by using 'openMP'. An API for C or C++ is exposed as well. Reference: MPJ van der Loo (2014) <doi:10.32614/RJ-2014-011>.",
-      "Depends": [
-        "R (>= 2.15.3)"
-      ],
-      "URL": "https://github.com/markvanderloo/stringdist",
-      "BugReports": "https://github.com/markvanderloo/stringdist/issues",
-      "Suggests": [
-        "tinytest"
-      ],
-      "Imports": [
-        "parallel"
-      ],
-      "Encoding": "UTF-8",
-      "RoxygenNote": "7.3.2",
-      "NeedsCompilation": "yes",
-      "Author": "Mark van der Loo [aut, cre] (ORCID: <https://orcid.org/0000-0002-9807-4686>), Jan van der Laan [ctb], R Core Team [ctb], Nick Logan [ctb], Chris Muir [ctb], Johannes Gruber [ctb], Brian Ripley [ctb]",
       "Repository": "CRAN"
     },
     "stringi": {
