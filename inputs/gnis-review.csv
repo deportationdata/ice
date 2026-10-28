@@ -1,5 +1,6 @@
 city,state,reference_name,reference_state,note,n_rows,n_pts
 del valle,texas,Austin city,texas,accepted,2614,1
+lexington,kentucky,Lexington-Fayette urban county,kentucky,accepted,1004,1
 jamaica,new york,New York city,new york,accepted,887,1
 scotlandville,louisiana,Baton Rouge city,louisiana,accepted,422,1
 sanderson,florida,Sanderson CCD (remainder),florida,accepted,409,1
@@ -36,3 +37,4 @@ panorama city,california,Los Angeles city,california,accepted,65,1
 north hills,california,Los Angeles city,california,accepted,64,1
 thornton,pennsylvania,Thornbury township (remainder),pennsylvania,accepted,59,1
 brooklyn,maryland,Baltimore city,maryland,accepted,56,1
+hartsville,tennessee,Hartsville/Trousdale County,tennessee,accepted,51,1

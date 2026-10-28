@@ -2,18 +2,16 @@ library(sf)
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/e7e83b93d11ee4d7a084d71f1472deb93d829f4e/data"
+options(timeout = 1800) # the 180 MB block table downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
 
-shp_dir <- "~/github/us-shapefiles/data"
-
-source("code/functions/check_us_shapefiles.R")
-check_us_shapefiles(shp_dir)
 gnis_review_min <- 50
 
 xwalk_all <-
   arrow::read_parquet(
-    file.path(shp_dir, "places-cousubs-xwalk.parquet")
+    str_c(shp_url, "/places-county-subdivisions-xwalk.parquet")
   ) |>
   left_join(state_names, by = "stusps")
 
@@ -49,11 +47,12 @@ places_lookup <-
   ungroup() |>
   distinct(key_city, key_state, .keep_all = TRUE)
 
-consolidated_lookup <-
+# the "(balance)" places under their short names, where no place has that name
+balance_lookup <-
   xwalk |>
-  filter(geo_level == "place", common_name != name) |>
+  filter(geo_level == "place", short_name != name) |>
   transmute(
-    key_city = normalize_city(common_name),
+    key_city = normalize_city(short_name),
     key_state,
     stusps,
     raw_geoid = geoid,
@@ -75,11 +74,11 @@ consolidated_lookup <-
   filter(n() == 1) |>
   ungroup()
 
-places_lookup <- bind_rows(places_lookup, consolidated_lookup)
+places_lookup <- bind_rows(places_lookup, balance_lookup)
 
-cousub_lookup <-
+county_subdivision_lookup <-
   xwalk |>
-  filter(geo_level == "cousub", !str_ends(namelsad, " CCD")) |>
+  filter(geo_level == "county_subdivision", !str_ends(namelsad, " CCD")) |>
   transmute(
     key_city = normalize_city(name) |> str_remove(" town$"),
     key_state,
@@ -98,16 +97,10 @@ cousub_lookup <-
     cell_geoid,
     cell_level,
     cell_namelsad,
-    rule
+    rule,
+    key_alt = if_else(str_ends(namelsad, " township"), str_c(key_city, " township"), NA_character_)
   ) |>
-  (\(d) {
-    bind_rows(
-      d,
-      d |>
-        filter(str_ends(raw_name, " township")) |>
-        mutate(key_city = str_c(key_city, " township"))
-    )
-  })() |>
+  pivot_longer(c(key_city, key_alt), names_to = NULL, values_to = "key_city", values_drop_na = TRUE) |>
   group_by(key_city, key_state) |>
   filter(rank == min(rank)) |>
   filter(n_distinct(cell_geoid) == 1) |>
@@ -116,12 +109,12 @@ cousub_lookup <-
   select(-rank)
 
 reference_union <-
-  bind_rows(places_lookup, cousub_lookup) |>
+  bind_rows(places_lookup, county_subdivision_lookup) |>
   distinct(key_city, key_state, .keep_all = TRUE)
 
 counties_lookup <-
   arrow::read_parquet(
-    file.path(shp_dir, "counties-sf.parquet"),
+    str_c(shp_url, "/counties-sf.parquet"),
     col_select = c("geoid", "stusps", "name", "namelsad")
   ) |>
   left_join(state_names, by = "stusps") |>
@@ -206,11 +199,11 @@ stoplist <-
 cell_names <-
   xwalk_all |>
   filter(!is.na(cell_geoid)) |>
-  distinct(cell_geoid, cell_name = cell_common_name)
+  distinct(cell_geoid, cell_name = cell_short_name)
 
 gnis <-
   arrow::read_parquet(
-    file.path(shp_dir, "gnis-places-cousubs-xwalk.parquet")
+    str_c(shp_url, "/gnis-places-county-subdivisions-xwalk.parquet")
   ) |>
   left_join(state_names, by = "stusps") |>
   transmute(
@@ -334,8 +327,8 @@ remainder <- remainder |> anti_join(t2, by = c("key_city", "key_state"))
 
 t3 <-
   remainder |>
-  inner_join(cousub_lookup, by = c("key_city", "key_state")) |>
-  mutate(match_tier = "T3 cousub exact", confidence = "high")
+  inner_join(county_subdivision_lookup, by = c("key_city", "key_state")) |>
+  mutate(match_tier = "T3 subdivision exact", confidence = "high")
 
 remainder <- remainder |> anti_join(t3, by = c("key_city", "key_state"))
 

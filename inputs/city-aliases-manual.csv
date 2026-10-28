@@ -26,10 +26,10 @@ mpls,minnesota,Minneapolis,minnesota,place,,,abbreviation
 abq,new mexico,Albuquerque,new mexico,place,,,abbreviation
 allston brighton,massachusetts,Boston,massachusetts,place,,,Boston neighborhood
 e boston,massachusetts,Boston,massachusetts,place,,,Boston neighborhood variant
-vernon rockville,connecticut,Vernon,connecticut,cousub,,,Rockville village in Vernon town
+vernon rockville,connecticut,Vernon,connecticut,county_subdivision,,,Rockville village in Vernon town
 attelborough,massachusetts,Attleboro,massachusetts,place,,,misspelling
-promfret,connecticut,Pomfret,connecticut,cousub,,,misspelling
-north bilerica,massachusetts,Billerica,massachusetts,cousub,,,misspelled village in billerica town
+promfret,connecticut,Pomfret,connecticut,county_subdivision,,,misspelling
+north bilerica,massachusetts,Billerica,massachusetts,county_subdivision,,,misspelled village in billerica town
 antioch,tennessee,Nashville-Davidson metropolitan government (balance),tennessee,place,,,Nashville neighborhood; ambiguous in GNIS
 riverdale,maryland,Riverdale Park,maryland,place,,,postal name; GNIS point is a different Riverdale
 phillipsburg,pennsylvania,Philipsburg,pennsylvania,place,,,misspelling; GNIS point is a different Phillipsburg
@@ -66,18 +66,18 @@ washington dc,maryland,Washington,district of columbia,place,,,wrong state
 washington dc,washington,Washington,district of columbia,place,,,wrong state
 dc,district of columbia,Washington,district of columbia,place,,,abbreviation
 district of columbia,district of columbia,Washington,district of columbia,place,,,name variant
-raybrook,new york,North Elba town,new york,cousub,3603151935,,spacing; ray brook is in North Elba town
-westover,maryland,"District 13, Westover",maryland,cousub,2403991176,,district named for Westover; ambiguous in GNIS
-marlboro,new jersey,Marlboro township,new jersey,cousub,3402544070,,township in Monmouth County; same-named CDP is in Cumberland County
-voorhees,new jersey,Voorhees township,new jersey,cousub,3400776220,,township in Camden County; same-named CDP is in Somerset County
+raybrook,new york,North Elba town,new york,county_subdivision,3603151935,,spacing; ray brook is in North Elba town
+westover,maryland,"District 13, Westover",maryland,county_subdivision,2403991176,,district named for Westover; ambiguous in GNIS
+marlboro,new jersey,Marlboro township,new jersey,county_subdivision,3402544070,,township in Monmouth County; same-named CDP is in Cumberland County
+voorhees,new jersey,Voorhees township,new jersey,county_subdivision,3400776220,,township in Camden County; same-named CDP is in Somerset County
 madison,tennessee,Nashville-Davidson metropolitan government (balance),tennessee,place,,,Nashville neighborhood; Madison County is elsewhere
 canon,colorado,Cañon City,colorado,place,,,shortened name; GNIS point is a different Canon
 karnes,texas,Karnes City,texas,place,,,shortened name
 la salle,illinois,LaSalle,illinois,place,,,spacing
 lake worth,florida,Lake Worth Beach,florida,place,,,city renamed in 2019
-cranberry township,pennsylvania,Cranberry township,pennsylvania,cousub,4201916920,,Butler County (pop 33096); the other is in Venango County (6342)
-cranberry,pennsylvania,Cranberry township,pennsylvania,cousub,4201916920,,Butler County (pop 33096); the other is in Venango County (6342)
-clinton township,michigan,Clinton charter township,michigan,cousub,2609916520,,Macomb County (pop 100513); the others are in Lenawee (3765) and Oscoda (431)
+cranberry township,pennsylvania,Cranberry township,pennsylvania,county_subdivision,4201916920,,Butler County (pop 33096); the other is in Venango County (6342)
+cranberry,pennsylvania,Cranberry township,pennsylvania,county_subdivision,4201916920,,Butler County (pop 33096); the other is in Venango County (6342)
+clinton township,michigan,Clinton charter township,michigan,county_subdivision,2609916520,,Macomb County (pop 100513); the others are in Lenawee (3765) and Oscoda (431)
 bayamon,puerto rico,Bayamón zona urbana,puerto rico,place,7206593,,zona urbana (pop 165368); the other is a comunidad in Cidra (1923)
 eagleville,pennsylvania,Eagleville CDP,pennsylvania,place,4220672,,Montgomery County (pop 4647); the other is in Centre County (285)
 spring valley,california,Spring Valley CDP,california,place,0673696,,San Diego County (pop 30998); the other is in Lake County (964)
@@ -86,9 +86,11 @@ fort hood,texas,Fort Cavazos,texas,place,4826666,,renamed Fort Cavazos in 2023
 fort polk north,louisiana,Fort Johnson North,louisiana,place,2226674,,renamed Fort Johnson in 2023
 fort polk south,louisiana,Fort Johnson South,louisiana,place,2226676,,renamed Fort Johnson in 2023
 pecos,texas,Town of Pecos,texas,place,4873493,Pecos,Pecos city re-registered as Town of Pecos (new geoid) in the 2022 Census vintage
-hockley,texas,Northwest Harris,texas,cousub,4820192845,,unincorporated community in NW Harris County; county-name tier would send it to Hockley County
-atascosa,texas,San Antonio South,texas,cousub,4802993413,,unincorporated community in Bexar County; county-name tier would send it to Atascosa County
+hockley,texas,Northwest Harris,texas,county_subdivision,4820192845,,unincorporated community in NW Harris County; county-name tier would send it to Hockley County
+atascosa,texas,San Antonio South,texas,county_subdivision,4802993413,,unincorporated community in Bexar County; county-name tier would send it to Atascosa County
 boise,idaho,Boise City,idaho,place,,,census legal name differs
 canon city,colorado,Cañon City,colorado,place,,,ascii spelling
 devens,massachusetts,Ayer,massachusetts,,,,regional enterprise zone mostly in Ayer town
 hanscom afb,massachusetts,Bedford,massachusetts,,,,air base mostly in Bedford town
+macon,georgia,Macon-Bibb County,georgia,place,1349008,,consolidated city-county; county-name tier would send it to Macon County
+honolulu,hawaii,Urban Honolulu,hawaii,place,1571550,,the Census names the urban core of the City and County of Honolulu "Urban Honolulu"

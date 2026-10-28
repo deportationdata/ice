@@ -2,15 +2,13 @@ library(sf)
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/e7e83b93d11ee4d7a084d71f1472deb93d829f4e/data"
+options(timeout = 1800) # the 180 MB block table downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
 
-shp_dir <- "~/github/us-shapefiles/data"
-
-source("code/functions/check_us_shapefiles.R")
-check_us_shapefiles(shp_dir)
 counties_sf <- st_read(
-  file.path(shp_dir, "counties-sf.parquet"),
+  str_c(shp_url, "/counties-sf.parquet"),
   quiet = TRUE
 )
 
@@ -28,13 +26,13 @@ counties <-
 
 cells <-
   arrow::read_parquet(
-    file.path(shp_dir, "places-cousubs-sf.parquet"),
+    str_c(shp_url, "/places-county-subdivisions-sf.parquet"),
     col_select = c("geoid", "stusps", "county_geoid")
   )
 
 xwalk_cells <-
   arrow::read_parquet(
-    file.path(shp_dir, "places-cousubs-xwalk.parquet"),
+    str_c(shp_url, "/places-county-subdivisions-xwalk.parquet"),
     col_select = c("geoid", "geo_level", "cell_geoid")
   ) |>
   filter(!is.na(cell_geoid))
@@ -73,8 +71,8 @@ direct <-
 
 blocks <-
   arrow::read_parquet(
-    file.path(shp_dir, "blocks-xwalk.parquet"),
-    col_select = c("pop20", "aland", "county_geoid", "place_geoid", "cousub_geoid")
+    str_c(shp_url, "/blocks-xwalk.parquet"),
+    col_select = c("pop20", "aland", "county_geoid", "place_geoid", "county_subdivision_geoid")
   ) |>
   left_join(
     xwalk_cells |>
@@ -84,12 +82,12 @@ blocks <-
   ) |>
   left_join(
     xwalk_cells |>
-      filter(geo_level == "cousub") |>
-      select(cousub_geoid = geoid, cousub_cell = cell_geoid),
-    by = "cousub_geoid"
+      filter(geo_level == "county_subdivision") |>
+      select(county_subdivision_geoid = geoid, subdivision_cell = cell_geoid),
+    by = "county_subdivision_geoid"
   ) |>
   transmute(
-    cell_geoid = coalesce(place_cell, cousub_cell),
+    cell_geoid = coalesce(place_cell, subdivision_cell),
     county_geoid,
     pop20 = coalesce(pop20, 0L),
     aland
@@ -126,7 +124,7 @@ arrow::write_parquet(cell_county, "data/cell-county-xwalk.parquet")
 
 gnis_county <-
   st_read(
-    file.path(shp_dir, "gnis-populated-places-sf.parquet"),
+    str_c(shp_url, "/gnis-populated-places-sf.parquet"),
     quiet = TRUE
   ) |>
   st_join(counties_sf |> select(gnis_county = geoid), join = st_within) |>
@@ -170,8 +168,8 @@ county_crosswalk <-
   ) |>
   mutate(name_county = if_else(geo_level == "county", geoid, NA_character_)) |>
   mutate(
-    cousub_county = if_else(
-      raw_level == "cousub" &
+    subdivision_county = if_else(
+      raw_level == "county_subdivision" &
         str_sub(raw_geoid, 1, 5) %in% counties$county_geoid,
       str_sub(raw_geoid, 1, 5),
       NA_character_
@@ -183,14 +181,14 @@ county_crosswalk <-
     n_rows,
     county_geoid = case_when(
       !is.na(manual_listed) ~ manual_county,
-      !is.na(cousub_county) ~ cousub_county,
+      !is.na(subdivision_county) ~ subdivision_county,
       !is.na(gnis_county) ~ gnis_county,
       !is.na(cell_county) ~ cell_county,
       !is.na(name_county) ~ name_county
     ),
     county_method = case_when(
       !is.na(manual_listed) ~ if_else(is.na(manual_county), NA_character_, "manual"),
-      !is.na(cousub_county) ~ "subdivision",
+      !is.na(subdivision_county) ~ "subdivision",
       !is.na(gnis_county) ~ "gnis point",
       !is.na(cell_county) ~ "cell",
       !is.na(name_county) ~ "county name"
