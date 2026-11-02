@@ -1,9 +1,8 @@
-library(sf)
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/e7e83b93d11ee4d7a084d71f1472deb93d829f4e/data"
-options(timeout = 1800) # the 180 MB block table downloads at ~200 KB/s from GitHub LFS
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/653d6cc5fb6fd73bc682e11e6b60a3ef0c4d8e0a/data"
+options(timeout = 1800) # the 17 MB counties file downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
 
@@ -41,11 +40,8 @@ places_lookup <-
     cell_namelsad,
     rule
   ) |>
-  group_by(key_city, key_state) |>
-  filter(is_cdp == min(is_cdp)) |>
-  filter(n_distinct(cell_geoid) == 1) |>
-  ungroup() |>
-  distinct(key_city, key_state, .keep_all = TRUE)
+  slice_min(is_cdp, n = 1, by = c(key_city, key_state)) |>
+  filter(n() == 1, .by = c(key_city, key_state))
 
 # the "(balance)" places under their short names, where no place has that name
 balance_lookup <-
@@ -70,9 +66,7 @@ balance_lookup <-
       distinct(key_city = normalize_city(name), key_state),
     by = c("key_city", "key_state")
   ) |>
-  group_by(key_city, key_state) |>
-  filter(n() == 1) |>
-  ungroup()
+  filter(n() == 1, .by = c(key_city, key_state))
 
 places_lookup <- bind_rows(places_lookup, balance_lookup)
 
@@ -98,19 +92,25 @@ county_subdivision_lookup <-
     cell_level,
     cell_namelsad,
     rule,
-    key_alt = if_else(str_ends(namelsad, " township"), str_c(key_city, " township"), NA_character_)
+    aland,
+    key_alt = if_else(
+      str_ends(namelsad, " township"),
+      str_c(key_city, " township"),
+      NA_character_
+    )
   ) |>
-  pivot_longer(c(key_city, key_alt), names_to = NULL, values_to = "key_city", values_drop_na = TRUE) |>
-  group_by(key_city, key_state) |>
-  filter(rank == min(rank)) |>
-  filter(n_distinct(cell_geoid) == 1) |>
-  slice(1) |>
-  ungroup() |>
-  select(-rank)
+  pivot_longer(
+    c(key_city, key_alt),
+    names_to = NULL,
+    values_to = "key_city",
+    values_drop_na = TRUE
+  ) |>
+  slice_min(rank, n = 1, by = c(key_city, key_state)) |>
+  filter(n_distinct(cell_geoid) == 1, .by = c(key_city, key_state)) |>
+  slice_max(aland, n = 1, with_ties = FALSE, by = c(key_city, key_state)) |>
+  select(-rank, -aland)
 
-reference_union <-
-  bind_rows(places_lookup, county_subdivision_lookup) |>
-  distinct(key_city, key_state, .keep_all = TRUE)
+reference_union <- bind_rows(places_lookup, county_subdivision_lookup)
 
 counties_lookup <-
   arrow::read_parquet(
@@ -132,11 +132,13 @@ counties_lookup <-
     cell_namelsad = name,
     rule = "county name"
   ) |>
-  pivot_longer(c(key_city, key_city_lsad), names_to = NULL, values_to = "key_city") |>
+  pivot_longer(
+    c(key_city, key_city_lsad),
+    names_to = NULL,
+    values_to = "key_city"
+  ) |>
   distinct() |>
-  group_by(key_city, key_state) |>
-  filter(n() == 1) |>
-  ungroup()
+  filter(n() == 1, .by = c(key_city, key_state))
 
 manual_references <-
   readr::read_csv(
@@ -151,8 +153,9 @@ manual_references <-
     reference_geoid,
     geo_level,
     display_name
-  ) |>
-  distinct(key_city, key_state, .keep_all = TRUE)
+  )
+
+stopifnot(!anyDuplicated(manual_references[c("key_city", "key_state")]))
 
 manual <-
   bind_rows(
@@ -179,8 +182,12 @@ manual <-
       inner_join(
         reference_union |>
           rename(reference_name = key_city, reference_state = key_state),
-        by = c("reference_name", "reference_state")
-      ),
+        by = c("reference_name", "reference_state"),
+        relationship = "many-to-many"
+      ) |>
+      filter(is.na(geo_level) | geo_level == raw_level) |>
+      filter(n_distinct(cell_geoid) == 1, .by = c(key_city, key_state)) |>
+      slice_head(n = 1, by = c(key_city, key_state)),
     manual_references |>
       filter(is.na(reference_geoid), geo_level %in% "county") |>
       inner_join(
@@ -211,8 +218,7 @@ gnis <-
     key_state,
     gnis_name = name,
     cell_geoid,
-    cell_level,
-    cell_namelsad
+    in_state = cell_stusps == stusps
   )
 
 # ==== Arrest keys =============================================================
@@ -332,42 +338,46 @@ t3 <-
 
 remainder <- remainder |> anti_join(t3, by = c("key_city", "key_state"))
 
-# ==== T5: exact county ========================================================
+# ==== T4: exact county ========================================================
 
-t5 <-
+t4 <-
   remainder |>
   inner_join(counties_lookup, by = c("key_city", "key_state")) |>
-  mutate(match_tier = "T5 county exact", confidence = "high")
+  mutate(match_tier = "T4 county exact", confidence = "high")
 
-remainder <- remainder |> anti_join(t5, by = c("key_city", "key_state"))
+remainder <- remainder |> anti_join(t4, by = c("key_city", "key_state"))
 
-# ==== T4: GNIS populated places, point within one cell =======================
+# ==== T5: GNIS populated places, point within one cell =======================
 
-gnis_status <-
+gnis_candidates <-
   remainder |>
   filter(!is.na(key_city), !is.na(key_state)) |>
   inner_join(gnis, by = c("key_city", "key_state")) |>
-  group_by(key_city, key_state, n_rows) |>
   summarise(
     n_pts = n(),
-    n_cells = n_distinct(cell_geoid, na.rm = TRUE),
-    cell_geoid = first(cell_geoid, na_rm = TRUE),
-    cell_level = first(cell_level, na_rm = TRUE),
-    cell_namelsad = first(cell_namelsad, na_rm = TRUE),
-    .groups = "drop"
+    n_cells = n_distinct(cell_geoid[in_state %in% TRUE]),
+    n_cells_other_state = n_distinct(cell_geoid[in_state %in% FALSE]),
+    cell_geoid = first(cell_geoid[in_state %in% TRUE], default = NA_character_),
+    .by = c(key_city, key_state, n_rows)
+  ) |>
+  left_join(
+    xwalk |> distinct(cell_geoid, cell_level, cell_namelsad),
+    by = "cell_geoid",
+    relationship = "many-to-one"
   ) |>
   left_join(declined_places, by = c("key_city", "key_state")) |>
   mutate(
     gnis_status = case_when(
       !is.na(place_note) ~ place_note,
       n_cells == 1 ~ "accepted",
+      n_cells == 0 & n_cells_other_state > 0 ~ "cell in another state",
       n_cells == 0 ~ "not within a cell",
       TRUE ~ "ambiguous"
     )
   )
 
-t4 <-
-  gnis_status |>
+t5 <-
+  gnis_candidates |>
   filter(gnis_status == "accepted") |>
   left_join(state_names, by = "key_state") |>
   transmute(
@@ -383,11 +393,11 @@ t4 <-
     cell_level,
     cell_namelsad,
     rule = "point in cell",
-    match_tier = "T4 gnis",
+    match_tier = "T5 gnis",
     confidence = "medium"
   )
 
-gnis_status |>
+gnis_candidates |>
   filter(n_rows >= gnis_review_min) |>
   arrange(desc(n_rows)) |>
   transmute(
@@ -401,7 +411,7 @@ gnis_status |>
   ) |>
   readr::write_csv("inputs/gnis-review.csv")
 
-remainder <- remainder |> anti_join(t4, by = c("key_city", "key_state"))
+remainder <- remainder |> anti_join(t5, by = c("key_city", "key_state"))
 
 # ==== T6: residual ============================================================
 
@@ -453,15 +463,13 @@ arrow::write_parquet(crosswalk, "data/city-match-crosswalk.parquet")
 # ==== Counts ==================================================================
 
 crosswalk |>
-  group_by(match_tier) |>
-  summarise(strings = n(), rows = sum(n_rows)) |>
+  summarise(strings = n(), rows = sum(n_rows), .by = match_tier) |>
   mutate(pct_rows = round(100 * rows / sum(rows), 1)) |>
   print(n = Inf)
 
 crosswalk |>
   filter(!is.na(geoid)) |>
-  group_by(geo_level, rule) |>
-  summarise(strings = n(), rows = sum(n_rows), .groups = "drop") |>
+  summarise(strings = n(), rows = sum(n_rows), .by = c(geo_level, rule)) |>
   arrange(desc(rows)) |>
   print(n = Inf)
 
@@ -472,13 +480,13 @@ crosswalk |>
   print(n = 30)
 
 crosswalk |>
-  filter(match_tier == "T4 gnis") |>
+  filter(match_tier == "T5 gnis") |>
   arrange(desc(n_rows)) |>
   select(key_city, key_state, n_rows, matched_name, geo_level) |>
   print(n = 25)
 
 crosswalk |>
-  filter(match_tier == "T5 county exact") |>
+  filter(match_tier == "T4 county exact") |>
   semi_join(gnis, by = c("key_city", "key_state")) |>
   arrange(desc(n_rows)) |>
   select(key_city, key_state, n_rows, matched_name) |>

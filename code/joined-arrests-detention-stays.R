@@ -44,6 +44,15 @@ arrests |>
       apprehension_method,
       apprehension_criminality,
       apprehension_aor,
+      apprehension_city_original,
+      apprehension_city_common_case,
+      apprehension_city_geoid,
+      apprehension_city_geo_level,
+      apprehension_city_name_census,
+      apprehension_county_geoid,
+      apprehension_county_name_census,
+      apprehension_county_method,
+      apprehension_county_share,
       duplicate_episode_first,
       file_original,
       row_original,
@@ -188,6 +197,31 @@ arrests_with_detentions |>
   col_vals_not_null(
     apprehension_date_time,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  col_vals_regex(
+    apprehension_county_geoid,
+    "^[0-9]{5}$",
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_between(
+    apprehension_county_share,
+    0,
+    1,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(apprehension_county_geoid) == is.na(apprehension_county_name_census)
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(apprehension_city_geoid) == is.na(apprehension_city_name_census)
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_in_set(
     has_detention_stay,

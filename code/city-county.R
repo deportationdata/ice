@@ -1,20 +1,16 @@
-library(sf)
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/e7e83b93d11ee4d7a084d71f1472deb93d829f4e/data"
-options(timeout = 1800) # the 180 MB block table downloads at ~200 KB/s from GitHub LFS
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/653d6cc5fb6fd73bc682e11e6b60a3ef0c4d8e0a/data"
+options(timeout = 1800) # the 100 MB partition file downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
 
-counties_sf <- st_read(
-  str_c(shp_url, "/counties-sf.parquet"),
-  quiet = TRUE
-)
-
 counties <-
-  counties_sf |>
-  st_drop_geometry() |>
+  arrow::read_parquet(
+    str_c(shp_url, "/counties-sf.parquet"),
+    col_select = c("geoid", "stusps", "name")
+  ) |>
   left_join(state_names, by = "stusps") |>
   transmute(
     county_geoid = geoid,
@@ -24,18 +20,15 @@ counties <-
     key_state
   )
 
-cells <-
+# each cell's county (the plurality of its 2020 population for a place cell) and share;
+# the few place cells with no block have none
+cell_county <-
   arrow::read_parquet(
     str_c(shp_url, "/places-county-subdivisions-sf.parquet"),
-    col_select = c("geoid", "stusps", "county_geoid")
-  )
-
-xwalk_cells <-
-  arrow::read_parquet(
-    str_c(shp_url, "/places-county-subdivisions-xwalk.parquet"),
-    col_select = c("geoid", "geo_level", "cell_geoid")
+    col_select = c("geoid", "county_geoid", "county_share")
   ) |>
-  filter(!is.na(cell_geoid))
+  filter(!is.na(county_geoid)) |>
+  rename(cell_county = county_geoid)
 
 crosswalk <-
   arrow::read_parquet("data/city-match-crosswalk.parquet")
@@ -49,8 +42,9 @@ manual_references <-
     key_city = normalize_city(city),
     key_state = normalize_state(state),
     key_county = normalize_city(county)
-  ) |>
-  distinct(key_city, key_state, .keep_all = TRUE)
+  )
+
+stopifnot(!anyDuplicated(manual_references[c("key_city", "key_state")]))
 
 manual <-
   manual_references |>
@@ -62,87 +56,27 @@ stopifnot(
   all(is.na(manual_references$key_county) | !is.na(manual$county_geoid))
 )
 
-# ==== Cell -> county ==========================================================
+# ==== GNIS county attribute -> county =========================================
 
-direct <-
-  cells |>
-  semi_join(counties, by = "county_geoid", na_matches = "never") |>
-  transmute(cell_geoid = geoid, county_geoid, county_share = 1)
-
-blocks <-
-  arrow::read_parquet(
-    str_c(shp_url, "/blocks-xwalk.parquet"),
-    col_select = c("pop20", "aland", "county_geoid", "place_geoid", "county_subdivision_geoid")
-  ) |>
-  left_join(
-    xwalk_cells |>
-      filter(geo_level == "place") |>
-      select(place_geoid = geoid, place_cell = cell_geoid),
-    by = "place_geoid"
-  ) |>
-  left_join(
-    xwalk_cells |>
-      filter(geo_level == "county_subdivision") |>
-      select(county_subdivision_geoid = geoid, subdivision_cell = cell_geoid),
-    by = "county_subdivision_geoid"
-  ) |>
-  transmute(
-    cell_geoid = coalesce(place_cell, subdivision_cell),
-    county_geoid,
-    pop20 = coalesce(pop20, 0L),
-    aland
-  ) |>
-  filter(!is.na(cell_geoid), !cell_geoid %in% direct$cell_geoid) |>
-  semi_join(counties, by = "county_geoid")
-
-by_pop <-
-  blocks |>
-  summarise(pop = sum(pop20), aland = sum(aland), .by = c(cell_geoid, county_geoid)) |>
-  mutate(
-    county_share = if (sum(pop) > 0) pop / sum(pop) else aland / sum(aland),
-    .by = cell_geoid
-  ) |>
-  slice_max(county_share, n = 1, by = cell_geoid, with_ties = FALSE) |>
-  select(cell_geoid, county_geoid, county_share)
-
-cell_county <-
-  bind_rows(direct, by_pop) |>
-  left_join(counties |> select(county_geoid, county_name), by = "county_geoid")
-
-stopifnot(
-  !anyDuplicated(cell_county$cell_geoid),
-  all(cell_county$cell_geoid %in% cells$geoid),
-  all(!is.na(cell_county$county_geoid)),
-  all(is.finite(cell_county$county_share))
-)
-
-cat("cells without a county:", sum(!cells$geoid %in% cell_county$cell_geoid), "\n")
-
-arrow::write_parquet(cell_county, "data/cell-county-xwalk.parquet")
-
-# ==== GNIS points -> county ===================================================
-
+# a GNIS name's county where USGS files all its features under one county
 gnis_county <-
-  st_read(
-    str_c(shp_url, "/gnis-populated-places-sf.parquet"),
-    quiet = TRUE
+  arrow::read_parquet(
+    str_c(shp_url, "/gnis-places-county-subdivisions-xwalk.parquet"),
+    col_select = c("stusps", "name", "county_geoid")
   ) |>
-  st_join(counties_sf |> select(gnis_county = geoid), join = st_within) |>
-  st_drop_geometry() |>
   left_join(state_names, by = "stusps") |>
   transmute(
     key_city = normalize_city(name),
     key_state,
-    gnis_county
+    gnis_county = county_geoid
   ) |>
-  group_by(key_city, key_state) |>
   summarise(
     gnis_county = if_else(
       n_distinct(gnis_county, na.rm = TRUE) == 1,
       first(gnis_county, na_rm = TRUE),
       NA_character_
     ),
-    .groups = "drop"
+    .by = c(key_city, key_state)
   ) |>
   filter(!is.na(gnis_county))
 
@@ -150,10 +84,7 @@ gnis_county <-
 
 county_crosswalk <-
   crosswalk |>
-  left_join(
-    cell_county |> rename(geoid = cell_geoid, cell_county = county_geoid),
-    by = "geoid"
-  ) |>
+  left_join(cell_county, by = "geoid", relationship = "many-to-one") |>
   left_join(
     manual |> rename(manual_county = county_geoid),
     by = c("key_city", "key_state")
@@ -161,7 +92,7 @@ county_crosswalk <-
   left_join(
     gnis_county |>
       semi_join(
-        filter(crosswalk, match_tier == "T4 gnis"),
+        filter(crosswalk, match_tier == "T5 gnis"),
         by = c("key_city", "key_state")
       ),
     by = c("key_city", "key_state")
@@ -182,14 +113,18 @@ county_crosswalk <-
     county_geoid = case_when(
       !is.na(manual_listed) ~ manual_county,
       !is.na(subdivision_county) ~ subdivision_county,
-      !is.na(gnis_county) ~ gnis_county,
+      !is.na(gnis_county) & geo_level == "place" ~ gnis_county,
       !is.na(cell_county) ~ cell_county,
       !is.na(name_county) ~ name_county
     ),
     county_method = case_when(
-      !is.na(manual_listed) ~ if_else(is.na(manual_county), NA_character_, "manual"),
+      !is.na(manual_listed) ~ if_else(
+        is.na(manual_county),
+        NA_character_,
+        "manual"
+      ),
       !is.na(subdivision_county) ~ "subdivision",
-      !is.na(gnis_county) ~ "gnis point",
+      !is.na(gnis_county) & geo_level == "place" ~ "gnis point",
       !is.na(cell_county) ~ "cell",
       !is.na(name_county) ~ "county name"
     ),
@@ -220,6 +155,14 @@ stopifnot(
   all(
     is.na(county_crosswalk$county_geoid) |
       county_crosswalk$county_geoid %in% counties$county_geoid
+  ),
+  with(
+    county_crosswalk,
+    all(
+      is.na(city_geoid) |
+        city_level == "place" |
+        county_geoid == str_sub(city_geoid, 1, 5)
+    )
   )
 )
 
@@ -228,8 +171,7 @@ arrow::write_parquet(county_crosswalk, "data/city-county-crosswalk.parquet")
 # ==== Counts ==================================================================
 
 county_crosswalk |>
-  group_by(county_method) |>
-  summarise(strings = n(), rows = sum(n_rows)) |>
+  summarise(strings = n(), rows = sum(n_rows), .by = county_method) |>
   mutate(pct_rows = round(100 * rows / sum(rows), 1)) |>
   print(n = Inf)
 
