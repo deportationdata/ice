@@ -8,35 +8,24 @@ arrests_df <-
   arrow::read_parquet("data/intermediate/arrests-latest-read.parquet")
 
 # ---- City geography ----
-city_crosswalk <-
-  arrow::read_parquet("data/city-match-crosswalk.parquet")
-
+# city-county.R carries the city columns with a county-only match (T4, or a
+# manual alias to a county such as Louisville) blanked, so the city fields
+# never hold a county.
 county_crosswalk <-
   arrow::read_parquet("data/city-county-crosswalk.parquet")
 
 arrests_df <-
   arrests_df |>
   left_join(
-    city_crosswalk |>
-      filter(!is.na(key_city)) |>
-      select(
-        key_city,
-        key_state,
-        apprehension_city_geoid = geoid,
-        apprehension_city_geo_level = geo_level,
-        apprehension_city_name_census = matched_name,
-        city_match_tier = match_tier
-      ),
-    by = c("key_city", "key_state"),
-    relationship = "many-to-one",
-    na_matches = "never"
-  ) |>
-  left_join(
     county_crosswalk |>
       filter(!is.na(key_city)) |>
       select(
         key_city,
         key_state,
+        apprehension_city_geoid = city_geoid,
+        apprehension_city_geo_level = city_level,
+        apprehension_city_name_census = city_name,
+        city_match_tier = match_tier,
         apprehension_county_geoid = county_geoid,
         apprehension_county_name_census = county_name,
         apprehension_county_method = county_method,
@@ -48,8 +37,13 @@ arrests_df <-
   )
 
 # ---- Check: city geography ----
+# every matched string has a city, except the county-only matches
 arrests_df |>
-  filter(!is.na(key_city), city_match_tier != "T0 triage") |>
+  filter(
+    !is.na(key_city),
+    city_match_tier != "T0 triage",
+    !apprehension_county_method %in% "county name"
+  ) |>
   col_vals_not_null(
     apprehension_city_geoid,
     actions = action_levels(warn_at = 0.02, stop_at = 0.03)
