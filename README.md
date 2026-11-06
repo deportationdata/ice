@@ -14,7 +14,7 @@ We do not provide processed data for encounters.
 1. `arrests-latest-read.R`
 2. `city-match.R`
 3. `city-county.R`
-4. `arrests-latest-read.R`
+4. `arrests-latest.R`
 
 ## detentions
 
