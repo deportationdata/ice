@@ -1,10 +1,12 @@
-# This script matches normalized city/state key values in arrests with unique geographic subdivisions (cells)
-# for the entire U.S. and territories generated in `us-shapefiles` repository.
+# This script matches normalized city/state key values generated in `arrests-latest-read.R`
+# with unique geographic subdivisions (cells) for the entire U.S. and territories generated in `us-shapefiles` repository.
 #
-# Matches are performed in five tiers, plus a preliminary triage step and final unmatched tier (T0, T1, ..., T5, T6)
-# remainder of records after each match tier are passed through to the next tier;
-# all tiers are joined into crosswalk for export and joined with arrests downstream.
+# Matches are performed in five tiers, plus a preliminary step which excludes bad values and final unmatched tier (T0, T1, ..., T5, T6).
+# After each match tier, the remainder of unmatched records is passed through to the next tier.
+# All tiers are concatenated for export as `city-match-crosswalk.parquet`.
+# Records not yet assigned to counties are joined with counties in `city-county.R`.
 #
+# Tiers:
 # T0: Excludes garbage values, records missing state key, and some known non-place values defined in `stoplist`
 # T1: Manual match for specific known values (neighborhoods, obvious data entry errors)
 # T2: Exact matches with a named place
@@ -24,18 +26,18 @@ options(timeout = 1800) # the 17 MB counties file downloads at ~200 KB/s from Gi
 gnis_review_min <- 50
 manual_review_min <- 20 # Minimum number of observations for manual matches; set to 0 to match all
 
-xwalk_all <-
+crosswalk_in_all <-
   arrow::read_parquet(
     str_c(shp_url, "/places-county-subdivisions-xwalk.parquet")
   ) |>
   left_join(state_names, by = "stusps")
 
 # Exclude a small proportion of county subdivisions that can't be mapped to a single cell
-xwalk <- xwalk_all |> filter(!is.na(cell_geoid))
+crosswalk_in <- crosswalk_in_all |> filter(!is.na(cell_geoid))
 
 # Separate out ambiguous census places; brought back after GNIS match in T5
 declined_places <-
-  xwalk_all |>
+  crosswalk_in_all |>
   filter(geo_level == "place") |>
   mutate(key_city = normalize_city(name)) |>
   filter(n_distinct(geoid) > 1, .by = c(key_city, key_state)) |>
@@ -43,7 +45,7 @@ declined_places <-
   mutate(place_note = "ambiguous census place")
 
 places_lookup <-
-  xwalk |>
+  crosswalk_in |>
   filter(geo_level == "place") |>
   transmute(
     key_city = normalize_city(name),
@@ -63,7 +65,7 @@ places_lookup <-
 
 # the "(balance)" places under their short names, where no place has that name
 balance_lookup <-
-  xwalk |>
+  crosswalk_in |>
   filter(geo_level == "place", short_name != name) |>
   transmute(
     key_city = normalize_city(short_name),
@@ -79,7 +81,7 @@ balance_lookup <-
     rule
   ) |>
   anti_join(
-    xwalk |>
+    crosswalk_in |>
       filter(geo_level == "place") |>
       distinct(key_city = normalize_city(name), key_state),
     by = c("key_city", "key_state")
@@ -89,7 +91,7 @@ balance_lookup <-
 places_lookup <- bind_rows(places_lookup, balance_lookup)
 
 county_subdivision_lookup <-
-  xwalk |>
+  crosswalk_in |>
   filter(geo_level == "county_subdivision", !str_ends(namelsad, " CCD")) |>
   transmute(
     key_city = normalize_city(name) |> str_remove(" town$"),
@@ -180,7 +182,7 @@ manual <-
     manual_references |>
       filter(!is.na(reference_geoid)) |>
       inner_join(
-        xwalk |>
+        crosswalk_in |>
           transmute(
             reference_geoid = geoid,
             stusps,
@@ -217,12 +219,14 @@ manual <-
 
 stopifnot(nrow(manual) == nrow(manual_references))
 
+# Known non-place values excluded from matching; those that refer to geographic places are
+# manually assigned to county per `inputs/city-county-manual.csv` in `city-county.R`
 stoplist <-
   readr::read_csv("inputs/facility-stoplist.csv", show_col_types = FALSE) |>
   mutate(city = normalize_city(city))
 
 cell_names <-
-  xwalk_all |>
+  crosswalk_in_all |>
   filter(!is.na(cell_geoid)) |>
   distinct(cell_geoid, cell_name = cell_short_name)
 
@@ -380,7 +384,7 @@ gnis_candidates <-
     .by = c(key_city, key_state, n_rows)
   ) |>
   left_join(
-    xwalk |> distinct(cell_geoid, cell_level, cell_namelsad),
+    crosswalk_in |> distinct(cell_geoid, cell_level, cell_namelsad),
     by = "cell_geoid",
     relationship = "many-to-one"
   ) |>
@@ -461,11 +465,11 @@ unmatched |>
     state = key_state,
     n_rows
   ) |>
-  readr::write_csv("inputs/unmatched-review.csv")
+  readr::write_csv("data/unmatched-review.csv")
 
 # ==== Assemble ================================================================
 
-crosswalk <-
+crosswalk_out <-
   bind_rows(t1, t2, t3, t4, t5, t0, t6) |>
   left_join(cell_names, by = "cell_geoid") |>
   transmute(
@@ -487,49 +491,49 @@ crosswalk <-
   arrange(match_tier, desc(n_rows))
 
 stopifnot(
-  !anyDuplicated(crosswalk[c("key_city", "key_state")]),
-  nrow(crosswalk) == nrow(arrest_cities),
+  !anyDuplicated(crosswalk_out[c("key_city", "key_state")]),
+  nrow(crosswalk_out) == nrow(arrest_cities),
   all(
-    is.na(crosswalk$geoid) |
-      crosswalk$geoid %in% c(xwalk$cell_geoid, counties_lookup$cell_geoid)
+    is.na(crosswalk_out$geoid) |
+      crosswalk_out$geoid %in% c(crosswalk_in$cell_geoid, counties_lookup$cell_geoid)
   )
 )
 
-arrow::write_parquet(crosswalk, "data/city-match-crosswalk.parquet")
+arrow::write_parquet(crosswalk_out, "data/city-match-crosswalk.parquet")
 
 # ==== Counts ==================================================================
 
-crosswalk |>
+crosswalk_out |>
   summarise(strings = n(), rows = sum(n_rows), .by = match_tier) |>
   mutate(pct_rows = round(100 * rows / sum(rows), 1)) |>
   print(n = Inf)
 
-crosswalk |>
+crosswalk_out |>
   filter(!is.na(geoid)) |>
   summarise(strings = n(), rows = sum(n_rows), .by = c(geo_level, rule)) |>
   arrange(desc(rows)) |>
   print(n = Inf)
 
-crosswalk |>
+crosswalk_out |>
   filter(rule %in% c("folded into subdivision", "lifted into place")) |>
   arrange(desc(n_rows)) |>
   select(key_city, key_state, n_rows, raw_name, matched_name, rule) |>
   print(n = 30)
 
-crosswalk |>
+crosswalk_out |>
   filter(match_tier == "T5 gnis") |>
   arrange(desc(n_rows)) |>
   select(key_city, key_state, n_rows, matched_name, geo_level) |>
   print(n = 25)
 
-crosswalk |>
+crosswalk_out |>
   filter(match_tier == "T4 county exact") |>
   semi_join(gnis, by = c("key_city", "key_state")) |>
   arrange(desc(n_rows)) |>
   select(key_city, key_state, n_rows, matched_name) |>
   print(n = 30)
 
-crosswalk |>
+crosswalk_out |>
   filter(match_tier == "T6 unresolved", n_rows >= 20) |>
   arrange(desc(n_rows)) |>
   select(key_city, key_state, n_rows) |>

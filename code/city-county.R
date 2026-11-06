@@ -1,3 +1,8 @@
+# This script takes arrest city/state key values mapped to US census cells in `city-match.R`.
+# Values not yet matched directly to a county are assigned a county.
+# Results are exported as `city-county-crosswalk.parquet` and joined with arrests in `arrests-latest.R`
+#
+
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
