@@ -1,12 +1,28 @@
+# This script matches normalized city/state key values in arrests with unique geographic subdivisions (cells)
+# for the entire U.S. and territories generated in `us-shapefiles` repository.
+#
+# Matches are performed in five tiers, plus a preliminary triage step and final unmatched tier (T0, T1, ..., T5, T6)
+# remainder of records after each match tier are passed through to the next tier;
+# all tiers are joined into crosswalk for export and joined with arrests downstream.
+#
+# T0: Excludes garbage values, records missing state key, and some known non-place values defined in `stoplist`
+# T1: Manual match for specific known values (neighborhoods, obvious data entry errors)
+# T2: Exact matches with a named place
+# T3: Exact matches with a county subdivision
+# T4: Exact matches with a county
+# T5: Remaining city/state keys matched to GNIS places corresponding to single points within a cell 
+# T6: Unmatched remainder
+
 library(tidyverse)
 
-source("code/functions/normalize_city.R")
+source("code/functions/normalize_city.R") # Helper functions/objects for normalizing city/state names
 shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/653d6cc5fb6fd73bc682e11e6b60a3ef0c4d8e0a/data"
 options(timeout = 1800) # the 17 MB counties file downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
 
 gnis_review_min <- 50
+manual_review_min <- 20 # Minimum number of observations for manual matches; set to 0 to match all
 
 xwalk_all <-
   arrow::read_parquet(
@@ -14,8 +30,10 @@ xwalk_all <-
   ) |>
   left_join(state_names, by = "stusps")
 
+# Exclude a small proportion of county subdivisions that can't be mapped to a single cell
 xwalk <- xwalk_all |> filter(!is.na(cell_geoid))
 
+# Separate out ambiguous census places; brought back after GNIS match in T5
 declined_places <-
   xwalk_all |>
   filter(geo_level == "place") |>
@@ -316,6 +334,7 @@ t1 <-
       ),
     by = c("key_city", "key_state")
   ) |>
+  filter(n_rows >= manual_review_min) |> # Only permit manual review over specific threshhold of records
   mutate(match_tier = "T1 manual", confidence = "high")
 
 remainder <- remainder |> anti_join(t1, by = c("key_city", "key_state"))
@@ -397,6 +416,7 @@ t5 <-
     confidence = "medium"
   )
 
+# Export subset of most common GNIS candidate values for manual review
 gnis_candidates |>
   filter(n_rows >= gnis_review_min) |>
   arrange(desc(n_rows)) |>
@@ -425,6 +445,23 @@ t6 <-
     confidence = NA_character_,
     reason = "no match"
   )
+
+stopifnot(nrow(t6) == nrow(remainder))
+
+# Export subset of most common remainder for manual review
+unmatched <- rbind(t6, t0)
+
+unmatched |>
+  filter(!is.na(key_city),
+         !is.na(key_state),
+         n_rows >= manual_review_min) |>
+  arrange(desc(n_rows)) |>
+  transmute(
+    city = key_city,
+    state = key_state,
+    n_rows
+  ) |>
+  readr::write_csv("inputs/unmatched-review.csv")
 
 # ==== Assemble ================================================================
 
@@ -497,3 +534,5 @@ crosswalk |>
   arrange(desc(n_rows)) |>
   select(key_city, key_state, n_rows) |>
   print(n = 30)
+
+# END.

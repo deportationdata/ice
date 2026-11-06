@@ -1,3 +1,8 @@
+# Helper functions `normalize_city()` and `normalize_state()` for normalizing place names
+# into standard sentence case and `state_names` table extending base `state.abb` for U.S.
+# territories
+#
+
 .state_abb_dotted <- paste0(
   substr(tolower(state.abb), 1, 1), "\\.?", substr(tolower(state.abb), 2, 2), "\\.?"
 )
@@ -84,3 +89,5 @@ state_names <-
       "American Samoa"
     ))
   )
+
+# END.
