@@ -9,6 +9,7 @@ louiville,kentucky,Jefferson,kentucky,county,,Louisville,ICE postal city for all
 lagrange,kentucky,La Grange,kentucky,place,,,census spelling has a space
 butte,montana,Butte-Silver Bow (balance),montana,place,,,consolidated government balance
 nyc,new york,New York,new york,place,,,abbreviation
+ny,new york,New York,new york,place,,,abbreviation
 elmhurst,new york,New York,new york,place,,,NYC neighborhood
 sunnyside,new york,New York,new york,place,,,NYC neighborhood
 porter ranch,california,Los Angeles,california,place,,,LA neighborhood
@@ -64,6 +65,7 @@ washington dc,district of columbia,Washington,district of columbia,place,,,name 
 washington dc,virginia,Washington,district of columbia,place,,,wrong state
 washington dc,maryland,Washington,district of columbia,place,,,wrong state
 washington dc,washington,Washington,district of columbia,place,,,wrong state
+vancouver,oregon,Vancouver,washington,place,,,wrong state
 dc,district of columbia,Washington,district of columbia,place,,,abbreviation
 district of columbia,district of columbia,Washington,district of columbia,place,,,name variant
 raybrook,new york,North Elba town,new york,county_subdivision,3603151935,,spacing; ray brook is in North Elba town
