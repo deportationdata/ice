@@ -15,6 +15,7 @@ sunnyside,new york,New York,new york,place,,,NYC neighborhood
 porter ranch,california,Los Angeles,california,place,,,LA neighborhood
 arleta,california,Los Angeles,california,place,,,LA neighborhood
 la jolla,california,San Diego,california,place,,,San Diego neighborhood
+san deigo,california,San Diego,california,place,,,misspelling
 okc,oklahoma,Oklahoma City,oklahoma,place,,,abbreviation
 slc,utah,Salt Lake City,utah,place,,,abbreviation
 wvc,utah,West Valley City,utah,place,,,abbreviation
@@ -45,6 +46,8 @@ san ysidro,california,San Diego,california,place,,,San Diego neighborhood; ambig
 west valley,utah,West Valley City,utah,place,,,shortened name
 salt lake,utah,Salt Lake City,utah,place,,,shortened name
 south salt lake city,utah,South Salt Lake,utah,place,,,name variant
+washington city,utah,Washington,utah,place,,,name variant
+san tan,arizona,San Tan Valley,arizona,place,,,name variant
 city of industry,california,Industry,california,place,,,postal name
 yazoo,mississippi,Yazoo City,mississippi,place,,,shortened name
 dania,florida,Dania Beach,florida,place,,,shortened name
@@ -55,6 +58,8 @@ angelton,texas,Angleton,texas,place,,,misspelling
 beaufrot,south carolina,Beaufort,south carolina,place,,,misspelling
 edingburg,texas,Edinburg,texas,place,,,misspelling
 gonzalez,texas,Gonzales,texas,place,,,misspelling
+conore,texas,Conroe,texas,place,,,misspelling
+kilona,louisiana,Killona,louisiana,place,,,misspelling
 la fayette,georgia,LaFayette,georgia,place,,,spacing
 la place,louisiana,Laplace,louisiana,place,,,spacing
 westminister,maryland,Westminster,maryland,place,,,misspelling; GNIS point is a different Westminister
@@ -66,6 +71,7 @@ washington dc,virginia,Washington,district of columbia,place,,,wrong state
 washington dc,maryland,Washington,district of columbia,place,,,wrong state
 washington dc,washington,Washington,district of columbia,place,,,wrong state
 vancouver,oregon,Vancouver,washington,place,,,wrong state
+chicago,iowa,Chicago,illinois,place,,,wrong state
 dc,district of columbia,Washington,district of columbia,place,,,abbreviation
 district of columbia,district of columbia,Washington,district of columbia,place,,,name variant
 raybrook,new york,North Elba town,new york,county_subdivision,3603151935,,spacing; ray brook is in North Elba town
