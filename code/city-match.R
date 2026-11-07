@@ -217,6 +217,7 @@ manual <-
       )
   )
 
+# Breaks if manual city aliases do not match exactly with a unique reference name and state
 stopifnot(nrow(manual) == nrow(manual_references))
 
 # Known non-place values excluded from matching; those that refer to geographic places are
@@ -465,7 +466,7 @@ unmatched |>
     state = key_state,
     n_rows
   ) |>
-  readr::write_csv("data/unmatched-review.csv")
+  readr::write_csv("data/intermediate/unmatched-review.csv")
 
 # ==== Assemble ================================================================
 
