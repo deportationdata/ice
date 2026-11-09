@@ -4,6 +4,24 @@ library(tidylog)
 library(data.table)
 library(pointblank)
 
+# special function to deal with Aug. 2026 files that have dates in diff
+#   formats across files
+excel_list_to_date <- function(l) {
+  is_dt <- map_lgl(l, \(x) inherits(x, "POSIXt"))
+  is_ch <- map_lgl(l, is.character)
+  stopifnot(all(is_dt | is_ch | map_lgl(l, is.logical)))
+  out <- rep(as.Date(NA), length(l))
+  out[is_dt] <- as.Date(as.POSIXct(
+    unlist(l[is_dt]),
+    origin = "1970-01-01",
+    tz = "UTC"
+  ))
+  parsed <- lubridate::mdy(as.character(unlist(l[is_ch])), quiet = TRUE)
+  stopifnot("unparsed date strings" = !anyNA(parsed))
+  out[is_ch] <- parsed
+  out
+}
+
 # ---- Input data ---
 facilities_df <- arrow::read_parquet(
   "https://media.githubusercontent.com/media/deportationdata/ice-detention-facilities/main/data/facilities-latest.parquet"
@@ -17,11 +35,12 @@ msc_charge_codes_tbl <- read_csv(here::here("data/msc-charge-codes.csv"))
 # ---- Functions ----
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
+source("code/functions/check_missing_by_source.R")
 
 col_types <- c(
   "numeric", # Birth Year
   "numeric", # Bond Posted Amount
-  "date", # Bond Posted Date
+  "list", # Bond Posted Date
   "text", # Book In Criminality
   "date", # Detention Book In Date Time
   "text", # Case Category
@@ -39,7 +58,7 @@ col_types <- c(
   "text", # Ethnicity
   "text", # Felon
   "text", # Final Charge
-  "date", # Final Order Date
+  "list", # Final Order Date
   "text", # Final Order Yes No
   "text", # Apprehension Final Program
   "text", # Gender
@@ -99,6 +118,7 @@ detentions_df |>
     `Stay Book In Date Time`,
     actions = action_levels(warn_at = 0.01, stop_at = 0.05)
   ) |>
+  check_missing_by_source() |>
   invisible()
 
 # ---- Initial cleaning of stint-level data ----
@@ -109,8 +129,9 @@ detentions_df <-
   # add row number from original file
   mutate(
     row_original = as.integer(row_number() + 6 + 1),
-    .by = "sheet_original"
+    .by = c("file_original", "sheet_original")
   ) |>
+  mutate(across(c(bond_posted_date, final_order_date), excel_list_to_date)) |>
   # add identifier for each ICE stay, encompassing multiple detentions or stints
   mutate(
     stay_ID = str_c(anonymized_unique_identifier, "_", stay_book_in_date_time)
@@ -125,7 +146,10 @@ detentions_df <-
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)c"))) |>
   mutate(across(where(is.character), ~ na_if(.x, "b(6), b(7)C"))) |>
   mutate(
-    birth_year = as.integer(birth_year)
+    birth_year = as.integer(birth_year),
+    age_at_stint_book_in_approximate = year(detention_book_in_date_time) -
+      birth_year,
+    age_at_stay_book_in_approximate = year(stay_book_in_date_time) - birth_year,
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   # filter(!is.na(anonymized_identifier)) |>
@@ -139,7 +163,7 @@ detentions_df <-
     )
   )
 
-# ---- New processed vars ----
+# ---- Processed vars ----
 
 detentions_df <-
   detentions_df |>
@@ -151,13 +175,68 @@ detentions_df <-
     stay_length_days = as.numeric(
       stay_book_out_date_time - stay_book_in_date_time,
       units = "days"
+    ),
+    final_order_before_book_in = !is.na(final_order_date) &
+      final_order_date < as.Date(stay_book_in_date_time),
+    stay_release_reason_simple = case_when(
+      stay_release_reason %in%
+        c(
+          "Removed",
+          "Voluntary Return",
+          "Voluntary departure",
+          "Title 42 Return"
+        ) ~ "Deported",
+      stay_release_reason %in%
+        c(
+          "Bonded Out - Field Office",
+          "Bonded Out - IJ",
+          "Court Ordered",
+          "Order of Recognizance - Humanitarian",
+          "Order of Supervision - Humanitarian",
+          "Order of Supervision - No SLRRFF",
+          "Order of Supervision - Re-Release",
+          "Order of recognizance",
+          "Order of supervision",
+          "Paroled",
+          "Paroled - Fear Found",
+          "Paroled - Humanitarian",
+          "Paroled - Public Benefit",
+          "Paroled - With Conditions",
+          "Processing Disposition Changed Locally",
+          "Relief Granted by IJ",
+          "Withdrawal",
+          "Proceedings Terminated"
+        ) ~ "Released",
+      stay_release_reason %in%
+        c(
+          "ORR - Office of Refugee Resettlement",
+          "Transferred",
+          "U.S. Marshals or other agency (explain in Detention Comments)"
+        ) ~ "Transferred",
+      stay_release_reason %in% c("Died", "Escaped", "ORR-Runaway") ~ "Other",
+      is.na(stay_release_reason) ~ "Not released as of 2026-08-05"
+    ),
+    release_within_60_days = case_when(
+      stay_release_reason_simple == "Deported" &
+        stay_length_days < 60 ~ "Deported within 60 days",
+      stay_release_reason_simple == "Released" &
+        stay_length_days < 60 ~ "Released within 60 days",
+      TRUE ~ "Not released within 60 days"
+    ),
+    release_within_90_days = case_when(
+      stay_release_reason_simple == "Deported" &
+        stay_length_days < 90 ~ "Deported within 90 days",
+      stay_release_reason_simple == "Released" &
+        stay_length_days < 90 ~ "Released within 90 days",
+      TRUE ~ "Not released within 90 days"
     )
   )
 
 detentions_df <-
   detentions_df |>
   left_join(
-    msc_charge_codes_tbl,
+    msc_charge_codes_tbl |>
+      rename(most_serious_conviction_code = msc_charge_code),
     by = "msc_charge",
     relationship = "many-to-one"
   )
@@ -619,20 +698,8 @@ detentions_df$stint_date <- NULL
 
 # ---- Save Outputs ----
 
-arrow::write_parquet(
-  detentions_df,
-  "data/detention-stints-latest.parquet",
-  compression = "zstd"
-)
-detentions_df |>
-  rename_with(
-    ~ make.unique(
-      abbreviate(.x, minlength = 32, strict = FALSE),
-      sep = "_"
-    )
-  ) |>
-  haven::write_dta("data/detention-stints-latest.dta")
-haven::write_sav(detentions_df, "data/detention-stints-latest.sav")
+source("code/functions/save_outputs.R")
+save_outputs(detentions_df, "detention-stints-latest")
 
 detentions_df |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>

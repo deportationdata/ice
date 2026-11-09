@@ -83,6 +83,8 @@ detainers_df <-
     .id = "file_original"
   )
 
+# one date parsing warning: FY2026 Apprehension Date (Excel row 47273) holds text "06/14/0002 03:10 PM", coerced to NA
+
 # ---- Check: read ----
 detainers_df |>
   col_exists(
