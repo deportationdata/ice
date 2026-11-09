@@ -36,6 +36,7 @@ msc_charge_codes_tbl <- read_csv(here::here("data/msc-charge-codes.csv"))
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
 source("code/functions/check_missing_by_source.R")
+source("code/functions/country_code.R")
 
 col_types <- c(
   "numeric", # Birth Year
@@ -692,7 +693,14 @@ detentions_df <-
 
 # ---- Sort by book-in date ----
 detentions_df <- detentions_df |>
-  arrange(book_in_date_time)
+  arrange(book_in_date_time) |>
+  mutate(across(
+    c(citizenship_country, departure_country),
+    country_code,
+    .names = "{.col}_code"
+  )) |>
+  relocate(citizenship_country_code, .after = citizenship_country) |>
+  relocate(departure_country_code, .after = departure_country)
 
 detentions_df$stint_date <- NULL
 

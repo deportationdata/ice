@@ -6,6 +6,7 @@ library(pointblank)
 # ---- Functions ----
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
+source("code/functions/country_code.R")
 
 # ---- Read ----
 
@@ -516,6 +517,14 @@ detainers_df <-
     order_show_cause_served_yes_no = order_to_show_cause_served_yes_no
   ) |>
   relocate(unique_identifier, .before = duplicate_likely) |>
+  mutate(across(
+    c(birth_country, citizenship_country, departure_country),
+    country_code,
+    .names = "{.col}_code"
+  )) |>
+  relocate(birth_country_code, .after = birth_country) |>
+  relocate(citizenship_country_code, .after = citizenship_country) |>
+  relocate(departure_country_code, .after = departure_country) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----
