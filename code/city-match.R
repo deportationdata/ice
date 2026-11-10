@@ -4,7 +4,7 @@
 # Matches are performed in five tiers, plus a preliminary step which excludes bad values and final unmatched tier (T0, T1, ..., T5, T6).
 # After each match tier, the remainder of unmatched records is passed through to the next tier.
 # All tiers are concatenated for export as `city-match-crosswalk.parquet`.
-# Records not yet assigned to counties are joined with counties in `city-county.R`.
+# Records not yet assigned to counties are joined with counties in `city-county-cbsa.R`.
 #
 # Tiers:
 # T0: Excludes garbage values, records missing state key, and some known non-place values defined in `stoplist`
@@ -18,7 +18,7 @@
 library(tidyverse)
 
 source("code/functions/normalize_city.R") # Helper functions/objects for normalizing city/state names
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/653d6cc5fb6fd73bc682e11e6b60a3ef0c4d8e0a/data"
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/4323aae36a29164139e60d22cfe4138dcbd4f96c/data"
 options(timeout = 1800) # the 17 MB counties file downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
@@ -221,7 +221,7 @@ manual <-
 stopifnot(nrow(manual) == nrow(manual_references))
 
 # Known non-place values excluded from matching; those that refer to geographic places are
-# manually assigned to county per `inputs/city-county-manual.csv` in `city-county.R`
+# manually assigned to county per `inputs/city-county-manual.csv` in `city-county-cbsa.R`
 stoplist <-
   readr::read_csv("inputs/facility-stoplist.csv", show_col_types = FALSE) |>
   mutate(city = normalize_city(city))

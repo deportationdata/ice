@@ -28,7 +28,9 @@ detentions_df <-
       "county",
       "core_based_statistical_area",
       "core_based_statistical_area_code",
-      "core_based_statistical_area_type"
+      "core_based_statistical_area_type",
+      "combined_statistical_area",
+      "combined_statistical_area_code"
     ))
   ) |>
   mutate(
@@ -434,6 +436,8 @@ detention_stays_df <-
         core_based_statistical_area,
         core_based_statistical_area_code,
         core_based_statistical_area_type,
+        combined_statistical_area,
+        combined_statistical_area_code,
         starts_with("federal_court")
       ) |>
       rename_with(~ str_c(., "_first"), -detention_facility_code),
@@ -450,6 +454,8 @@ detention_stays_df <-
         core_based_statistical_area,
         core_based_statistical_area_code,
         core_based_statistical_area_type,
+        combined_statistical_area,
+        combined_statistical_area_code,
         starts_with("federal_court")
       ) |>
       rename_with(~ str_c(., "_longest"), -detention_facility_code),
@@ -466,6 +472,8 @@ detention_stays_df <-
         core_based_statistical_area,
         core_based_statistical_area_code,
         core_based_statistical_area_type,
+        combined_statistical_area,
+        combined_statistical_area_code,
         starts_with("federal_court")
       ) |>
       rename_with(~ str_c(., "_last"), -detention_facility_code),

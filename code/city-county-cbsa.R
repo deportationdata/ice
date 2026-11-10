@@ -1,12 +1,12 @@
 # This script takes arrest city/state key values mapped to US census cells in `city-match.R`.
-# Values not yet matched directly to a county are assigned a county.
-# Results are exported as `city-county-crosswalk.parquet` and joined with arrests in `arrests-latest.R`
+# Values not yet matched directly to a county are assigned a county, then a CBSA and CSA.
+# Results are exported as `city-county-cbsa-crosswalk.parquet` and joined with arrests in `arrests-latest.R`
 #
 
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/653d6cc5fb6fd73bc682e11e6b60a3ef0c4d8e0a/data"
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/4323aae36a29164139e60d22cfe4138dcbd4f96c/data"
 options(timeout = 1800) # the 100 MB partition file downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
@@ -24,6 +24,43 @@ counties <-
     key_county = normalize_city(name),
     key_state
   )
+
+county_cbsa <-
+  arrow::read_parquet(
+    str_c(shp_url, "/counties-sf.parquet"),
+    col_select = c("geoid", "cbsa_geoid", "csa_geoid")
+  ) |>
+  filter(!is.na(cbsa_geoid)) |>
+  rename(county_geoid = geoid) |>
+  left_join(
+    arrow::read_parquet(
+      str_c(shp_url, "/cbsas-sf.parquet"),
+      col_select = c("geoid", "name", "lsad")
+    ) |>
+      transmute(
+        cbsa_geoid = geoid,
+        cbsa_name = name,
+        cbsa_type = recode_values(lsad, "M1" ~ "Metro", "M2" ~ "Micro")
+      ),
+    by = "cbsa_geoid"
+  ) |>
+  left_join(
+    arrow::read_parquet(
+      str_c(shp_url, "/csas-sf.parquet"),
+      col_select = c("geoid", "name")
+    ) |>
+      select(csa_geoid = geoid, csa_name = name),
+    by = "csa_geoid"
+  ) |>
+  relocate(csa_geoid, .before = csa_name)
+
+stopifnot(
+  !anyDuplicated(county_cbsa$county_geoid),
+  !anyNA(county_cbsa$cbsa_name),
+  !anyNA(county_cbsa$cbsa_type),
+  all(county_cbsa$county_geoid %in% counties$county_geoid),
+  identical(is.na(county_cbsa$csa_geoid), is.na(county_cbsa$csa_name))
+)
 
 # each cell's county (the plurality of its 2020 population for a place cell) and share;
 # the few place cells with no block have none
@@ -147,6 +184,7 @@ county_crosswalk <-
     counties |> select(county_geoid, county_stusps, county_name),
     by = "county_geoid"
   ) |>
+  left_join(county_cbsa, by = "county_geoid") |>
   relocate(county_name, county_stusps, .after = county_geoid) |>
   arrange(county_method, desc(n_rows))
 
@@ -157,6 +195,15 @@ stopifnot(
     is.na(county_crosswalk$county_geoid)
   ),
   nrow(county_crosswalk) == nrow(crosswalk),
+  identical(
+    is.na(county_crosswalk$cbsa_geoid),
+    is.na(county_crosswalk$cbsa_name)
+  ),
+  identical(
+    is.na(county_crosswalk$csa_geoid),
+    is.na(county_crosswalk$csa_name)
+  ),
+  all(is.na(county_crosswalk$cbsa_geoid) | !is.na(county_crosswalk$county_geoid)),
   all(
     is.na(county_crosswalk$county_geoid) |
       county_crosswalk$county_geoid %in% counties$county_geoid
@@ -171,9 +218,15 @@ stopifnot(
   )
 )
 
-arrow::write_parquet(county_crosswalk, "data/city-county-crosswalk.parquet")
+arrow::write_parquet(county_crosswalk, "data/city-county-cbsa-crosswalk.parquet")
 
 # ==== Counts ==================================================================
+
+county_crosswalk |>
+  filter(!is.na(county_geoid)) |>
+  summarise(strings = n(), rows = sum(n_rows), .by = cbsa_type) |>
+  mutate(pct_rows = round(100 * rows / sum(rows), 1)) |>
+  print()
 
 county_crosswalk |>
   summarise(strings = n(), rows = sum(n_rows), .by = county_method) |>

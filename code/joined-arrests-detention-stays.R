@@ -53,6 +53,11 @@ arrests |>
       apprehension_county_name_census,
       apprehension_county_method,
       apprehension_county_share,
+      apprehension_core_based_statistical_area,
+      apprehension_core_based_statistical_area_code,
+      apprehension_core_based_statistical_area_type,
+      apprehension_combined_statistical_area,
+      apprehension_combined_statistical_area_code,
       duplicate_episode_first,
       file_original,
       row_original,
@@ -179,7 +184,7 @@ arrests_with_detentions <-
   rename_with(
     ~ str_c("detention_facility_", .x),
     matches(
-      "^(city|state|county|core_based_statistical_area(_code|_type)?|federal_court_(district|circuit)_of_confinement)_(first|longest|last)$"
+      "^(city|state|county|core_based_statistical_area(_code|_type)?|combined_statistical_area(_code)?|federal_court_(district|circuit)_of_confinement)_(first|longest|last)$"
     )
   ) |>
   mutate(
@@ -305,6 +310,9 @@ arrests_with_detentions |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
   group_split(.chunk, .keep = FALSE) |>
   set_names(~ str_c("Arrests with detentions (Sheet ", seq_along(.x), ")")) |>
-  writexl::write_xlsx("data/joined-arrests-detention-stays-latest.xlsx")
+  writexl::write_xlsx(
+    "data/joined-arrests-detention-stays-latest.xlsx",
+    use_zip64 = TRUE
+  )
 
 # END.

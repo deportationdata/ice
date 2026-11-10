@@ -8,11 +8,11 @@ arrests_df <-
   arrow::read_parquet("data/intermediate/arrests-latest-read.parquet")
 
 # ---- City geography ----
-# city-county.R carries the city columns with a county-only match (T4, or a
+# city-county-cbsa.R carries the city columns with a county-only match (T4, or a
 # manual alias to a county such as Louisville) blanked, so the city fields
 # never hold a county.
 county_crosswalk <-
-  arrow::read_parquet("data/city-county-crosswalk.parquet")
+  arrow::read_parquet("data/city-county-cbsa-crosswalk.parquet")
 
 arrests_df <-
   arrests_df |>
@@ -29,7 +29,12 @@ arrests_df <-
         apprehension_county_geoid = county_geoid,
         apprehension_county_name_census = county_name,
         apprehension_county_method = county_method,
-        apprehension_county_share = county_share
+        apprehension_county_share = county_share,
+        apprehension_core_based_statistical_area = cbsa_name,
+        apprehension_core_based_statistical_area_code = cbsa_geoid,
+        apprehension_core_based_statistical_area_type = cbsa_type,
+        apprehension_combined_statistical_area = csa_name,
+        apprehension_combined_statistical_area_code = csa_geoid
       ),
     by = c("key_city", "key_state"),
     relationship = "many-to-one",
@@ -48,6 +53,13 @@ arrests_df |>
     apprehension_city_geoid,
     actions = action_levels(warn_at = 0.02, stop_at = 0.03)
   ) |>
+  col_vals_expr(
+    expr(
+      is.na(apprehension_core_based_statistical_area_code) ==
+        is.na(apprehension_core_based_statistical_area)
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
   invisible()
 
 arrests_df <-
@@ -61,6 +73,11 @@ arrests_df <-
     apprehension_county_name_census,
     apprehension_county_method,
     apprehension_county_share,
+    apprehension_core_based_statistical_area,
+    apprehension_core_based_statistical_area_code,
+    apprehension_core_based_statistical_area_type,
+    apprehension_combined_statistical_area,
+    apprehension_combined_statistical_area_code,
     .after = apprehension_city_common_case
   )
 
