@@ -12,7 +12,7 @@
 # T2: Exact matches with a named place
 # T3: Exact matches with a county subdivision
 # T4: Exact matches with a county
-# T5: Remaining city/state keys matched to GNIS places corresponding to single points within a cell 
+# T5: Remaining city/state keys matched to GNIS places corresponding to single points within a cell
 # T6: Unmatched remainder
 
 library(tidyverse)
@@ -24,7 +24,7 @@ options(timeout = 1800) # the 17 MB counties file downloads at ~200 KB/s from Gi
 # ==== References ==============================================================
 
 gnis_review_min <- 50
-manual_review_min <- 20 # Minimum number of observations for manual matches; set to 0 to match all
+manual_review_min <- 20 # Minimum number of observations for unmatched review export
 
 crosswalk_in_all <-
   arrow::read_parquet(
@@ -339,7 +339,6 @@ t1 <-
       ),
     by = c("key_city", "key_state")
   ) |>
-  filter(n_rows >= manual_review_min) |> # Only permit manual review over specific threshhold of records
   mutate(match_tier = "T1 manual", confidence = "high")
 
 remainder <- remainder |> anti_join(t1, by = c("key_city", "key_state"))
@@ -453,20 +452,18 @@ t6 <-
 
 stopifnot(nrow(t6) == nrow(remainder))
 
-# Export subset of most common remainder for manual review
-unmatched <- rbind(t6, t0)
+# print subset of most common remainder for manual review
+unmatched <- bind_rows(t6, t0)
 
 unmatched |>
-  filter(!is.na(key_city),
-         !is.na(key_state),
-         n_rows >= manual_review_min) |>
+  filter(!is.na(key_city), !is.na(key_state), n_rows >= manual_review_min) |>
   arrange(desc(n_rows)) |>
   transmute(
     city = key_city,
     state = key_state,
     n_rows
   ) |>
-  readr::write_csv("data/intermediate/unmatched-review.csv")
+  print(n = Inf)
 
 # ==== Assemble ================================================================
 
@@ -496,7 +493,8 @@ stopifnot(
   nrow(crosswalk_out) == nrow(arrest_cities),
   all(
     is.na(crosswalk_out$geoid) |
-      crosswalk_out$geoid %in% c(crosswalk_in$cell_geoid, counties_lookup$cell_geoid)
+      crosswalk_out$geoid %in%
+        c(crosswalk_in$cell_geoid, counties_lookup$cell_geoid)
   )
 )
 
