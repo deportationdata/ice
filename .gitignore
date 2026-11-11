@@ -53,3 +53,5 @@ code/archive/**
 **/.DS_Store
 
 *.Rproj
+
+data/intermediate/
