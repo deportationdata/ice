@@ -6,7 +6,7 @@
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/4323aae36a29164139e60d22cfe4138dcbd4f96c/data"
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/559841da212143b706678866b736883d48cf8d4f/data"
 options(timeout = 1800) # the 100 MB partition file downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
@@ -139,7 +139,11 @@ county_crosswalk <-
       ),
     by = c("key_city", "key_state")
   ) |>
-  mutate(name_county = if_else(geo_level == "county", geoid, NA_character_)) |>
+  mutate(
+    name_county = if_else(geo_level == "county", geoid, NA_character_),
+    # a county is a city only where it is a cell (the island territories)
+    county_only = geo_level == "county" & is.na(cell_county)
+  ) |>
   mutate(
     subdivision_county = if_else(
       raw_level == "county_subdivision" &
@@ -174,9 +178,9 @@ county_crosswalk <-
       county_method == "cell" ~ county_share,
       !is.na(county_geoid) ~ 1
     ),
-    city_geoid = if_else(geo_level == "county", NA_character_, geoid),
-    city_level = if_else(geo_level == "county", NA_character_, geo_level),
-    city_name = if_else(geo_level == "county", NA_character_, matched_name),
+    city_geoid = if_else(county_only, NA_character_, geoid),
+    city_level = if_else(county_only, NA_character_, geo_level),
+    city_name = if_else(county_only, NA_character_, matched_name),
     match_tier,
     reason
   ) |>

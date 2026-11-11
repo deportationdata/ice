@@ -18,7 +18,7 @@
 library(tidyverse)
 
 source("code/functions/normalize_city.R") # Helper functions/objects for normalizing city/state names
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/4323aae36a29164139e60d22cfe4138dcbd4f96c/data"
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/559841da212143b706678866b736883d48cf8d4f/data"
 options(timeout = 1800) # the 17 MB counties file downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
