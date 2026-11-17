@@ -68,8 +68,8 @@ arrests_df |>
   invisible()
 
 # ---- 287(g) agreements ----
-# 287(g) agency roster, with one row per agency and the jurisdiction level of its
-# agreements; agreements are matched at the level of the agency's jurisdiction
+# active 287(g) agencies, matched to arrests at the agency's own jurisdiction
+#   level (county, municipality, state)
 agencies_287g <-
   arrow::read_parquet(
     "https://media.githubusercontent.com/media/deportationdata/ice-287g/main/data/agencies.parquet"
@@ -94,7 +94,7 @@ states_287g <-
   distinct(apprehension_state_geoid = state_fips) |>
   mutate(apprehension_state_has_287g_agreement = TRUE)
 
-# state FIPS code from the normalized state name
+# state FIPS code (geoid) for each normalized state name
 state_geoids <-
   arrow::read_parquet(
     str_c(shp_url, "/states-sf.parquet"),
