@@ -44,6 +44,20 @@ arrests |>
       apprehension_method,
       apprehension_criminality,
       apprehension_aor,
+      apprehension_city_original,
+      apprehension_city_common_case,
+      apprehension_city_geoid,
+      apprehension_city_geo_level,
+      apprehension_city_name_census,
+      apprehension_county_geoid,
+      apprehension_county_name_census,
+      apprehension_county_method,
+      apprehension_county_share,
+      apprehension_core_based_statistical_area,
+      apprehension_core_based_statistical_area_code,
+      apprehension_core_based_statistical_area_type,
+      apprehension_combined_statistical_area,
+      apprehension_combined_statistical_area_code,
       duplicate_episode_first,
       file_original,
       row_original,
@@ -170,7 +184,7 @@ arrests_with_detentions <-
   rename_with(
     ~ str_c("detention_facility_", .x),
     matches(
-      "^(city|state|county|core_based_statistical_area(_code|_type)?|federal_court_(district|circuit)_of_confinement)_(first|longest|last)$"
+      "^(city|state|county|core_based_statistical_area(_code|_type)?|combined_statistical_area(_code)?|federal_court_(district|circuit)_of_confinement)_(first|longest|last)$"
     )
   ) |>
   mutate(
@@ -196,6 +210,31 @@ arrests_with_detentions |>
   col_vals_not_null(
     apprehension_date_time,
     actions = action_levels(warn_at = 0.001, stop_at = 0.01)
+  ) |>
+  col_vals_regex(
+    apprehension_county_geoid,
+    "^[0-9]{5}$",
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_between(
+    apprehension_county_share,
+    0,
+    1,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(apprehension_county_geoid) == is.na(apprehension_county_name_census)
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(apprehension_city_geoid) == is.na(apprehension_city_name_census)
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>
   col_vals_in_set(
     has_detention_stay,
@@ -271,6 +310,9 @@ arrests_with_detentions |>
   mutate(.chunk = ceiling(row_number() / 1e6)) |>
   group_split(.chunk, .keep = FALSE) |>
   set_names(~ str_c("Arrests with detentions (Sheet ", seq_along(.x), ")")) |>
-  writexl::write_xlsx("data/joined-arrests-detention-stays-latest.xlsx")
+  writexl::write_xlsx(
+    "data/joined-arrests-detention-stays-latest.xlsx",
+    use_zip64 = TRUE
+  )
 
 # END.
