@@ -49,6 +49,7 @@ arrests |>
       apprehension_city_geoid,
       apprehension_city_geo_level,
       apprehension_city_name_census,
+      apprehension_city_share,
       apprehension_county_geoid,
       apprehension_county_name_census,
       apprehension_county_method,
@@ -219,6 +220,13 @@ arrests_with_detentions |>
   ) |>
   col_vals_between(
     apprehension_county_share,
+    0,
+    1,
+    na_pass = TRUE,
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_between(
+    apprehension_city_share,
     0,
     1,
     na_pass = TRUE,

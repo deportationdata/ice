@@ -6,8 +6,8 @@
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/559841da212143b706678866b736883d48cf8d4f/data"
-options(timeout = 1800) # the 100 MB partition file downloads at ~200 KB/s from GitHub LFS
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/a709a91b7d78e53bed9b665294168fa5e9df6c2d/data"
+options(timeout = 1800)
 
 # ==== References ==============================================================
 
@@ -174,13 +174,15 @@ county_crosswalk <-
       !is.na(cell_county) ~ "cell",
       !is.na(name_county) ~ "county name"
     ),
+    # A folded place uses its own share of residents in the town's county.
     county_share = case_when(
-      county_method == "cell" ~ county_share,
+      county_method == "cell" ~ coalesce(place_county_share, county_share),
       !is.na(county_geoid) ~ 1
     ),
     city_geoid = if_else(county_only, NA_character_, geoid),
     city_level = if_else(county_only, NA_character_, geo_level),
     city_name = if_else(county_only, NA_character_, matched_name),
+    city_share = if_else(county_only, NA_real_, cell_share),
     match_tier,
     reason
   ) |>
@@ -207,7 +209,9 @@ stopifnot(
     is.na(county_crosswalk$csa_geoid),
     is.na(county_crosswalk$csa_name)
   ),
-  all(is.na(county_crosswalk$cbsa_geoid) | !is.na(county_crosswalk$county_geoid)),
+  all(
+    is.na(county_crosswalk$cbsa_geoid) | !is.na(county_crosswalk$county_geoid)
+  ),
   all(
     is.na(county_crosswalk$county_geoid) |
       county_crosswalk$county_geoid %in% counties$county_geoid
@@ -222,7 +226,10 @@ stopifnot(
   )
 )
 
-arrow::write_parquet(county_crosswalk, "data/city-county-cbsa-crosswalk.parquet")
+arrow::write_parquet(
+  county_crosswalk,
+  "data/city-county-cbsa-crosswalk.parquet"
+)
 
 # ==== Counts ==================================================================
 

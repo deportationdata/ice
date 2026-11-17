@@ -18,7 +18,7 @@
 library(tidyverse)
 
 source("code/functions/normalize_city.R") # Helper functions/objects for normalizing city/state names
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/559841da212143b706678866b736883d48cf8d4f/data"
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/a709a91b7d78e53bed9b665294168fa5e9df6c2d/data"
 options(timeout = 1800) # the 17 MB counties file downloads at ~200 KB/s from GitHub LFS
 
 # ==== References ==============================================================
@@ -56,6 +56,8 @@ places_lookup <-
     raw_level = geo_level,
     is_cdp,
     cell_geoid,
+    cell_share,
+    place_county_share = county_share,
     cell_level,
     cell_namelsad,
     rule
@@ -76,6 +78,8 @@ balance_lookup <-
     raw_level = geo_level,
     is_cdp,
     cell_geoid,
+    cell_share,
+    place_county_share = county_share,
     cell_level,
     cell_namelsad,
     rule
@@ -109,6 +113,7 @@ county_subdivision_lookup <-
       TRUE ~ 5
     ),
     cell_geoid,
+    cell_share,
     cell_level,
     cell_namelsad,
     rule,
@@ -481,6 +486,8 @@ crosswalk_out <-
     raw_level,
     raw_name,
     is_cdp,
+    cell_share,
+    place_county_share,
     rule,
     match_tier,
     confidence,
