@@ -8,9 +8,9 @@ arrests_df <-
   arrow::read_parquet("data/intermediate/arrests-latest-read.parquet")
 
 # ---- City geography ----
-# city-county-cbsa.R carries the city columns with a county-only match (T4, or a
-# manual alias to a county such as Louisville) blanked, so the city fields
-# never hold a county.
+# city-county-cbsa.R blanks the city columns for a county-only match (T4, or a
+# manual alias to a county), so the city fields hold a county only where the
+# county is itself the cell (the island territories).
 county_crosswalk <-
   arrow::read_parquet("data/city-county-cbsa-crosswalk.parquet")
 
@@ -24,7 +24,8 @@ arrests_df <-
         key_state,
         apprehension_city_geoid = city_geoid,
         apprehension_city_geo_level = city_level,
-        apprehension_city_name_census = city_name,
+        apprehension_city_name = city_name,
+        apprehension_city_name_census = city_name_census,
         apprehension_city_share = city_share,
         city_match_tier = match_tier,
         apprehension_county_geoid = county_geoid,
@@ -43,7 +44,8 @@ arrests_df <-
   )
 
 # ---- Check: city geography ----
-# every matched string has a city, except the county-only matches
+# unresolved (T6) rows stay under 3% of rows with a usable city string;
+# strings absent from the crosswalk are not counted
 arrests_df |>
   filter(
     !is.na(key_city),
@@ -69,6 +71,7 @@ arrests_df <-
   relocate(
     apprehension_city_geoid,
     apprehension_city_geo_level,
+    apprehension_city_name,
     apprehension_city_name_census,
     apprehension_city_share,
     apprehension_county_geoid,

@@ -48,6 +48,7 @@ arrests |>
       apprehension_city_common_case,
       apprehension_city_geoid,
       apprehension_city_geo_level,
+      apprehension_city_name,
       apprehension_city_name_census,
       apprehension_city_share,
       apprehension_county_geoid,
@@ -241,6 +242,12 @@ arrests_with_detentions |>
   col_vals_expr(
     expr(
       is.na(apprehension_city_geoid) == is.na(apprehension_city_name_census)
+    ),
+    actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
+  ) |>
+  col_vals_expr(
+    expr(
+      is.na(apprehension_city_geoid) == is.na(apprehension_city_name)
     ),
     actions = action_levels(warn_at = 0.0001, stop_at = 0.001)
   ) |>

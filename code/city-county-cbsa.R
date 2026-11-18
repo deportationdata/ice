@@ -11,11 +11,14 @@ options(timeout = 1800)
 
 # ==== References ==============================================================
 
-counties <-
+counties_in <-
   arrow::read_parquet(
     str_c(shp_url, "/counties-sf.parquet"),
-    col_select = c("geoid", "stusps", "name")
-  ) |>
+    col_select = c("geoid", "stusps", "name", "cbsa_geoid", "csa_geoid")
+  )
+
+counties <-
+  counties_in |>
   left_join(state_names, by = "stusps") |>
   transmute(
     county_geoid = geoid,
@@ -26,12 +29,9 @@ counties <-
   )
 
 county_cbsa <-
-  arrow::read_parquet(
-    str_c(shp_url, "/counties-sf.parquet"),
-    col_select = c("geoid", "cbsa_geoid", "csa_geoid")
-  ) |>
+  counties_in |>
   filter(!is.na(cbsa_geoid)) |>
-  rename(county_geoid = geoid) |>
+  select(county_geoid = geoid, cbsa_geoid, csa_geoid) |>
   left_join(
     arrow::read_parquet(
       str_c(shp_url, "/cbsas-sf.parquet"),
@@ -182,6 +182,7 @@ county_crosswalk <-
     city_geoid = if_else(county_only, NA_character_, geoid),
     city_level = if_else(county_only, NA_character_, geo_level),
     city_name = if_else(county_only, NA_character_, matched_name),
+    city_name_census = if_else(county_only, NA_character_, matched_name_census),
     city_share = if_else(county_only, NA_real_, cell_share),
     match_tier,
     reason
@@ -211,6 +212,14 @@ stopifnot(
   ),
   all(
     is.na(county_crosswalk$cbsa_geoid) | !is.na(county_crosswalk$county_geoid)
+  ),
+  with(
+    county_crosswalk,
+    all(
+      is.na(county_stusps) |
+        county_stusps ==
+          state_names$stusps[match(key_state, state_names$key_state)]
+    )
   ),
   all(
     is.na(county_crosswalk$county_geoid) |

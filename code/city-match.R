@@ -7,13 +7,13 @@
 # Records not yet assigned to counties are joined with counties in `city-county-cbsa.R`.
 #
 # Tiers:
-# T0: Excludes garbage values, records missing state key, and some known non-place values defined in `stoplist`
+# T0: Excludes records missing a city, garbage values, and some known non-place values defined in `stoplist`
 # T1: Manual match for specific known values (neighborhoods, obvious data entry errors)
 # T2: Exact matches with a named place
 # T3: Exact matches with a county subdivision
 # T4: Exact matches with a county
 # T5: Remaining city/state keys matched to GNIS places corresponding to single points within a cell
-# T6: Unmatched remainder
+# T6: Unmatched remainder, including records with a city but no state
 
 library(tidyverse)
 
@@ -482,6 +482,7 @@ crosswalk_out <-
     geoid = cell_geoid,
     geo_level = cell_level,
     matched_name = coalesce(display_name, cell_name, cell_namelsad),
+    matched_name_census = cell_namelsad,
     raw_geoid,
     raw_level,
     raw_name,
