@@ -236,8 +236,8 @@ removals_with_detentions <- removals_with_anon_id_deduped |>
     relationship = "one-to-one"
   ) |>
   mutate(
-    has_detention_stay = !is.na(stay_ID),
-    id_in_detentions = anonymized_unique_identifier %in% detention_ids
+    has_detention_stay = !is.na(stay_ID), # Has recent detention stay
+    id_in_detentions = anonymized_unique_identifier %in% detention_ids # Ever detained
   )
 
 # Better to drop any of these cols that we don't want to output, but keeping for now
