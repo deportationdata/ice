@@ -151,9 +151,9 @@ setorder(
 
 removals_df[,
   `:=`(
-    episode_count = .GRP,
-    episode_first = seq_len(.N) == 1L,
-    episode_last = seq_len(.N) == .N,
+    duplicate_episode_count = .GRP,
+    duplicate_episode_first = seq_len(.N) == 1L,
+    duplicate_episode_last = seq_len(.N) == .N,
     duplicate_likely = fifelse(
       is.na(anonymized_unique_identifier),
       as.logical(NA),
@@ -167,7 +167,7 @@ removals_df[,
 removals_df <-
   removals_df |>
   as_tibble() |>
-  mutate(duplicate_drop_row = duplicate_likely & !episode_last)
+  mutate(duplicate_drop_row = duplicate_likely & !duplicate_episode_last)
 
 # ---- Rename and organize to match other datasets ----
 
