@@ -163,11 +163,11 @@ removals_df[,
   by = .(anonymized_identifier_nona, departed_date)
 ]
 
-# Prefer last record; appear to have better info, but should check
+# Prefer first record as in other datasets
 removals_df <-
   removals_df |>
   as_tibble() |>
-  mutate(duplicate_drop_row = duplicate_likely & !duplicate_episode_last)
+  mutate(duplicate_drop_row = duplicate_likely & !duplicate_episode_first)
 
 # ---- Rename and organize to match other datasets ----
 
