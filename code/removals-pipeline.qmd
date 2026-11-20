@@ -1,0 +1,56 @@
+---
+echo: false
+warning: false
+message: false
+error: false
+---
+
+Documentation of removals pipeline and join to arrests/detention stays.
+
+```{r}
+
+library(tidyverse)
+
+stays <- arrow::read_parquet(here::here("data/detention-stays-latest.parquet"))
+removals <- arrow::read_parquet(here::here("data/removals-latest.parquet"))
+joined <- arrow::read_parquet(here::here("data/joined-arrests-detention-stays-latest.parquet"))
+
+```
+
+What is structure of removals data currently in stays dataset (derived from detention stints)?
+
+```{r}
+
+stays <- stays |>
+  group_by(unique_identifier) |>
+  mutate(n_departed_date = n_distinct(departed_date),
+         n_stays = n_distinct(stay_ID),
+         ) |>
+  ungroup() |>
+  mutate(bookout_to_deport_days = difftime(departed_date, as.Date(stay_book_out_date_time), units = "days"))
+
+
+```
+
+```{r}
+
+hist(stays$n_departed_date)
+hist(stays$n_stays)
+hist(as.numeric(stays$bookout_to_deport_days))
+mean(stays$bookout_to_deport_days, na.rm=TRUE)
+median(stays$bookout_to_deport_days, na.rm=TRUE)
+
+stays |> count(n_departed_date, n_stays)
+
+sum(stays$n_departed_date > 1)
+
+```
+
+```{r}
+
+removals_via_stays <- stays |>
+  filter(stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return")) |>
+  arrange(unique_identifier) |>
+  select(stay_ID, stay_book_in_date_time, stay_book_out_date_time, departed_date, bookout_to_deport_days, departure_country, stay_release_reason, n_departed_date, n_stays)
+
+```
