@@ -60,7 +60,7 @@ stay_removal_pairs <-
   ) |>
   select(stay_ID, removal_ID)
 
-# ---- Merge stays onto arrests ----
+# ---- Merge stays onto removals ----
 n_pre <- nrow(joined_arrests_detention_stays)
 
 joined_arrests_detention_stays_removals <-
