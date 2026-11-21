@@ -94,6 +94,8 @@ removals_df <-
     birth_year = as.integer(birth_year)
   )
 
+rows_in <- nrow(removals_df)
+
 removals_df <-
   removals_df |>
   mutate(
@@ -180,6 +182,8 @@ removals_df <- removals_df |>
   ) |>
   relocate(file_original, sheet_original, row_original, .after = last_col()) |>
   arrange(file_original, sheet_original, row_original)
+
+stopifnot(nrow(removals_df) == rows_in)
 
 # ---- Save Outputs ----
 arrow::write_parquet(
