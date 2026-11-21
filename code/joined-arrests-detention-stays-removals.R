@@ -74,7 +74,10 @@ joined_arrests_detention_stays_removals <-
   ) |>
   mutate(has_removal = !is.na(removal_ID))
 
-stopifnot(nrow(joined_arrests_detention_stays) == n_pre)
+stopifnot(nrow(joined_arrests_detention_stays_removals) == n_pre)
+
+joined_arrests_detention_stays_removals |>
+  arrow::write_parquet(here::here("data/joined-arrests-detention-stays-removals-latest.parquet"))
 
 # ---- Explore diff ----
 
