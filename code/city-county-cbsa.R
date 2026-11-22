@@ -6,7 +6,7 @@
 library(tidyverse)
 
 source("code/functions/normalize_city.R")
-shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/a709a91b7d78e53bed9b665294168fa5e9df6c2d/data"
+shp_url <- "https://github.com/deportationdata/us-shapefiles/raw/aab0e445e70b5e103df25a5542d67ab5c8b44374/data"
 options(timeout = 1800)
 
 # ==== References ==============================================================
