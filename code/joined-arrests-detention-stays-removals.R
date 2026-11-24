@@ -76,24 +76,10 @@ joined_arrests_detention_stays_removals <-
 
 stopifnot(nrow(joined_arrests_detention_stays_removals) == n_pre)
 
+# ---- TO-DO: Fix cols
+
 joined_arrests_detention_stays_removals |>
   arrow::write_parquet(here::here("data/joined-arrests-detention-stays-removals-latest.parquet"))
 
 # ---- Explore diff ----
 
-joined_arrests_detention_stays_removals <- joined_arrests_detention_stays_removals %>%
-  mutate(diff_departed_date = if_else(
-          condition = departed_date != departed_date_removal,
-          true = TRUE,
-          false = FALSE,
-          missing = NA),
-        new_date = is.na(departed_date) & !is.na(departed_date_removal),
-        lost_date = !is.na(departed_date) & is.na(departed_date_removal),
-        is_same_departure_country = departure_country == departure_country_removal)
-
-sum(!joined_arrests_detention_stays_removals$diff_departed_date, na.rm=TRUE)
-sum(!joined_arrests_detention_stays_removals$is_same_departure_country, na.rm =TRUE)
-
-temp <- joined_arrests_detention_stays_removals |>
-  mutate(later_in_removals = departed_date_removal > departed_date) |>
-  select(unique_identifier, stay_book_out_date_time, departed_date, departed_date_removal, diff_departed_date, later_in_removals, new_date, lost_date)
