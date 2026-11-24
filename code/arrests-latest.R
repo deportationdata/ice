@@ -6,6 +6,7 @@ library(pointblank)
 # ---- Functions ----
 source("code/functions/check_dttm_and_convert_to_date.R")
 source("code/functions/is_not_blank_or_redacted.R")
+source("code/functions/country_code.R")
 
 # ---- Read in files ----
 
@@ -664,6 +665,13 @@ arrests_df <-
     apprehension_state_fill_source,
     .before = apprehension_state_original
   ) |>
+  mutate(across(
+    c(citizenship_country, departure_country),
+    country_code,
+    .names = "{.col}_code"
+  )) |>
+  relocate(citizenship_country_code, .after = citizenship_country) |>
+  relocate(departure_country_code, .after = departure_country) |>
   relocate(file_original, sheet_original, row_original, .after = last_col())
 
 # ---- Save Outputs ----

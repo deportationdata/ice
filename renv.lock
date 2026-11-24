@@ -1139,6 +1139,39 @@
       "Maintainer": "Hadley Wickham <hadley@rstudio.com>",
       "Repository": "CRAN"
     },
+    "countrycode": {
+      "Package": "countrycode",
+      "Version": "1.9.0",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 2.10)"
+      ],
+      "Imports": [
+        null
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        "pkgsite",
+        "eurostat",
+        "testthat",
+        "tibble",
+        "yaml",
+        "ISOcodes"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL-3",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "no",
+      "Repository": "CRAN",
+      "Type": "source"
+    },
     "cpp11": {
       "Package": "cpp11",
       "Version": "0.5.5",
