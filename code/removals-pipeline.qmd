@@ -5,9 +5,17 @@ message: false
 error: false
 ---
 
-Documentation of removals pipeline and join to arrests/detention stays.
+# Documentation of removals pipeline and join to arrests/detention stays.
 
-```{r}
+Goal: characterize interior deportations.
+
+Questions:
+- What about records that have arrest, no detain, but have removal?
+- What about removals more than 10 days after detention release?
+- How to deal with/report logically-inconsistent records?
+
+```{r setup}
+options(scipen = 999)
 
 library(tidyverse)
 
@@ -18,9 +26,7 @@ joined_w_removals <- arrow::read_parquet(here::here("data/joined-arrests-detenti
 
 ```
 
-What is structure of removals data currently in stays dataset (derived from detention stints)?
-
-```{r}
+```{r load_datasets}
 
 # Fixing one bad value that obscures real variation
 # stays$departed_date[stays$departed_date == as.Date("1923-09-14")] <- as.Date("2023-09-14")
@@ -28,10 +34,11 @@ What is structure of removals data currently in stays dataset (derived from dete
 stays <- stays |>
   group_by(unique_identifier) |>
   mutate(n_departed_date = n_distinct(departed_date),
-         n_stays = n_distinct(stay_ID),
+         n_stays = n_distinct(stay_ID)
          ) |>
   ungroup() |>
-  mutate(bookout_to_deport_days = difftime(departed_date, stay_book_out_date_time, units = "days"))
+  mutate(bookout_to_deport_days = difftime(departed_date, stay_book_out_date_time, units = "days"),
+         id_in_removals = unique_identifier %in% removals$unique_identifier)
 
 # Fixing one bad value that obscures real variation
 # joined$departed_date[joined$departed_date == as.Date("1923-09-14")] <- as.Date("2023-09-14")
@@ -39,26 +46,89 @@ stays <- stays |>
 joined <- joined |>
   group_by(unique_identifier) |>
   mutate(n_departed_date = n_distinct(departed_date),
-         n_stays = n_distinct(stay_ID),
+         n_stays = n_distinct(stay_ID)
          ) |>
   ungroup() |>
-  mutate(bookout_to_deport_days = difftime(departed_date, stay_book_out_date_time, units = "days"))
+  mutate(bookout_to_deport_days = difftime(departed_date, stay_book_out_date_time, units = "days"),
+         id_in_removals = unique_identifier %in% removals$unique_identifier)
 
 # (Bad value is not matched here)
 
 joined_w_removals <- joined_w_removals |>
   group_by(unique_identifier) |>
   mutate(n_departed_date = n_distinct(departed_date_removal), # different field name here for now
-         n_stays = n_distinct(stay_ID),
+         n_stays = n_distinct(stay_ID)
          ) |>
   ungroup() |>
-  mutate(bookout_to_deport_days = difftime(departed_date_removal, stay_book_out_date_time, units = "days"))
+  mutate(bookout_to_deport_days = difftime(departed_date_removal, stay_book_out_date_time, units = "days"), # different field name here for now
+         id_in_removals = unique_identifier %in% removals$unique_identifier)
 
 ```
 
+## What is structure of removals data currently in stays dataset (derived from detention stints)?
+
+ICE detention data contain removal information (`departed_date`, `departure_country`) which are joined on an indeterminate key. In most cases, if an individual has multiple detention stays, and one ends with removal, stays preceding that removal inherit data from its removal field in what we can call a removal "episode" (set of stays preceding a removal). If an individual has no associated removal, removals fields are missing.
+
+```{r stay_example_n_greater_than_1}
+
+stays |> filter(n_stays > 1) |>
+  arrange(unique_identifier) |>
+  select(unique_identifier, stay_book_in_date_time, stay_book_out_date_time, stay_release_reason, departed_date) |>
+  head(10)
+
+```
+
+Some individuals may have multiple removal episodes which follow the same logic:
+
+```{r stay_example_n_greater_than_2}
+
+stays |> filter(n_stays > 2) |>
+  arrange(unique_identifier) |>
+  select(unique_identifier, stay_book_in_date_time, stay_book_out_date_time, stay_release_reason, departed_date) |>
+  head(10)
+
+```
+
+In the majority of cases, the presence of removal information is logically consistent with this table structure, e.g. absent for those never removed across available data; or present for those removed according to available data. (Due to the removal episode logic described above, many stays that do not end in removal have removal information associated with another stay or removal episode, this is expected.)
+
+However, a small number of records have removal information for which the source is unclear (removal information in the detentions table but no associated records in the removals dataset) or missing (stay is categorized as a removal but neither detentions nor removals have associated information).
+
 ```{r}
 
-cols_to_select <- c("stay_ID", "stay_book_in_date_time", "stay_book_out_date_time", "departed_date", "bookout_to_deport_days", "departure_country", "stay_release_reason", "n_departed_date", "n_stays")
+stays <- stays |>
+  mutate(is_removal = stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return"),
+        departed_date_from_detentions = !is.na(departed_date),
+        interpretation = case_when(
+          is_removal == FALSE & departed_date_from_detentions == FALSE & id_in_removals == FALSE ~ "Never removed",
+          is_removal == FALSE & departed_date_from_detentions == FALSE & id_in_removals == TRUE ~ "Removal associated with different episode",
+          is_removal == FALSE & departed_date_from_detentions == TRUE & id_in_removals == FALSE ~ "Removal info source unclear",
+          is_removal == FALSE & departed_date_from_detentions == TRUE & id_in_removals == TRUE ~ "Removal associated with later stay in episode",
+          is_removal == TRUE & departed_date_from_detentions == FALSE & id_in_removals == FALSE ~ "Removal info missing",
+          is_removal == TRUE & departed_date_from_detentions == FALSE & id_in_removals == TRUE ~ "Removal info available but not associated with stay",
+          is_removal == TRUE & departed_date_from_detentions == TRUE & id_in_removals == FALSE ~ "Removal info source unclear",
+          is_removal == TRUE & departed_date_from_detentions == TRUE & id_in_removals == TRUE ~ "Removal info present"
+        ))
+
+stays |> count(is_removal, departed_date_from_detentions, id_in_removals, interpretation)
+
+```
+
+## Comparison of removals data
+
+In `joined-arrests-detention-stays-removals.R`, we follow the same steps used to join arrests with detention stays to join in removals which match to unique ID, and fall within five days before and ten days after detention book out.
+
+Removals this will fail to match:
+- Removals outside -5/+10 days of detention book out
+- Removals not associated with detention
+- Removals outside the timeframe of removals data (2022-10-01 to 2026-08-09)
+
+Questions:
+- Do we want to pass `departed_date` and other removals info from detentions through if it fails to merge in from removals table? If so, what criteria?
+- How should we deal with matches to stays that don't end in removal?
+
+```{r}
+
+cols_to_select <- c("stay_ID", "stay_book_in_date_time", "stay_book_out_date_time", "departed_date", "bookout_to_deport_days", "departure_country", "stay_release_reason", "n_departed_date", "n_stays", "id_in_removals")
 
 removals_via_stays <- stays |>
   filter(stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return")) |>
@@ -82,6 +152,9 @@ dat <- rbind(removals_via_stays, removals_via_joined) |>
   rbind(removals_via_joined_w_removals)
 
 ```
+
+Here we compare summary stats for stays ending in removal in three datasets: "stays", "joined-arrests-detention-stays", and "joined-arrests-detention-stays-removals". This is not super informative yet but we note that "joined-arrests-detention-stays-removals" retains all records in "joined-arrests-detention-stays" and bookout date to deportation date range matches criteria above. Slightly lower proportion of records correspond to IDs in removals--why?
+
 ```{r}
 
 tab1 <- dat |>
@@ -90,26 +163,30 @@ tab1 <- dat |>
             mean_bookout_to_deport_days = as.numeric(mean(bookout_to_deport_days, na.rm=TRUE)),
             med_bookout_to_deport_days = as.numeric(median(bookout_to_deport_days, na.rm=TRUE)),
             min_bookout_to_deport_days = as.numeric(min(bookout_to_deport_days, na.rm=TRUE)),
-            max_bookout_to_deport_days = as.numeric(min(bookout_to_deport_days, na.rm=TRUE)),
+            max_bookout_to_deport_days = as.numeric(max(bookout_to_deport_days, na.rm=TRUE)),
             mean_n_stays = mean(n_stays, na.rm=TRUE),
             med_n_stays = median(n_stays, na.rm=TRUE),
             mean_n_departed_date = mean(n_departed_date, na.rm=TRUE),
-            med_n_departed_date = median(n_departed_date, na.rm=TRUE)) |>
-  pivot_longer(-1, names_to = "stat", values_to = "value") |>
-  pivot_wider(names_from = 1, values_from = value)
+            med_n_departed_date = median(n_departed_date, na.rm=TRUE),
+            n_ids_not_in_removals = sum(id_in_removals == FALSE, na.rm = TRUE),
+            pct_ids_in_removals = (sum(id_in_removals, na.rm=TRUE) / n()) * 100,
+            .groups = "drop") |>
+  # Format each type, then everything is character and can share one column
+  mutate(
+    across(where(\(x) inherits(x, c("Date", "POSIXt"))),
+           \(x) format(x, "%Y-%m-%d")),
+    across(where(is.integer),
+           \(x) format(x, big.mark = ",", trim = TRUE)),
+    across(where(is.double),
+           \(x) formatC(x, format = "f", digits = 2, big.mark = ","))
+  ) |>
+  pivot_longer(-dataset, names_to = "stat", values_to = "value") |>
+  pivot_wider(names_from = dataset, values_from = value)
 
 tab1
 ```
 
-```{r}
-
-tab2 <- dat |>
-  mutate(departed_year = year(departed_date)) |>
-  count(dataset, departed_year)
-
-tab2
-
-```
+Table exported from `joined-arrests-detention-stays-removals.R` includes removals fields derived from both detentions and removals tables, so we can compare values pre- and post-merge.
 
 ```{r}
 
@@ -127,18 +204,8 @@ diff_dat <- joined_w_removals %>%
         is_same_departure_country = departure_country == departure_country_removal,
         id_in_removals = unique_identifier %in% removals$unique_identifier,
         bookout_to_deport_days = difftime(departed_date, as.Date(stay_book_out_date_time), units = "days"),
-        match_rule = case_when(
-          match == TRUE & diff_departed_date == FALSE ~ "Match, same date",
-          match == TRUE & diff_departed_date == TRUE ~ "Match, different date",
-          match == TRUE & is.na(diff_departed_date) ~ "Match, no departed date in detentions",
-          !stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return"
-        ) ~ "Stay doesn't end in removal",
-          id_in_removals == FALSE & is.na(departed_date) ~ "No records match ID in removals table, does not have departed date in detentions",
-          id_in_removals == FALSE & !is.na(departed_date) ~ "No records match ID in removals table, has departed date in detentions",
-          as.numeric(bookout_to_deport_days) <= -5 | as.numeric(bookout_to_deport_days) >= 10 ~ "Bookout/depart dates out of range",
-          lost_date == TRUE & id_in_removals == TRUE ~ "ID in removals but doesn't correspond to departed date in detentions",
-          lost_date == FALSE & id_in_removals == TRUE ~ "ID in removals but no departed date in detentions"
-        )) |>
+        bookout_to_deport_days_removal = difftime(departed_date_removal, as.Date(stay_book_out_date_time), units = "days")
+        ) |>
   select(unique_identifier,
          stay_ID,
          removal_ID,
@@ -147,6 +214,7 @@ diff_dat <- joined_w_removals %>%
          departed_date,
          departed_date_removal,
          bookout_to_deport_days,
+         bookout_to_deport_days_removal,
          diff_departed_date,
          new_date,
          lost_date,
@@ -154,19 +222,29 @@ diff_dat <- joined_w_removals %>%
          id_in_removals,
          is_removal,
          departed_date_from_detentions,
-         match,
-         match_rule) |>
+         match) |>
   arrange(unique_identifier)
 
+lookup <- tribble(
+  ~is_removal, ~match, ~id_in_removals, ~departed_date_from_detentions, ~diff_departed_date, ~interpretation, ~status,
+  TRUE,  TRUE,  TRUE,  TRUE,  FALSE, "Match, agrees with detentions table", "OK",
+  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  "Match, disagrees with detentions table", "investigate",
+  TRUE,  TRUE,  TRUE,  FALSE, NA,    "Match, no departed date in detentions table", "OK",
+  TRUE,  FALSE, TRUE,  TRUE,  NA,    "No match, departed date in detentions table and ID present in removals", "pass through?",
+  TRUE,  FALSE, TRUE,  FALSE, NA,    "No match, no departed date in detentions table but ID present in removals", "investigate",
+  TRUE,  FALSE, FALSE, TRUE,  NA,    "No match, ID not present in removals but departed date in detentions table", "pass through?",
+  TRUE,  FALSE, FALSE, FALSE, NA,    "No match, no removals data", "BAD (missing data?)",
+  FALSE, TRUE,  TRUE,  TRUE,  FALSE, "Stay doesn't end in removal, but we match same date as present in detentions table", "OK (We're not explicitly excluding non-removals from match)",
+  FALSE, TRUE,  TRUE,  TRUE,  TRUE,  "Stay doesn't end in removal, we match different date than detentions table", "investigate",
+  FALSE, TRUE,  TRUE,  FALSE, NA,    "Stay doesn't end in removal, we match, no date in detentions table", "investigate",
+  FALSE, FALSE, TRUE,  TRUE,  NA,    "Stay doesn't end in removal, we don't match, but ID in removals and departed date in detentions table", "OK (Probably removed on another stay)",
+  FALSE, FALSE, TRUE,  FALSE, NA,    "Stay doesn't end in removal, but ID in removals table", "OK (Probably removed on another stay)",
+  FALSE, FALSE, FALSE, TRUE,  NA,    "Stay doesn't end in removal, departed date in detentions but no ID in removals table", "BAD (missing data?)",
+  FALSE, FALSE, FALSE, FALSE, NA,    "Stay doesn't end in removal, no removals data", "OK (Never/not yet removed)"
+)
 
-```
-
-Defining match rules above isn't quite accurate
-
-```{r}
-tab3 <- diff_dat |> count(match_rule) |> arrange(desc(n))
-
-print(tab3)
+diff_dat <- diff_dat |>
+   left_join(lookup, by = c("is_removal", "match", "id_in_removals", "departed_date_from_detentions", "diff_departed_date"))
 
 ```
 
@@ -175,20 +253,58 @@ We match some records that aren't removals because we don't try to exclude those
 ```{r}
 
 tab4 <- diff_dat |>
-   count(is_removal, match, id_in_removals,departed_date_from_detentions, diff_departed_date) |>
+   count(is_removal, match, id_in_removals,departed_date_from_detentions, diff_departed_date, interpretation, status) |>
+   mutate(pct = (n / sum(n) * 100)) |>
    arrange(desc(is_removal), desc(match), desc(id_in_removals), desc(departed_date_from_detentions))
 
-print(tab4)
+tab4
 ```
 
-We intentionally do not match:
-- Detention stays that end for a reason other than removal, even if that person later removed (not quite true, see above)
+### Match, disagrees with detentions table
 
-Reasons we fail to match with records that have a departed date in detentions table:
-- Departed date is outside of range -5/+10 from stay book out date
-- No corresponding removal in removals table (no records correspond to ID)
-- No corresponding removal in removals table (other removal records correspond to ID)
+For most of these we find a removal with a smaller delta to detention book out date. For others delta increases, presumably reflective of later data update in removals table? Most have 2 or more associated removals.
 
+```{r}
+
+match_disagrees <- diff_dat |>
+  filter(interpretation == "Match, disagrees with detentions table") |>
+  mutate(smaller_delta = abs(bookout_to_deport_days) > abs(bookout_to_deport_days_removal))
+
+match_disagrees |> count(smaller_delta)
+
+match_disagrees_removals <- removals |>
+  filter(unique_identifier %in% match_disagrees$unique_identifier) |>
+  group_by(unique_identifier) |>
+  mutate(n_removals = n()) |>
+  ungroup()
+
+mean(match_disagrees_removals$n_removals)
+
+```
+
+### No match, departed date in detentions table and ID present in removals
+
+Most have 1 removal. Most are out of match bounds but may be correct matches. At least one example of a record which has only one removal record but multiple stays with departed date info from detentions table which corresponds to book out.
+
+```{r}
+
+no_match_info_present <- diff_dat |>
+  filter(interpretation == "No match, departed date in detentions table and ID present in removals") |>
+  mutate(in_bounds = bookout_to_deport_days >= -5 & bookout_to_deport_days <= 10)
+
+no_match_info_present |> count(in_bounds)
+
+no_match_info_present_removals <- removals |>
+  filter(unique_identifier %in% no_match_info_present$unique_identifier) |>
+  group_by(unique_identifier) |>
+  mutate(n_removals = n()) |>
+  ungroup()
+
+median(no_match_info_present_removals$n_removals)
+
+```
+
+### Errata
 
 00483833e4e74b723299c8dd9f016db9583ea9e2
 Example of a record where stay matched to arrest is not the stay that ended with removal--would be resolved if we include remainder of stays in joined
