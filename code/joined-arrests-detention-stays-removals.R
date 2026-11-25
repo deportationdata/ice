@@ -22,6 +22,7 @@ removals_deduped <-
     -duplicate_likely
   ) |>
   mutate(removal_ID = row_number()) |>
+  # flag all columns from removals table with "_removal"
   rename_with(~ str_c(.x, "_removal"), -c(removal_ID, unique_identifier))
 
 # ---- Match stays to removals ----
@@ -72,14 +73,42 @@ joined_arrests_detention_stays_removals <-
     by = "stay_ID",
     relationship = "one-to-one"
   ) |>
-  mutate(has_removal = !is.na(removal_ID))
+  mutate(has_matched_removal = !is.na(removal_ID))
 
 stopifnot(nrow(joined_arrests_detention_stays_removals) == n_pre)
 
-# ---- TO-DO: Fix cols
-
 joined_arrests_detention_stays_removals |>
-  arrow::write_parquet(here::here("data/joined-arrests-detention-stays-removals-latest.parquet"))
+  arrow::write_parquet(here::here("data/joined-arrests-detention-stays-removals-diff.parquet"))
 
-# ---- Explore diff ----
+# Table now has cols from both joined and removals, need to select output cols without duplicates
+# Where we match a removal, retain `departed_date`, `departure_country`, `port_of_departure` (any other cols?)
+# Where we fail to match a removal but these cols are present, do we retain? Below retains
 
+joined_arrests_detention_stays_removals_clean <- joined_arrests_detention_stays_removals |>
+  mutate(
+    departed_date = case_when(
+      has_matched_removal == TRUE ~ departed_date_removal,
+      TRUE ~ departed_date),
+    departure_country = case_when(
+      has_matched_removal == TRUE ~ departure_country_removal,
+      TRUE ~ departure_country),
+    port_of_departure = case_when(
+      has_matched_removal == TRUE ~ port_of_departure_removal,
+      TRUE ~ NA)
+  ) |>
+  dplyr::select(!ends_with("_removal") | has_matched_removal)
+
+# What to do with stays that are not typed as removals but have removal info?
+# How do we ensure that removals info agrees across stays, including those we matched and did not match?
+
+joined_arrests_detention_stays_removals_clean |>
+  mutate(is_removal = stay_release_reason %in%
+    c("Removed",
+    "Voluntary departure",
+    "Voluntary Return",
+    "Title 42 Return"),
+    has_departed_date = !is.na(departed_date)) |>
+  count(is_removal, has_matched_removal, has_departed_date)
+
+# How would we reconstruct and validate "removal episodes"?
+# A removal can't occur while someone is detained (except date/datetime overlap)
