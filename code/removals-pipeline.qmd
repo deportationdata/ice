@@ -8,7 +8,7 @@ output: html
 
 # Documentation of removals pipeline and join to arrests/detention stays.
 
-Goal: characterize interior deportations.
+Goal: characterize interior deportations without double-counting.
 
 Questions:
 
@@ -26,7 +26,7 @@ library(tidyverse)
 stays <- arrow::read_parquet(here::here("data/detention-stays-latest.parquet"))
 removals <- arrow::read_parquet(here::here("data/removals-latest.parquet"))
 joined <- arrow::read_parquet(here::here("data/joined-arrests-detention-stays-latest.parquet"))
-joined_w_removals <- arrow::read_parquet(here::here("data/joined-arrests-detention-stays-removals-diff.parquet"))
+joined_w_removals <- arrow::read_parquet(here::here("data/joined-arrests-detention-stays-removals-diff.parquet")) # Interim file with diagnostic cols from join
 
 ```
 
@@ -73,7 +73,7 @@ joined_w_removals <- joined_w_removals |>
 
 ## What is structure of removals data currently in stays dataset (derived from detention stints)?
 
-ICE detention data contain removal information (`departed_date`, `departure_country`) which are joined on an indeterminate key. In most cases, if an individual has multiple detention stays, and one ends with removal, stays preceding that removal inherit data from its removal field in what we can call a removal "episode" (set of stays preceding a removal). If an individual has no associated removal, removals fields are missing.
+ICE detention data contain removal information (`departed_date`, `departure_country`) which are joined on an indeterminate key that is not included with released data (possibly "Subject ID"). In most cases, if an individual has multiple detention stays, and one ends with removal, stays preceding that removal inherit data from its removal field in what we can call a removal "episode" (set of stays preceding a removal). If an individual has no associated removal, removals fields are missing.
 
 ```{r stay_example_n_greater_than_1}
 
@@ -95,7 +95,7 @@ stays |> filter(n_stays > 2) |>
 
 ```
 
-In the majority of cases, the presence of removal information is logically consistent with this table structure, e.g. absent for those never removed across available data; or present for those removed according to available data. (Due to the removal episode logic described above, many stays that do not end in removal have removal information associated with another stay or removal episode, this is expected.)
+In the majority of cases, the presence of removal information is logically consistent with this table structure, e.g. absent for those never removed across available data; or present for those removed according to available data. (Due to the removal episode logic described above, many stays that do not end in removal have removal information associated with another stay or removal episode, this is expected, but could lead to double-counting of removals if not accounted for.)
 
 However, a small number of records have removal information for which the source is unclear (removal information in the detentions table but no associated records in the removals dataset) or missing (stay is categorized as a removal but neither detentions nor removals have associated information).
 
@@ -120,7 +120,7 @@ stays |> count(is_removal, departed_date_from_detentions, id_in_removals, interp
 
 ```
 
-Aside: Arrests without detentions in joined table mostly don't have associated removal info; for those that do most removals are likely linked to a different arrest/detention episode.
+Aside: Arrests without detentions in joined table mostly don't have associated removal info; for those that do most removals are likely linked to a different arrest/detention episode. (How would we test this?)
 
 ```{r}
 
@@ -304,6 +304,8 @@ lookup <- tribble(
 diff_dat <- diff_dat |>
    left_join(lookup, by = c("is_removal", "match", "id_in_removals", "departed_date_from_detentions", "diff_departed_date"))
 
+stopifnot(sum(is.na(diff_dat$interpretation)) == 0)
+
 ```
 
 We match some records that aren't removals because we don't try to exclude those explicitly
@@ -311,111 +313,229 @@ We match some records that aren't removals because we don't try to exclude those
 ```{r}
 
 tab4 <- diff_dat |>
-   count(is_removal, match, id_in_removals,departed_date_from_detentions, diff_departed_date, interpretation, status) |>
+   count(interpretation, status) |>
    mutate(pct = (n / sum(n) * 100)) |>
-   arrange(desc(is_removal), desc(match), desc(id_in_removals), desc(departed_date_from_detentions))
+   arrange(desc(n))
 
-tab4
+knitr::kable(tab4)
 ```
 
-### Match, disagrees with detentions table
+## Assemble and test in tiers
 
-For most of these we find a removal with a smaller delta to detention book out date. For others delta increases, presumably reflective of later data update in removals table? Most have 2 or more associated removals.
+### Tier 1: Match, agrees with detentions table 
+
+Trivial matches for which departed dates in detentions and removals tables agree, departure clearly associated with stay that is correctly marked as removal.
 
 ```{r}
 
-match_disagrees <- diff_dat |>
-  filter(interpretation == "Match, disagrees with detentions table") |>
-  mutate(smaller_delta = abs(bookout_to_deport_days) > abs(bookout_to_deport_days_removal))
+joined_w_removals <- joined_w_removals |>
+  mutate(row_joined = row_number(),
+         bookout_to_deport_days = difftime(departed_date, stay_book_out_date_time, units = "days"),
+         bookout_to_deport_days_removal = difftime(departed_date_removal, stay_book_out_date_time, units = "days"), # different field name here for now
+         )
 
-match_disagrees |> count(smaller_delta)
+t1 <- joined_w_removals |>
+  filter(stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return"), # is removal
+         !is.na(removal_ID), # positive match
+         !is.na(departed_date), # removal info via detentions table
+         departed_date == departed_date_removal # removal info agrees
+         ) |>
+  mutate(tier = "T1: Good match",
+         rule = "Join all desired removals fields")
 
-match_disagrees_removals <- removals |>
-  filter(unique_identifier %in% match_disagrees$unique_identifier) |>
-  group_by(unique_identifier) |>
-  mutate(n_removals = n()) |>
-  ungroup()
+stopifnot(sum(is.na(t1$unique_identifier)) == 0) # No missing unique IDs
+stopifnot(sum(duplicated(t1$stay_ID)) == 0) # No duplicated stay IDs
+stopifnot(sum(duplicated(t1$removal_ID)) == 0) # No duplicated removal IDs
 
-mean(match_disagrees_removals$n_removals)
-
-# rm(match_disagrees_removals)
-
-```
-
-### No match, departed date in detentions table and ID present in removals
-
-Most have 1 removal. Most are out of match bounds but may be correct matches. At least one example of a record which has only one removal record but multiple stays with departed date info from detentions table which corresponds to book out.
-
-```{r}
-
-no_match_info_present <- diff_dat |>
-  filter(interpretation == "No match, departed date in detentions table and ID present in removals") |>
-  mutate(in_bounds = bookout_to_deport_days >= -5 & bookout_to_deport_days <= 10)
-
-no_match_info_present |> count(in_bounds)
-
-no_match_info_present_removals <- removals |>
-  filter(unique_identifier %in% no_match_info_present$unique_identifier) |>
-  group_by(unique_identifier) |>
-  mutate(n_removals = n()) |>
-  ungroup()
-
-median(no_match_info_present_removals$n_removals)
-
-# rm(no_match_info_present, no_match_info_present_removals)
-
-```
-
-### No match, no departed date in detentions table but ID present in removals
-
-Most matched to another stay that is significantly outside of match bound
-
-```{r}
-
-no_match_no_departed_date_id_in_removals <- diff_dat |>
-  group_by(unique_identifier) |>
-  mutate(matched_elsewhere = sum(!is.na(removal_ID)) > 0) |>
-  filter(interpretation == "No match, no departed date in detentions table but ID present in removals") |> 
-  ungroup() |>
+joined_clean <- t1 |>
   arrange(unique_identifier)
 
-no_match_no_departed_date_id_in_removals_join <- no_match_no_departed_date_id_in_removals |>
-   left_join(stays, by = "stay_ID")
+joined_remainder <- joined_w_removals |>
+  filter(!row_joined %in% joined_clean$row_joined)
 
-temp <- removals |>
-  filter(unique_identifier %in% no_match_no_departed_date_id_in_removals$unique_identifier) |>
-  arrange(unique_identifier) |>
-  left_join(stays, by = "unique_identifier",
-            relationship = "many-to-many",
-            suffix = c("_removals", "_stays")) |>
-  group_by(unique_identifier) |>
-  mutate(n_stays = n_distinct(stay_ID),
-         n_removals = n_distinct(row_original)) |>
-  ungroup() |>
-  mutate(bookout_to_deport_days_2 = difftime(departed_date_removals, stay_book_out_date_time, units = "days")) |>
-  select(unique_identifier, stay_ID, row_original, interpretation, n_stays, n_removals, stay_book_out_date_time, departed_date_removals, departed_date_stays, bookout_to_deport_days, bookout_to_deport_days_2, sort(tidyselect::peek_vars()))
-
-# rm(temp, no_match_no_departed_date_id_in_removals, no_match_no_departed_date_id_in_removals_join)
+stopifnot(nrow(joined_clean) + nrow(joined_remainder) == nrow(joined_w_removals))
 
 ```
 
-### Stay doesn't end in removal, we match different date than detentions table
+### Tier 2: Stay doesn't end in removal, no removals data 
+
+Trivial non-matches with no indication of removal, no overlap of unique IDs with tier 1. Almost 90% of stays accounted for in T1 + T2.
 
 ```{r}
 
-non_removal_match <- diff_dat |>
-  filter(interpretation == "Stay doesn't end in removal, we match different date than detentions table")
+t2 <- joined_remainder |>
+  filter(!stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return"), # is not removal
+         is.na(removal_ID), # negative match
+         !joined_remainder$unique_identifier %in% removals$unique_identifier, # not present in removals table
+         is.na(departed_date), # no removal info via detentions table
+         is.na(departed_date == departed_date_removal)  # removal info comparison null
+         ) |>
+  mutate(tier = "T2: Not removal, no removal info",
+         rule = "Un-matched")
 
-temp <- diff_dat |>
-  filter(unique_identifier %in% non_removal_match$unique_identifier)
+stopifnot(sum(is.na(t2$unique_identifier)) == 0) # No missing unique IDs
+stopifnot(sum(t2$unique_identifier %in% t1$unique_identifier, na.rm = TRUE) == 0) # No overlap with T1
+sum(is.na(t2$stay_ID)) / nrow(t2) # Proportion arrests without detentions
 
-temp2 <- removals |>
-  filter(unique_identifier %in% non_removal_match$unique_identifier)
+joined_clean <- rbind(joined_clean, t2) |>
+  arrange(unique_identifier)
+
+print(nrow(joined_clean) / nrow(joined_w_removals) * 100)
+
+joined_remainder <- joined_w_removals |>
+  filter(!row_joined %in% joined_clean$row_joined)
+
+stopifnot(nrow(joined_clean) + nrow(joined_remainder) == nrow(joined_w_removals))
 
 ```
 
+### Tier 3: Remainder of trivially unmatchable records
+ 
+ These are all flagged as removals because all non-removal records with these characteristics are in T2. Lack any removals data but look like plausible removals, e.g. last detention placement was at a staging facility.
 
-### Errata
+```{r}
 
-00483833e4e74b723299c8dd9f016db9583ea9e2
-Example of a record where stay matched to arrest is not the stay that ended with removal--would be resolved if we include remainder of stays in joined?
+t3 <- joined_remainder |>
+    filter(is.na(departed_date),
+           !joined_remainder$unique_identifier %in% removals$unique_identifier, # not present in removals table
+           !is.na(unique_identifier)
+         ) |>
+    mutate(tier = "T3: Non-matched removal, missing info",
+           rule = "Un-matched, infer removal from detention bookout?")
+
+t3 |>
+  count(stay_release_reason) |>
+  arrange(desc(n))
+
+stopifnot(sum(t3$unique_identifier %in% t1$unique_identifier, na.rm=TRUE) == 0) # No overlap with T1 because no other associated removal
+sum(t3$unique_identifier %in% t2$unique_identifier, na.rm=TRUE) / nrow(t3) # Minimal overlap with T2, indicating other stays that also don't have removal info
+
+joined_clean <- rbind(joined_clean, t3) |>
+  arrange(unique_identifier)
+
+joined_remainder <- joined_w_removals |>
+  filter(!row_joined %in% joined_clean$row_joined)
+
+stopifnot(nrow(joined_clean) + nrow(joined_remainder) == nrow(joined_w_removals))
+
+```
+
+### Tier 4: Arrests missing unique ID
+
+Remaining non-removals missing unique ID (and therefore unmatchable to stays, removals, or other tiers). Keep departed date info where available but fail to match other removals data? How can we be sure not double counting with other records that do have unique ID?
+
+```{r}
+
+t4 <- joined_remainder |>
+  filter(is.na(unique_identifier)) |>
+  mutate(tier = "T4: Arrests missing unique ID",
+         rule = "Un-matched, keep arrest departed date?")
+
+t4 |>
+  mutate(has_departed_date = !is.na(departed_date)) |>
+  count(has_departed_date)
+
+joined_clean <- rbind(joined_clean, t4) |>
+  arrange(unique_identifier)
+
+joined_remainder <- joined_w_removals |>
+  filter(!row_joined %in% joined_clean$row_joined)
+
+stopifnot(nrow(joined_clean) + nrow(joined_remainder) == nrow(joined_w_removals))
+
+```
+
+Of remainder, 66K are not removal stays--could just say we don't care about any associated removals data, but would be nice to prove we captured it elsewhere
+
+Of remainder, 30K are unique IDs with a match in T1
+
+Of remainder, only 6520 are flagged as removals
+
+### Tier 5: Matched removals lacking departed date via detentions table
+
+Stays flagged as removals in detentions table but lacking departed date. We get new dates via match. Some of these are associated with other records in T1, should investigate. Check would be that multiple stays ending in removal don't overlap in some way?
+
+```{r}
+
+t5 <- joined_remainder |>
+  filter(stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return"),
+         is.na(departed_date),
+         !is.na(removal_ID)) |>
+  mutate(tier = "T5: Matched removals lacking departed date via detentions table",
+         rule = "Keep new removal info")
+         
+t5 |>
+  mutate(in_t1 = unique_identifier %in% t1$unique_identifier) |>
+  count(in_t1)
+
+joined_clean <- rbind(joined_clean, t5) |>
+  arrange(unique_identifier)
+
+joined_remainder <- joined_w_removals |>
+  filter(!row_joined %in% joined_clean$row_joined)
+
+stopifnot(nrow(joined_clean) + nrow(joined_remainder) == nrow(joined_w_removals))
+
+```
+
+### T6: Removals that disagree with match
+
+In >90% of cases we select a removal that is closer to detention book out time, but some exception where removals table carries a different date within match bounds.
+
+```{r}
+
+t6 <- joined_remainder |>
+  filter(stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return"),
+         !is.na(removal_ID)) |>
+  mutate(tier = "T6: Matched removals which differ from departed date via detentions table",
+         rule = "Keep new removal info")
+
+t6 |>
+  mutate(in_t1 = unique_identifier %in% t1$unique_identifier,
+         closer_match = abs(bookout_to_deport_days_removal) < abs(bookout_to_deport_days)) |>
+  dplyr::select(unique_identifier, stay_book_out_date_time, departed_date, departed_date_removal, bookout_to_deport_days, bookout_to_deport_days_removal, closer_match, in_t1) |>
+  arrange(unique_identifier)
+
+t6 |>
+  summarize(sum(abs(bookout_to_deport_days_removal) < abs(bookout_to_deport_days))/ n())
+
+joined_clean <- rbind(joined_clean, t6) |>
+  arrange(unique_identifier)
+
+joined_remainder <- joined_w_removals |>
+  filter(!row_joined %in% joined_clean$row_joined)
+
+stopifnot(nrow(joined_clean) + nrow(joined_remainder) == nrow(joined_w_removals))
+
+```
+
+### T7: Remaining unmatched removals
+
+Why not matched? Presumably either out of bounds or associated removal not present in removals table.
+
+```{r}
+
+t7 <- joined_remainder |>
+  filter(stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return"),
+         is.na(removal_ID)) |>
+  mutate(tier = "T7: Remaining removals",
+         rule = "")
+
+t7 |> count(is.na(departed_date), id_in_removals)
+
+```
+
+### T8: Remaining non-removals
+
+What to do with these? Confirm that none of these are only record bearing removal data for a given person; confirm that full record of stays per person logically consistent
+
+```{r}
+
+t8 <- joined_remainder |>
+  filter(!stay_release_reason %in% c("Removed", "Voluntary departure", "Voluntary Return", "Title 42 Return"),
+         is.na(removal_ID)) |>
+  mutate(tier = "T8: Remaining non-removals",
+         rule = "")
+
+
+```

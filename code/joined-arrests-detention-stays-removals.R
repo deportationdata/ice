@@ -99,7 +99,15 @@ joined_arrests_detention_stays_removals_clean <- joined_arrests_detention_stays_
   dplyr::select(!ends_with("_removal") | has_matched_removal)
 
 # What to do with stays that are not typed as removals but have removal info?
-# How do we ensure that removals info agrees across stays, including those we matched and did not match?
+# Simplest option: Only include removal info for stays that end in removal
+# Will exclude a small number of stays which don't end in removal but have departed date/country values from detentions only
+
+# What about removals that we fail to match but that have removals info?
+# Pass thru from detentions? This would allow us to retain subset of records that don't meet match criteria
+# Should be only a couple thousand records, will include some obvious bad values.
+# Won't get port of departure or other records from removals unless we find actually matching removal
+
+# Small number of stays conclude with removal but have no removals info, can't do anything about this, will remain in data but cant be counted
 
 joined_arrests_detention_stays_removals_clean |>
   mutate(is_removal = stay_release_reason %in%
@@ -110,5 +118,3 @@ joined_arrests_detention_stays_removals_clean |>
     has_departed_date = !is.na(departed_date)) |>
   count(is_removal, has_matched_removal, has_departed_date)
 
-# How would we reconstruct and validate "removal episodes"?
-# A removal can't occur while someone is detained (except date/datetime overlap)
