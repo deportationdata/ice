@@ -397,6 +397,8 @@ detentions_df <-
         core_based_statistical_area,
         core_based_statistical_area_code,
         core_based_statistical_area_type,
+        combined_statistical_area,
+        combined_statistical_area_code,
         #  type_ddp, # Or whatever eventual name is
         starts_with("federal_court")
       ),
